@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+
+  /* NEXTGENERATION inspired palette */
+  --color-primary: #0693e3;
+  --color-primary-dark: #0574b8;
+  --color-primary-light: #e8f4fd;
+  --color-accent: #00d084;
+  --color-accent-dark: #00a86b;
+  --color-navy: #020381;
+  --color-navy-light: #2874fc;
+  --color-charcoal: #32373c;
+  --color-dark: #313131;
+  --color-gray-light: #eeeeee;
+  --color-purple: #9b51e0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: #0693e3;
+  --color-primary-dark: #0574b8;
+  --color-primary-light: #e8f4fd;
+  --color-accent: #00d084;
+  --color-accent-dark: #00a86b;
+  --color-navy: #020381;
+  --color-navy-light: #2874fc;
+  --color-charcoal: #32373c;
+  --color-dark: #313131;
+  --color-surface: #eeeeee;
+  --color-purple: #9b51e0;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* iOS のフォーム16px未満ズーム回避 */
+@media (max-width: 768px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* テーブルがオーバーフロー時に折り返さない (横スクロール想定) */
+table {
+  white-space: nowrap;
+}
+table td.whitespace-normal,
+table th.whitespace-normal {
+  white-space: normal;
+}
+
+/* スマホ時の見出しサイズ調整 */
+@media (max-width: 768px) {
+  h1.text-2xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+}

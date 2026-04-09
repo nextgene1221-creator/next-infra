@@ -1,0 +1,32 @@
+# Claude Code workspace
+.claude/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Node
+node_modules/
+
+# Next.js
+.next/
+out/
+build/
+
+# Generated Prisma client
+juku-system/src/generated/prisma/
+
+# OS / editor
+.DS_Store
+*.tsbuildinfo
+*.log
+
+# Misc
+.vercel

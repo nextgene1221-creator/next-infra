@@ -1,0 +1,276 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export const MEETING_TYPES = [
+  "定期面談",
+  "進路相談",
+  "学習相談",
+  "保護者面談",
+  "その他",
+] as const;
+
+type Meeting = {
+  id: string;
+  date: string | Date;
+  durationMinutes: number | null;
+  type: string | null;
+  content: string;
+  nextMeetingDate: string | Date | null;
+  teacher: { user: { name: string } };
+};
+
+export default function MeetingRecords({
+  studentId,
+  initialMeetings,
+  currentUserName,
+}: {
+  studentId: string;
+  initialMeetings: Meeting[];
+  currentUserName: string;
+}) {
+  const router = useRouter();
+  const [meetings, setMeetings] = useState(initialMeetings);
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [date, setDate] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState<number | "">("");
+  const [type, setType] = useState("");
+  const [content, setContent] = useState("");
+  const [nextMeetingDate, setNextMeetingDate] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const resetForm = () => {
+    setDate("");
+    setDurationMinutes("");
+    setType("");
+    setContent("");
+    setNextMeetingDate("");
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const openNew = () => {
+    resetForm();
+    setDate(new Date().toISOString().split("T")[0]);
+    setShowForm(true);
+  };
+
+  const openEdit = (meeting: Meeting) => {
+    setDate(new Date(meeting.date).toISOString().split("T")[0]);
+    setDurationMinutes(meeting.durationMinutes || "");
+    setType(meeting.type || "");
+    setContent(meeting.content);
+    setNextMeetingDate(
+      meeting.nextMeetingDate
+        ? new Date(meeting.nextMeetingDate).toISOString().split("T")[0]
+        : ""
+    );
+    setEditingId(meeting.id);
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    const body = {
+      studentId,
+      date,
+      durationMinutes: durationMinutes || null,
+      type: type || null,
+      content,
+      nextMeetingDate: nextMeetingDate || null,
+    };
+
+    const url = editingId ? `/api/meetings/${editingId}` : "/api/meetings";
+    const method = editingId ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (editingId) {
+        setMeetings((prev) => prev.map((m) => (m.id === editingId ? data : m)));
+      } else {
+        setMeetings((prev) => [data, ...prev]);
+      }
+      resetForm();
+      router.refresh();
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("この面談記録を削除しますか？")) return;
+    const res = await fetch(`/api/meetings/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setMeetings((prev) => prev.filter((m) => m.id !== id));
+      router.refresh();
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">面談記録</h2>
+        {!showForm && (
+          <button
+            onClick={openNew}
+            className="bg-primary text-white px-3 py-1.5 rounded-md text-sm hover:bg-primary-dark"
+          >
+            面談記録を追加
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSubmit} className="bg-surface rounded-lg p-4 mb-4 space-y-3">
+          <div className="bg-primary-light border border-primary/20 rounded-md px-3 py-2 text-sm">
+            <span className="text-dark/60">記録者: </span>
+            <span className="text-dark font-medium">{currentUserName}</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-charcoal">面談日</label>
+              <input
+                type="date"
+                required
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-charcoal">面談時間（分）</label>
+              <input
+                type="number"
+                min={1}
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(parseInt(e.target.value) || "")}
+                placeholder="例: 30"
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-charcoal">面談タイプ</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+              >
+                <option value="">選択してください</option>
+                {MEETING_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">面談内容</label>
+            <textarea
+              required
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={5}
+              placeholder="面談で話した内容、今後の方針、課題などを記録"
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="md:w-1/3">
+            <label className="block text-sm font-medium text-charcoal">次回面談予定（任意）</label>
+            <input
+              type="date"
+              value={nextMeetingDate}
+              onChange={(e) => setNextMeetingDate(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark disabled:opacity-50"
+            >
+              {saving ? "保存中..." : editingId ? "更新" : "追加"}
+            </button>
+            <button
+              type="button"
+              onClick={resetForm}
+              className="bg-white text-charcoal px-4 py-2 rounded-md text-sm border border-gray-300 hover:bg-gray-100"
+            >
+              キャンセル
+            </button>
+          </div>
+        </form>
+      )}
+
+      {meetings.length === 0 && !showForm ? (
+        <p className="text-dark/60 text-sm">面談記録がありません</p>
+      ) : (
+        <div className="space-y-3">
+          {meetings.map((meeting) => (
+            <div
+              key={meeting.id}
+              className="border border-gray-200 rounded-lg p-4 bg-white"
+            >
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-dark">
+                      {new Date(meeting.date).toLocaleDateString("ja-JP")}
+                    </span>
+                    {meeting.type && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary-light text-primary font-medium">
+                        {meeting.type}
+                      </span>
+                    )}
+                    {meeting.durationMinutes && (
+                      <span className="text-xs text-dark/60">
+                        {meeting.durationMinutes}分
+                      </span>
+                    )}
+                    <span className="text-xs text-dark/60">
+                      / 担当: {meeting.teacher.user.name}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-3 items-center">
+                  <button
+                    onClick={() => openEdit(meeting)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    編集
+                  </button>
+                  <button
+                    onClick={() => handleDelete(meeting.id)}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    削除
+                  </button>
+                </div>
+              </div>
+              <p className="text-sm text-dark whitespace-pre-wrap mt-2">
+                {meeting.content}
+              </p>
+              {meeting.nextMeetingDate && (
+                <p className="text-xs text-dark/60 mt-2">
+                  次回面談予定:{" "}
+                  {new Date(meeting.nextMeetingDate).toLocaleDateString("ja-JP")}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
