@@ -287,6 +287,33 @@ model BigGoal {
   @@map("big_goals")
 }
 
+model School {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  events    SchoolEvent[]
+
+  @@map("schools")
+}
+
+model SchoolEvent {
+  id          String   @id @default(uuid())
+  schoolId    String   @map("school_id")
+  title       String
+  description String   @default("")
+  startDate   DateTime @map("start_date")
+  endDate     DateTime? @map("end_date")
+  eventType   String   @default("その他") @map("event_type") // 試験 / 文化祭 / 体育祭 / 修学旅行 / その他
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("school_events")
+}
+
 model StudyScheduleDay {
   id        String   @id @default(uuid())
   studentId String   @map("student_id")

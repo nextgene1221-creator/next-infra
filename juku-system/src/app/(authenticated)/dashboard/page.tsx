@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import EventCalendar from "@/components/EventCalendar";
 
 export default async function DashboardPage() {
   const session = await requireAuth();
@@ -56,6 +57,23 @@ export default async function DashboardPage() {
     }
   }
 
+  const showCalendar = role === "admin" || role === "teacher";
+  const [schools, eventsRaw] = showCalendar
+    ? await Promise.all([
+        prisma.school.findMany({ orderBy: { name: "asc" } }),
+        prisma.schoolEvent.findMany({ include: { school: true }, orderBy: { startDate: "asc" } }),
+      ])
+    : [[], []];
+  const calendarEvents = eventsRaw.map((e) => ({
+    id: e.id,
+    schoolId: e.schoolId,
+    schoolName: e.school.name,
+    title: e.title,
+    startDate: e.startDate.toISOString(),
+    endDate: e.endDate ? e.endDate.toISOString() : null,
+    eventType: e.eventType,
+  }));
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-dark mb-6">ダッシュボード</h1>
@@ -72,6 +90,12 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {showCalendar && (
+        <div className="mb-6">
+          <EventCalendar schools={schools} events={calendarEvents} />
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-dark mb-4">

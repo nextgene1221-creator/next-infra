@@ -44,6 +44,29 @@ export default async function StudentDetailPage({
 
   if (!student) notFound();
 
+  // 期日超過かつ達成済の週次目標を自動で完了扱い（進捗は保存したまま、一覧から消える）
+  const now = new Date();
+  const autoCompleteTargets: string[] = [];
+  for (const bg of student.bigGoals) {
+    for (const w of bg.weeklyGoals) {
+      if (w.status === "completed") continue;
+      if (new Date(w.dueDate) >= now) continue;
+      const done = w.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0);
+      if (done >= w.targetPages) autoCompleteTargets.push(w.id);
+    }
+  }
+  if (autoCompleteTargets.length > 0) {
+    await prisma.learningGoal.updateMany({
+      where: { id: { in: autoCompleteTargets } },
+      data: { status: "completed" },
+    });
+    for (const bg of student.bigGoals) {
+      for (const w of bg.weeklyGoals) {
+        if (autoCompleteTargets.includes(w.id)) w.status = "completed";
+      }
+    }
+  }
+
   const examSubjects = student.examSubjects
     ? (JSON.parse(student.examSubjects) as string[])
     : [];
