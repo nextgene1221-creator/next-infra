@@ -10,21 +10,23 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { studentId, bigGoalId, subject, materialName, targetPages, startDate, dueDate, notes } = body;
+  const { studentId, subject, materialName, targetPages, startDate, dueDate, notes } = body;
+  if (!studentId || !subject || !materialName || !targetPages || !startDate || !dueDate) {
+    return NextResponse.json({ error: "必須項目が不足しています" }, { status: 400 });
+  }
 
-  const goal = await prisma.learningGoal.create({
+  const bigGoal = await prisma.bigGoal.create({
     data: {
       studentId,
-      bigGoalId: bigGoalId || null,
       subject,
       materialName,
       targetPages,
-      startDate: startDate ? new Date(startDate) : null,
+      startDate: new Date(startDate),
       dueDate: new Date(dueDate),
       status: "in_progress",
       notes: notes || "",
     },
   });
 
-  return NextResponse.json(goal, { status: 201 });
+  return NextResponse.json(bigGoal, { status: 201 });
 }

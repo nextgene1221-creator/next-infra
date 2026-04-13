@@ -34,6 +34,9 @@ export async function PUT(
   const {
     name, email, graduationYear, schoolName,
     parentName, parentPhone, parentEmail, enrollmentDate, status, notes,
+    furigana, gender, birthDate, mobilePhone, postalCode, address,
+    referrer, track, firstChoiceSchool, desiredFaculty, examSubjects,
+    considerRecommendation, eikenPlan, campus,
   } = body;
 
   const student = await prisma.student.findUnique({ where: { id } });
@@ -55,6 +58,20 @@ export async function PUT(
       enrollmentDate: new Date(enrollmentDate),
       status,
       notes: notes || "",
+      furigana: furigana || "",
+      gender: gender || "",
+      birthDate: birthDate ? new Date(birthDate) : null,
+      mobilePhone: mobilePhone || "",
+      postalCode: postalCode || "",
+      address: address || "",
+      referrer: referrer || "",
+      track: track || "",
+      firstChoiceSchool: firstChoiceSchool || "",
+      desiredFaculty: desiredFaculty || "",
+      examSubjects: JSON.stringify(Array.isArray(examSubjects) ? examSubjects : []),
+      considerRecommendation: !!considerRecommendation,
+      eikenPlan: eikenPlan || "",
+      campus: campus || "",
     },
   });
 

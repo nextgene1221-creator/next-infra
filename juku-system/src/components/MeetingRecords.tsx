@@ -16,6 +16,7 @@ type Meeting = {
   date: string | Date;
   durationMinutes: number | null;
   type: string | null;
+  status?: string;
   content: string;
   nextMeetingDate: string | Date | null;
   teacher: { user: { name: string } };
@@ -40,6 +41,7 @@ export default function MeetingRecords({
   const [type, setType] = useState("");
   const [content, setContent] = useState("");
   const [nextMeetingDate, setNextMeetingDate] = useState("");
+  const [status, setStatus] = useState("conducted");
   const [saving, setSaving] = useState(false);
 
   const resetForm = () => {
@@ -48,6 +50,7 @@ export default function MeetingRecords({
     setType("");
     setContent("");
     setNextMeetingDate("");
+    setStatus("conducted");
     setEditingId(null);
     setShowForm(false);
   };
@@ -68,6 +71,7 @@ export default function MeetingRecords({
         ? new Date(meeting.nextMeetingDate).toISOString().split("T")[0]
         : ""
     );
+    setStatus(meeting.status || "conducted");
     setEditingId(meeting.id);
     setShowForm(true);
   };
@@ -81,6 +85,7 @@ export default function MeetingRecords({
       date,
       durationMinutes: durationMinutes || null,
       type: type || null,
+      status,
       content,
       nextMeetingDate: nextMeetingDate || null,
     };
@@ -174,6 +179,17 @@ export default function MeetingRecords({
               </select>
             </div>
           </div>
+          <div className="md:w-1/3">
+            <label className="block text-sm font-medium text-charcoal">ステータス</label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+            >
+              <option value="conducted">実施</option>
+              <option value="rescheduled">振替</option>
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-medium text-charcoal">面談内容</label>
             <textarea
@@ -233,6 +249,15 @@ export default function MeetingRecords({
                         {meeting.type}
                       </span>
                     )}
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        meeting.status === "rescheduled"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-emerald-100 text-emerald-800"
+                      }`}
+                    >
+                      {meeting.status === "rescheduled" ? "振替" : "実施"}
+                    </span>
                     {meeting.durationMinutes && (
                       <span className="text-xs text-dark/60">
                         {meeting.durationMinutes}分

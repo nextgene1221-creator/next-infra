@@ -11,7 +11,11 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, email, password, subjects, employmentType, phone, status } = body;
+  const {
+    name, email, password, subjects, employmentType, phone, status,
+    universityFaculty, department, graduationYear, examSubjectsTaken,
+    emergencyContact, universityClub,
+  } = body;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -26,6 +30,12 @@ export async function POST(req: NextRequest) {
       employmentType,
       phone,
       status: status || "active",
+      universityFaculty: universityFaculty || "",
+      department: department || "",
+      graduationYear: graduationYear ? Number(graduationYear) : null,
+      examSubjectsTaken: JSON.stringify(Array.isArray(examSubjectsTaken) ? examSubjectsTaken : []),
+      emergencyContact: emergencyContact || "",
+      universityClub: universityClub || "",
       user: {
         create: {
           email,

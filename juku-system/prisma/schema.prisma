@@ -34,15 +34,33 @@ model Student {
   enrollmentDate DateTime @map("enrollment_date")
   status         String   @default("active") // active / inactive / withdrawn
   notes          String   @default("")
+  // 追加項目
+  furigana               String    @default("")
+  gender                 String    @default("") // male / female / other
+  birthDate              DateTime? @map("birth_date")
+  mobilePhone            String    @default("") @map("mobile_phone")
+  postalCode             String    @default("") @map("postal_code")
+  address                String    @default("")
+  referrer               String    @default("") // 塾の紹介者
+  track                  String    @default("") // liberal_arts / science / both
+  firstChoiceSchool      String    @default("") @map("first_choice_school")
+  desiredFaculty         String    @default("") @map("desired_faculty")
+  examSubjects           String    @default("[]") @map("exam_subjects") // JSON array
+  considerRecommendation Boolean   @default(false) @map("consider_recommendation")
+  eikenPlan              String    @default("") @map("eiken_plan")
+  campus                 String    @default("") // shuri / naha
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user             User              @relation(fields: [userId], references: [id])
-  progressRecords  ProgressRecord[]
-  tasks            Task[]
-  learningGoals    LearningGoal[]
-  meetings         Meeting[]
-  routineTasks     RoutineTask[]
+  user                User                 @relation(fields: [userId], references: [id])
+  progressRecords     ProgressRecord[]
+  tasks               Task[]
+  learningGoals       LearningGoal[]
+  bigGoals            BigGoal[]
+  meetings            Meeting[]
+  routineTasks        RoutineTask[]
+  assignments         StudentAssignment[]
+  studySchedule       StudyScheduleDay[]
 
   @@map("students")
 }
@@ -54,19 +72,40 @@ model Teacher {
   employmentType String   @map("employment_type") // full_time / part_time
   phone          String
   status         String   @default("active") // active / inactive
+  // 追加項目
+  universityFaculty String   @default("") @map("university_faculty") // 大学学部
+  department        String   @default("")                              // 学科
+  graduationYear    Int?     @map("graduation_year")                   // 卒業年度
+  examSubjectsTaken String   @default("[]") @map("exam_subjects_taken") // 受験した科目 JSON
+  emergencyContact  String   @default("") @map("emergency_contact")    // 緊急連絡先
+  universityClub    String   @default("") @map("university_club")      // 大学での部活
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user             User              @relation(fields: [userId], references: [id])
-  progressRecords  ProgressRecord[]
-  tasks            Task[]
-  shifts           Shift[]
-  meetings         Meeting[]
-  attendances      Attendance[]
-  routineTasks     RoutineTask[]
-  shiftTemplate    ShiftTemplate?
+  user                User                 @relation(fields: [userId], references: [id])
+  progressRecords     ProgressRecord[]
+  tasks               Task[]
+  shifts              Shift[]
+  meetings            Meeting[]
+  attendances         Attendance[]
+  routineTasks        RoutineTask[]
+  shiftTemplate       ShiftTemplate?
+  assignments         StudentAssignment[]
 
   @@map("teachers")
+}
+
+model StudentAssignment {
+  id        String   @id @default(uuid())
+  teacherId String   @map("teacher_id")
+  studentId String   @map("student_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, studentId])
+  @@map("student_assignments")
 }
 
 model ProgressRecord {
@@ -194,6 +233,7 @@ model Meeting {
   date            DateTime
   durationMinutes Int?      @map("duration_minutes") // 面談時間（分）
   type            String?   // 定期面談 / 進路相談 / 学習相談 / 保護者面談 / その他
+  status          String    @default("conducted") // conducted / rescheduled
   content         String    // 面談内容
   nextMeetingDate DateTime? @map("next_meeting_date")
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -206,20 +246,57 @@ model Meeting {
 }
 
 model LearningGoal {
+  id           String    @id @default(uuid())
+  studentId    String    @map("student_id")
+  bigGoalId    String?   @map("big_goal_id")
+  subject      String    // 科目
+  materialName String    @map("material_name")   // 教材名
+  targetPages  Int       @map("target_pages")    // 目標ページ数
+  startDate    DateTime? @map("start_date")      // 週の開始日
+  dueDate      DateTime  @map("due_date")        // 週の終了日（完了期限）
+  status       String    @default("in_progress") // in_progress / completed
+  notes        String    @default("")
+  paceAlerted  Boolean   @default(false) @map("pace_alerted")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  student         Student          @relation(fields: [studentId], references: [id])
+  bigGoal         BigGoal?         @relation(fields: [bigGoalId], references: [id])
+  progressRecords ProgressRecord[]
+
+  @@map("learning_goals")
+}
+
+model BigGoal {
   id           String   @id @default(uuid())
   studentId    String   @map("student_id")
-  subject      String   // 科目
-  materialName String   @map("material_name")   // 教材名
-  targetPages  Int      @map("target_pages")    // 目標ページ数
-  dueDate      DateTime @map("due_date")        // 完了期限日
+  subject      String
+  materialName String   @map("material_name")
+  targetPages  Int      @map("target_pages")
+  startDate    DateTime @map("start_date")
+  dueDate      DateTime @map("due_date")
   status       String   @default("in_progress") // in_progress / completed
   notes        String   @default("")
   paceAlerted  Boolean  @default(false) @map("pace_alerted")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  student         Student          @relation(fields: [studentId], references: [id])
-  progressRecords ProgressRecord[]
+  student      Student        @relation(fields: [studentId], references: [id])
+  weeklyGoals  LearningGoal[]
 
-  @@map("learning_goals")
+  @@map("big_goals")
+}
+
+model StudyScheduleDay {
+  id        String   @id @default(uuid())
+  studentId String   @map("student_id")
+  weekday   Int      // 0=日 ... 6=土
+  hours     Float    @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, weekday])
+  @@map("study_schedule_days")
 }

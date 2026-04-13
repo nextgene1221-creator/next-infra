@@ -14,23 +14,22 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { bigGoalId, subject, materialName, targetPages, startDate, dueDate, notes, status } = body;
+  const { subject, materialName, targetPages, startDate, dueDate, notes, status } = body;
 
-  const goal = await prisma.learningGoal.update({
+  const bigGoal = await prisma.bigGoal.update({
     where: { id },
     data: {
-      bigGoalId: bigGoalId === undefined ? undefined : bigGoalId || null,
       subject,
       materialName,
       targetPages,
-      startDate: startDate ? new Date(startDate) : null,
+      startDate: new Date(startDate),
       dueDate: new Date(dueDate),
       status: status || "in_progress",
       notes: notes || "",
     },
   });
 
-  return NextResponse.json(goal);
+  return NextResponse.json(bigGoal);
 }
 
 export async function DELETE(
@@ -44,13 +43,11 @@ export async function DELETE(
 
   const { id } = await params;
 
-  // 紐づく進捗の goalId を null に
-  await prisma.progressRecord.updateMany({
-    where: { goalId: id },
-    data: { goalId: null },
+  await prisma.learningGoal.updateMany({
+    where: { bigGoalId: id },
+    data: { bigGoalId: null },
   });
-
-  await prisma.learningGoal.delete({ where: { id } });
+  await prisma.bigGoal.delete({ where: { id } });
 
   return NextResponse.json({ success: true });
 }

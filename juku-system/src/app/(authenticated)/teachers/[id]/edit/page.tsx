@@ -12,6 +12,12 @@ type TeacherForm = {
   employmentType: string;
   phone: string;
   status: string;
+  universityFaculty: string;
+  department: string;
+  graduationYear: string;
+  examSubjectsTaken: string[];
+  emergencyContact: string;
+  universityClub: string;
 };
 
 const initial: TeacherForm = {
@@ -22,6 +28,12 @@ const initial: TeacherForm = {
   employmentType: "part_time",
   phone: "",
   status: "active",
+  universityFaculty: "",
+  department: "",
+  graduationYear: "",
+  examSubjectsTaken: [],
+  emergencyContact: "",
+  universityClub: "",
 };
 
 export default function TeacherEditPage() {
@@ -48,6 +60,12 @@ export default function TeacherEditPage() {
             employmentType: data.employmentType,
             phone: data.phone,
             status: data.status,
+            universityFaculty: data.universityFaculty || "",
+            department: data.department || "",
+            graduationYear: data.graduationYear ? String(data.graduationYear) : "",
+            examSubjectsTaken: data.examSubjectsTaken ? JSON.parse(data.examSubjectsTaken) : [],
+            emergencyContact: data.emergencyContact || "",
+            universityClub: data.universityClub || "",
           });
           setLoading(false);
         });
@@ -87,7 +105,18 @@ export default function TeacherEditPage() {
     }));
   };
 
+  const toggleExamTaken = (subject: string) => {
+    setForm((prev) => ({
+      ...prev,
+      examSubjectsTaken: prev.examSubjectsTaken.includes(subject)
+        ? prev.examSubjectsTaken.filter((s) => s !== subject)
+        : [...prev.examSubjectsTaken, subject],
+    }));
+  };
+
   if (loading) return <div className="text-dark/60">読み込み中...</div>;
+
+  const inputCls = "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm";
 
   return (
     <div>
@@ -95,7 +124,7 @@ export default function TeacherEditPage() {
         {isNew ? "講師新規登録" : "講師情報編集"}
       </h1>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 max-w-2xl space-y-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 max-w-3xl space-y-4">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
         )}
@@ -103,65 +132,55 @@ export default function TeacherEditPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-charcoal">氏名</label>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
+            <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} />
           </div>
           <div>
             <label className="block text-sm font-medium text-charcoal">メールアドレス</label>
-            <input
-              type="email"
-              required
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
+            <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputCls} />
           </div>
           {isNew && (
             <div>
               <label className="block text-sm font-medium text-charcoal">パスワード</label>
-              <input
-                type="password"
-                required={isNew}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              />
+              <input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={inputCls} />
             </div>
           )}
           <div>
             <label className="block text-sm font-medium text-charcoal">電話番号</label>
-            <input
-              required
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
+            <input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">緊急連絡先</label>
+            <input value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })} className={inputCls} />
           </div>
           <div>
             <label className="block text-sm font-medium text-charcoal">雇用形態</label>
-            <select
-              value={form.employmentType}
-              onChange={(e) => setForm({ ...form, employmentType: e.target.value })}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
+            <select value={form.employmentType} onChange={(e) => setForm({ ...form, employmentType: e.target.value })} className={inputCls}>
               <option value="full_time">常勤</option>
               <option value="part_time">非常勤</option>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-charcoal">ステータス</label>
-            <select
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
+            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={inputCls}>
               <option value="active">稼働中</option>
               <option value="inactive">非稼働</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">大学学部</label>
+            <input value={form.universityFaculty} onChange={(e) => setForm({ ...form, universityFaculty: e.target.value })} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">学科</label>
+            <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">卒業年度</label>
+            <input type="number" min={1980} max={2040} value={form.graduationYear} onChange={(e) => setForm({ ...form, graduationYear: e.target.value })} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">大学での部活</label>
+            <input value={form.universityClub} onChange={(e) => setForm({ ...form, universityClub: e.target.value })} className={inputCls} />
           </div>
         </div>
 
@@ -185,19 +204,31 @@ export default function TeacherEditPage() {
           </div>
         </div>
 
+        <div>
+          <label className="block text-sm font-medium text-charcoal mb-2">受験した科目</label>
+          <div className="flex flex-wrap gap-2">
+            {SUBJECTS.map((subject) => (
+              <button
+                key={subject}
+                type="button"
+                onClick={() => toggleExamTaken(subject)}
+                className={`px-3 py-1 rounded-full text-sm ${
+                  form.examSubjectsTaken.includes(subject)
+                    ? "bg-primary text-white"
+                    : "bg-surface text-charcoal hover:bg-gray-300"
+                }`}
+              >
+                {subject}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark disabled:opacity-50"
-          >
+          <button type="submit" disabled={saving} className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark disabled:opacity-50">
             {saving ? "保存中..." : "保存"}
           </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="bg-surface text-charcoal px-4 py-2 rounded-md text-sm hover:bg-gray-200"
-          >
+          <button type="button" onClick={() => router.back()} className="bg-surface text-charcoal px-4 py-2 rounded-md text-sm hover:bg-gray-200">
             キャンセル
           </button>
         </div>

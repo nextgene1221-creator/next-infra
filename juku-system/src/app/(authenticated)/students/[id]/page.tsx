@@ -2,7 +2,7 @@ import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import LearningGoals from "./LearningGoals";
+import GoalsPanel from "./GoalsPanel";
 import MeetingRecords from "@/components/MeetingRecords";
 
 export default async function StudentDetailPage({
@@ -22,18 +22,40 @@ export default async function StudentDetailPage({
         orderBy: { date: "desc" },
         take: 10,
       },
-      learningGoals: {
+      bigGoals: {
         orderBy: { dueDate: "asc" },
-        include: { progressRecords: { select: { pagesCompleted: true } } },
+        include: {
+          weeklyGoals: {
+            orderBy: { dueDate: "asc" },
+            include: { progressRecords: { select: { pagesCompleted: true, date: true } } },
+          },
+        },
       },
       meetings: {
         orderBy: { date: "desc" },
         include: { teacher: { include: { user: true } } },
       },
+      assignments: {
+        include: { teacher: { include: { user: true } } },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
   if (!student) notFound();
+
+  const examSubjects = student.examSubjects
+    ? (JSON.parse(student.examSubjects) as string[])
+    : [];
+  const campusLabel = student.campus === "shuri" ? "首里校舎" : student.campus === "naha" ? "那覇校舎" : "";
+  const trackLabel =
+    student.track === "liberal_arts" ? "文系" :
+    student.track === "science" ? "理系" :
+    student.track === "both" ? "どちらも" : "";
+  const genderLabel =
+    student.gender === "male" ? "男性" :
+    student.gender === "female" ? "女性" :
+    student.gender === "other" ? "その他" : "";
 
   return (
     <div>
@@ -88,6 +110,90 @@ export default async function StudentDetailPage({
               <dt className="w-32 text-sm text-dark/60">保護者メール</dt>
               <dd className="text-sm text-dark">{student.parentEmail}</dd>
             </div>
+            {student.furigana && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">ふりがな</dt>
+                <dd className="text-sm text-dark">{student.furigana}</dd>
+              </div>
+            )}
+            {genderLabel && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">性別</dt>
+                <dd className="text-sm text-dark">{genderLabel}</dd>
+              </div>
+            )}
+            {student.birthDate && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">生年月日</dt>
+                <dd className="text-sm text-dark">
+                  {new Date(student.birthDate).toLocaleDateString("ja-JP")}
+                </dd>
+              </div>
+            )}
+            {student.mobilePhone && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">携帯電話</dt>
+                <dd className="text-sm text-dark">{student.mobilePhone}</dd>
+              </div>
+            )}
+            {student.postalCode && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">郵便番号</dt>
+                <dd className="text-sm text-dark">{student.postalCode}</dd>
+              </div>
+            )}
+            {student.address && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">住所</dt>
+                <dd className="text-sm text-dark">{student.address}</dd>
+              </div>
+            )}
+            {campusLabel && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">入塾校舎</dt>
+                <dd className="text-sm text-dark">{campusLabel}</dd>
+              </div>
+            )}
+            {student.referrer && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">紹介者</dt>
+                <dd className="text-sm text-dark">{student.referrer}</dd>
+              </div>
+            )}
+            {trackLabel && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">文理</dt>
+                <dd className="text-sm text-dark">{trackLabel}</dd>
+              </div>
+            )}
+            {student.firstChoiceSchool && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">第1志望校</dt>
+                <dd className="text-sm text-dark">{student.firstChoiceSchool}</dd>
+              </div>
+            )}
+            {student.desiredFaculty && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">志望学部系統</dt>
+                <dd className="text-sm text-dark">{student.desiredFaculty}</dd>
+              </div>
+            )}
+            {examSubjects.length > 0 && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">受験科目</dt>
+                <dd className="text-sm text-dark">{examSubjects.join(", ")}</dd>
+              </div>
+            )}
+            <div className="flex">
+              <dt className="w-32 text-sm text-dark/60">総合・推薦</dt>
+              <dd className="text-sm text-dark">{student.considerRecommendation ? "検討あり" : "検討なし"}</dd>
+            </div>
+            {student.eikenPlan && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">英検受験予定</dt>
+                <dd className="text-sm text-dark">{student.eikenPlan}</dd>
+              </div>
+            )}
             {student.notes && (
               <div className="flex">
                 <dt className="w-32 text-sm text-dark/60">備考</dt>
@@ -95,6 +201,23 @@ export default async function StudentDetailPage({
               </div>
             )}
           </dl>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">担当講師</h2>
+          {student.assignments.length === 0 ? (
+            <p className="text-dark/60 text-sm">担当講師がいません</p>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {student.assignments.map((a) => (
+                <li key={a.id} className="py-2">
+                  <Link href={`/teachers/${a.teacher.id}`} className="text-sm hover:underline">
+                    {a.teacher.user.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Recent Progress */}
@@ -125,7 +248,7 @@ export default async function StudentDetailPage({
 
         {/* Learning Goals */}
         <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
-          <LearningGoals studentId={id} initialGoals={student.learningGoals} />
+          <GoalsPanel studentId={id} initialBigGoals={student.bigGoals} />
         </div>
 
         {/* Meeting Records */}

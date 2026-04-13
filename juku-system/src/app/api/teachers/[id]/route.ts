@@ -31,7 +31,11 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { name, email, subjects, employmentType, phone, status } = body;
+  const {
+    name, email, subjects, employmentType, phone, status,
+    universityFaculty, department, graduationYear, examSubjectsTaken,
+    emergencyContact, universityClub,
+  } = body;
 
   const teacher = await prisma.teacher.findUnique({ where: { id } });
   if (!teacher) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -48,6 +52,12 @@ export async function PUT(
       employmentType,
       phone,
       status,
+      universityFaculty: universityFaculty || "",
+      department: department || "",
+      graduationYear: graduationYear ? Number(graduationYear) : null,
+      examSubjectsTaken: JSON.stringify(Array.isArray(examSubjectsTaken) ? examSubjectsTaken : []),
+      emergencyContact: emergencyContact || "",
+      universityClub: universityClub || "",
     },
   });
 

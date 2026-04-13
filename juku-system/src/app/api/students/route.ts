@@ -4,6 +4,20 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session.user.role === "student") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const students = await prisma.student.findMany({
+    include: { user: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return NextResponse.json(students);
+}
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== "admin") {
@@ -14,6 +28,9 @@ export async function POST(req: NextRequest) {
   const {
     name, email, password, graduationYear, schoolName,
     parentName, parentPhone, parentEmail, enrollmentDate, status, notes,
+    furigana, gender, birthDate, mobilePhone, postalCode, address,
+    referrer, track, firstChoiceSchool, desiredFaculty, examSubjects,
+    considerRecommendation, eikenPlan, campus,
   } = body;
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -33,6 +50,20 @@ export async function POST(req: NextRequest) {
       enrollmentDate: new Date(enrollmentDate),
       status: status || "active",
       notes: notes || "",
+      furigana: furigana || "",
+      gender: gender || "",
+      birthDate: birthDate ? new Date(birthDate) : null,
+      mobilePhone: mobilePhone || "",
+      postalCode: postalCode || "",
+      address: address || "",
+      referrer: referrer || "",
+      track: track || "",
+      firstChoiceSchool: firstChoiceSchool || "",
+      desiredFaculty: desiredFaculty || "",
+      examSubjects: JSON.stringify(Array.isArray(examSubjects) ? examSubjects : []),
+      considerRecommendation: !!considerRecommendation,
+      eikenPlan: eikenPlan || "",
+      campus: campus || "",
       user: {
         create: {
           email,

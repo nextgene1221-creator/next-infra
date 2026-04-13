@@ -4,13 +4,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import RoutineTaskManager from "@/components/RoutineTaskManager";
 import ShiftTemplateForm from "@/components/ShiftTemplateForm";
+import AssignmentManager from "@/components/AssignmentManager";
 
 export default async function TeacherDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAuth(["admin"]);
+  const session = await requireAuth(["admin", "teacher"]);
   const { id } = await params;
 
   const teacher = await prisma.teacher.findUnique({
@@ -27,12 +28,22 @@ export default async function TeacherDetailPage({
         take: 20,
       },
       shiftTemplate: true,
+      assignments: {
+        include: { student: { include: { user: true } } },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
   if (!teacher) notFound();
 
   const subjects = JSON.parse(teacher.subjects) as string[];
+  const examSubjectsTaken = teacher.examSubjectsTaken
+    ? (JSON.parse(teacher.examSubjectsTaken) as string[])
+    : [];
+  const canEditAssignments =
+    session.user.role === "admin" ||
+    (session.user.role === "teacher" && teacher.userId === session.user.id);
 
   // 出退勤履歴とシフトの照合
   const attendanceWithShift = teacher.attendances.map((a) => {
@@ -88,7 +99,58 @@ export default async function TeacherDetailPage({
                 {teacher.status === "active" ? "稼働中" : "非稼働"}
               </dd>
             </div>
+            {teacher.universityFaculty && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">大学学部</dt>
+                <dd className="text-sm text-dark">{teacher.universityFaculty}</dd>
+              </div>
+            )}
+            {teacher.department && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">学科</dt>
+                <dd className="text-sm text-dark">{teacher.department}</dd>
+              </div>
+            )}
+            {teacher.graduationYear && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">卒業年度</dt>
+                <dd className="text-sm text-dark">{teacher.graduationYear}年</dd>
+              </div>
+            )}
+            {examSubjectsTaken.length > 0 && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">受験した科目</dt>
+                <dd className="text-sm text-dark">{examSubjectsTaken.join(", ")}</dd>
+              </div>
+            )}
+            {teacher.emergencyContact && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">緊急連絡先</dt>
+                <dd className="text-sm text-dark">{teacher.emergencyContact}</dd>
+              </div>
+            )}
+            {teacher.universityClub && (
+              <div className="flex">
+                <dt className="w-32 text-sm text-dark/60">大学での部活</dt>
+                <dd className="text-sm text-dark">{teacher.universityClub}</dd>
+              </div>
+            )}
           </dl>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
+          <AssignmentManager
+            teacherId={id}
+            initialAssignments={teacher.assignments.map((a) => ({
+              id: a.id,
+              student: {
+                id: a.student.id,
+                schoolName: a.student.schoolName,
+                user: { id: a.student.user.id, name: a.student.user.name },
+              },
+            }))}
+            canEdit={canEditAssignments}
+          />
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">

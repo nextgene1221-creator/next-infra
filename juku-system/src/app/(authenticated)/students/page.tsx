@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import ClickableRow from "@/components/ClickableRow";
+import { computeStudentAlerts } from "@/lib/studentAlerts";
 
 export default async function StudentsPage({
   searchParams,
@@ -28,9 +29,32 @@ export default async function StudentsPage({
     orderBy: { createdAt: "desc" },
   });
 
-  // フィルタ用の卒業年度リストを生成（現在年から+3年）
+  const alerts = await computeStudentAlerts(students.map((s) => s.id));
+
+  // 優先度: both(3) > paceOnly(2) > meetingOnly(2) > none(0)、active 生徒のみアラート対象
+  const ranked = students.map((s) => {
+    const a = alerts.get(s.id);
+    const isActive = s.status === "active";
+    const meetingGap = !!(isActive && a?.meetingGap);
+    const paceAlert = !!(isActive && a?.paceAlert);
+    const both = meetingGap && paceAlert;
+    const priority = both ? 3 : meetingGap || paceAlert ? 2 : 0;
+    return { student: s, meetingGap, paceAlert, both, priority };
+  });
+  ranked.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    return new Date(b.student.createdAt).getTime() - new Date(a.student.createdAt).getTime();
+  });
+
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear + i);
+
+  const rowClass = (both: boolean, meeting: boolean, pace: boolean) => {
+    if (both) return "bg-red-50 hover:bg-red-100";
+    if (meeting) return "bg-yellow-50 hover:bg-yellow-100";
+    if (pace) return "bg-orange-50 hover:bg-orange-100";
+    return "hover:bg-surface";
+  };
 
   return (
     <div>
@@ -44,6 +68,12 @@ export default async function StudentsPage({
             新規登録
           </Link>
         )}
+      </div>
+
+      <div className="bg-white p-3 rounded-lg shadow mb-4 flex gap-4 flex-wrap text-xs text-dark/70">
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-200 inline-block" />💬 面談が2週間以上空いている</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-200 inline-block" />🐢 学習が遅れている</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-200 inline-block" />🚨 両方該当</span>
       </div>
 
       <form className="bg-white p-4 rounded-lg shadow mb-6 flex gap-4 flex-wrap">
@@ -87,6 +117,7 @@ export default async function StudentsPage({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-surface">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">状態</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">名前</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">卒業年度</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">高校名</th>
@@ -95,9 +126,21 @@ export default async function StudentsPage({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {students.map((student) => (
-              <ClickableRow key={student.id} href={`/students/${student.id}`} className="hover:bg-surface">
-                <td className="px-6 py-4 text-sm text-primary font-medium">
+            {ranked.map(({ student, meetingGap, paceAlert, both }) => (
+              <ClickableRow
+                key={student.id}
+                href={`/students/${student.id}`}
+                className={rowClass(both, meetingGap, paceAlert)}
+              >
+                <td className="px-6 py-4 text-lg" title={
+                  both ? "面談が2週間以上空いており、学習も遅れています"
+                  : meetingGap ? "面談が2週間以上空いています"
+                  : paceAlert ? "学習が遅れています"
+                  : ""
+                }>
+                  {both ? "🚨" : meetingGap ? "💬" : paceAlert ? "🐢" : ""}
+                </td>
+                <td className={`px-6 py-4 text-sm font-medium ${both ? "text-red-700" : meetingGap ? "text-yellow-800" : paceAlert ? "text-orange-800" : "text-primary"}`}>
                   {student.user.name}
                 </td>
                 <td className="px-6 py-4 text-sm text-dark">{student.graduationYear}年度卒</td>
@@ -120,9 +163,9 @@ export default async function StudentsPage({
                 </td>
               </ClickableRow>
             ))}
-            {students.length === 0 && (
+            {ranked.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-dark/60">
+                <td colSpan={6} className="px-6 py-8 text-center text-dark/60">
                   生徒が見つかりません
                 </td>
               </tr>

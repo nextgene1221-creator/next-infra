@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { studentId, date, durationMinutes, type, content, nextMeetingDate } = body;
+  const { studentId, date, durationMinutes, type, content, nextMeetingDate, status } = body;
 
   const meeting = await prisma.meeting.create({
     data: {
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       date: new Date(date),
       durationMinutes: durationMinutes ? parseInt(durationMinutes) : null,
       type: type || null,
+      status: status === "rescheduled" ? "rescheduled" : "conducted",
       content,
       nextMeetingDate: nextMeetingDate ? new Date(nextMeetingDate) : null,
     },

@@ -27,11 +27,32 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [alertCount, setAlertCount] = useState(0);
 
   // ページ遷移時にメニューを閉じる
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  // 両方該当の生徒数を取得して定期的に更新
+  useEffect(() => {
+    if (userRole === "student") return;
+    let cancelled = false;
+    const fetchCount = async () => {
+      try {
+        const res = await fetch("/api/students/alert-count");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setAlertCount(data.count || 0);
+      } catch {}
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [userRole, pathname]);
 
   const roleLabel = userRole === "admin" ? "管理者" : userRole === "teacher" ? "講師" : "生徒";
 
@@ -108,17 +129,26 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
             .filter((item) => item.roles.includes(userRole))
             .map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+              const showBadge = item.href === "/students" && alertCount > 0;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`block px-3 py-2 rounded-md text-sm transition-colors ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
                     isActive
                       ? "bg-primary text-white font-medium"
                       : "text-white/70 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {showBadge && (
+                    <span
+                      className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold animate-pulse"
+                      title="面談空き・学習遅れ 両方該当の生徒数"
+                    >
+                      🚨 {alertCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
