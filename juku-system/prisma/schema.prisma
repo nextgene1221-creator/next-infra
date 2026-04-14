@@ -72,6 +72,7 @@ model StudyRoomSession {
   id            String    @id @default(uuid())
   studentId     String    @map("student_id")
   campus        String    // shuri / naha
+  seatType      String    @default("booth") @map("seat_type") // booth / table
   checkInAt     DateTime  @map("check_in_at")
   checkOutAt    DateTime? @map("check_out_at")
   autoCheckedOut Boolean  @default(false) @map("auto_checked_out")
@@ -84,6 +85,16 @@ model StudyRoomSession {
   @@index([studentId, checkOutAt])
   @@index([campus, checkOutAt])
   @@map("study_room_sessions")
+}
+
+model StudyRoomConfig {
+  id             String   @id @default(uuid())
+  campus         String   @unique // shuri / naha
+  boothCapacity  Int      @default(10) @map("booth_capacity")
+  tableCapacity  Int      @default(0)  @map("table_capacity")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("study_room_configs")
 }
 
 model PointTransaction {

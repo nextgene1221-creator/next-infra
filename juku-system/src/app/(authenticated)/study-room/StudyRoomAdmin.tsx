@@ -9,6 +9,8 @@ type HistoryItem = {
   studentName: string;
   campus: string;
   campusLabel: string;
+  seatType: string;
+  seatLabel: string;
   checkInAt: string;
   checkOutAt: string;
   autoCheckedOut: boolean;
@@ -122,6 +124,7 @@ export default function StudyRoomAdmin({
                 <tr>
                   <th className="px-2 py-1 text-left">生徒</th>
                   <th className="px-2 py-1 text-left">校舎</th>
+                  <th className="px-2 py-1 text-left">席種</th>
                   <th className="px-2 py-1 text-left">入室</th>
                   <th className="px-2 py-1 text-left">退室</th>
                   <th className="px-2 py-1 text-center">P</th>
@@ -132,6 +135,7 @@ export default function StudyRoomAdmin({
                   <tr key={h.id} className={h.autoCheckedOut ? "bg-yellow-50" : ""}>
                     <td className="px-2 py-1">{h.studentName}</td>
                     <td className="px-2 py-1">{h.campusLabel}</td>
+                    <td className="px-2 py-1">{h.seatLabel}</td>
                     <td className="px-2 py-1 whitespace-nowrap">
                       {new Date(h.checkInAt).toLocaleString("ja-JP", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
                     </td>

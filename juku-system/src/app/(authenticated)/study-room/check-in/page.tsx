@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { campusLabel, STUDY_ROOM_CAPACITY } from "@/lib/studyRoom";
-import CheckInOutButton from "../CheckInOutButton";
+import { campusLabel, getOrInitConfig } from "@/lib/studyRoom";
+import CheckInForm from "./CheckInForm";
 
 export default async function CheckInPage({
   searchParams,
@@ -12,39 +12,56 @@ export default async function CheckInPage({
   const { campus } = await searchParams;
   const campusValue = campus || "shuri";
 
-  // 生徒の現在状態
-  let state: { inRoom: boolean; currentCampus?: string; studentId?: string } = { inRoom: false };
+  const config = await getOrInitConfig(campusValue);
+  const [boothUsed, tableUsed] = await Promise.all([
+    prisma.studyRoomSession.count({ where: { campus: campusValue, seatType: "booth", checkOutAt: null } }),
+    prisma.studyRoomSession.count({ where: { campus: campusValue, seatType: "table", checkOutAt: null } }),
+  ]);
+
+  let studentOpen: { campus: string } | null = null;
   if (session.user.role === "student") {
     const student = await prisma.student.findUnique({ where: { userId: session.user.id } });
     if (student) {
       const open = await prisma.studyRoomSession.findFirst({
         where: { studentId: student.id, checkOutAt: null },
       });
-      state = { inRoom: !!open, currentCampus: open?.campus, studentId: student.id };
+      if (open) studentOpen = { campus: open.campus };
     }
   }
-
-  // 現在の在室人数
-  const occupancy = await prisma.studyRoomSession.count({
-    where: { campus: campusValue, checkOutAt: null },
-  });
 
   return (
     <div className="max-w-md mx-auto mt-8">
       <div className="bg-white rounded-lg shadow p-6 text-center">
         <p className="text-xs text-dark/60">自習室 入室</p>
         <h1 className="text-2xl font-bold text-dark mt-1">{campusLabel(campusValue)}</h1>
-        <p className="text-sm text-dark/70 mt-2">
-          現在 <span className="font-bold text-primary">{occupancy}</span> / {STUDY_ROOM_CAPACITY} 席
-        </p>
+
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <div className="bg-surface rounded p-3">
+            <p className="text-xs text-dark/60">ブース席</p>
+            <p className="text-lg font-bold text-primary">
+              {boothUsed}/{config.boothCapacity}
+            </p>
+          </div>
+          <div className="bg-surface rounded p-3">
+            <p className="text-xs text-dark/60">テーブル席</p>
+            <p className="text-lg font-bold text-primary">
+              {tableUsed}/{config.tableCapacity}
+            </p>
+          </div>
+        </div>
+
         {session.user.role === "student" ? (
           <div className="mt-6">
-            {state.inRoom ? (
+            {studentOpen ? (
               <p className="text-orange-600 text-sm">
-                すでに {campusLabel(state.currentCampus!)} に入室中です。まず退室してください。
+                すでに {campusLabel(studentOpen.campus)} に入室中です。先に退室してください。
               </p>
             ) : (
-              <CheckInOutButton action="check-in" campus={campusValue} label="入室する" />
+              <CheckInForm
+                campus={campusValue}
+                boothAvailable={config.boothCapacity - boothUsed}
+                tableAvailable={config.tableCapacity - tableUsed}
+              />
             )}
           </div>
         ) : (

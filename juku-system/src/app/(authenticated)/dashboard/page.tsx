@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import EventCalendar from "@/components/EventCalendar";
 import { computeTodayPlan, type WeeklyGoalLite } from "@/lib/todayPlan";
-import { CAMPUSES, STUDY_ROOM_CAPACITY, campusLabel } from "@/lib/studyRoom";
+import { CAMPUSES, campusLabel, getAllConfigs } from "@/lib/studyRoom";
 
 export default async function DashboardPage() {
   const session = await requireAuth();
@@ -92,12 +92,26 @@ export default async function DashboardPage() {
   }
 
   // 自習室の空席状況（全ロール向け）
-  const openSessions = await prisma.studyRoomSession.findMany({
-    where: { checkOutAt: null },
-    select: { campus: true },
-  });
+  const [openSessions, configs] = await Promise.all([
+    prisma.studyRoomSession.findMany({
+      where: { checkOutAt: null },
+      select: { campus: true, seatType: true },
+    }),
+    getAllConfigs(),
+  ]);
   const occupancy = Object.fromEntries(
-    CAMPUSES.map((c) => [c.value, openSessions.filter((s) => s.campus === c.value).length])
+    CAMPUSES.map((c) => {
+      const cfg = configs.find((x) => x.campus === c.value);
+      return [
+        c.value,
+        {
+          booth: openSessions.filter((s) => s.campus === c.value && s.seatType === "booth").length,
+          table: openSessions.filter((s) => s.campus === c.value && s.seatType === "table").length,
+          boothCap: cfg?.boothCapacity ?? 0,
+          tableCap: cfg?.tableCapacity ?? 0,
+        },
+      ];
+    })
   );
 
   // 生徒の現在状態・ポイント
@@ -158,17 +172,13 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {CAMPUSES.map((c) => {
-          const count = occupancy[c.value] || 0;
-          const pct = (count / STUDY_ROOM_CAPACITY) * 100;
+          const o = occupancy[c.value] as { booth: number; table: number; boothCap: number; tableCap: number };
           return (
             <div key={c.value} className="bg-white rounded-lg shadow p-4">
               <p className="text-xs text-dark/60">🪑 自習室 {c.label}</p>
-              <p className="mt-1">
-                <span className="text-3xl font-bold text-primary">{count}</span>
-                <span className="text-sm text-dark/60"> / {STUDY_ROOM_CAPACITY} 席</span>
-              </p>
-              <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
-                <div className="bg-primary h-1.5 rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
+              <div className="mt-2 space-y-2">
+                <SeatRow label="ブース席" used={o.booth} cap={o.boothCap} />
+                <SeatRow label="テーブル席" used={o.table} cap={o.tableCap} />
               </div>
             </div>
           );
@@ -266,6 +276,24 @@ export default async function DashboardPage() {
           <EventCalendar schools={schools} events={calendarEvents} />
         </div>
       )}
+    </div>
+  );
+}
+
+function SeatRow({ label, used, cap }: { label: string; used: number; cap: number }) {
+  const pct = cap > 0 ? Math.min(100, (used / cap) * 100) : 0;
+  return (
+    <div>
+      <div className="flex justify-between text-xs">
+        <span className="text-dark/70">{label}</span>
+        <span>
+          <span className="font-bold text-primary">{used}</span>
+          <span className="text-dark/60">/{cap}</span>
+        </span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-0.5">
+        <div className="bg-primary h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
