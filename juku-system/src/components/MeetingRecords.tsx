@@ -18,6 +18,7 @@ type Meeting = {
   type: string | null;
   status?: string;
   content: string;
+  parentComment?: string;
   nextMeetingDate: string | Date | null;
   teacher: { user: { name: string } };
 };
@@ -42,6 +43,7 @@ export default function MeetingRecords({
   const [content, setContent] = useState("");
   const [nextMeetingDate, setNextMeetingDate] = useState("");
   const [status, setStatus] = useState("conducted");
+  const [parentComment, setParentComment] = useState("");
   const [saving, setSaving] = useState(false);
 
   const resetForm = () => {
@@ -51,6 +53,7 @@ export default function MeetingRecords({
     setContent("");
     setNextMeetingDate("");
     setStatus("conducted");
+    setParentComment("");
     setEditingId(null);
     setShowForm(false);
   };
@@ -72,6 +75,7 @@ export default function MeetingRecords({
         : ""
     );
     setStatus(meeting.status || "conducted");
+    setParentComment(meeting.parentComment || "");
     setEditingId(meeting.id);
     setShowForm(true);
   };
@@ -87,6 +91,7 @@ export default function MeetingRecords({
       type: type || null,
       status,
       content,
+      parentComment,
       nextMeetingDate: nextMeetingDate || null,
     };
 
@@ -207,6 +212,16 @@ export default function MeetingRecords({
               type="date"
               value={nextMeetingDate}
               onChange={(e) => setNextMeetingDate(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">親御さんへのコメント（報告書に掲載）</label>
+            <textarea
+              value={parentComment}
+              onChange={(e) => setParentComment(e.target.value)}
+              rows={3}
+              placeholder="空欄なら報告書に含みません"
               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
           </div>

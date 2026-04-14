@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import GoalsPanel from "./GoalsPanel";
+import MockExamsPanel, { type ExamResult, type AnonymousResult } from "./MockExamsPanel";
 import MeetingRecords from "@/components/MeetingRecords";
+import StudyScheduleEditor from "@/components/StudyScheduleEditor";
 
 export default async function StudentDetailPage({
   params,
@@ -39,6 +41,8 @@ export default async function StudentDetailPage({
         include: { teacher: { include: { user: true } } },
         orderBy: { createdAt: "desc" },
       },
+      mockExamResults: { orderBy: { examDate: "asc" } },
+      studySchedule: { orderBy: { weekday: "asc" } },
     },
   });
 
@@ -80,16 +84,77 @@ export default async function StudentDetailPage({
     student.gender === "female" ? "女性" :
     student.gender === "other" ? "その他" : "";
 
+  // 模試結果（生徒本人は閲覧不可）
+  const canSeeMockExams = session.user.role === "admin" || session.user.role === "teacher";
+  let myExamResults: ExamResult[] = [];
+  let alumniResults: AnonymousResult[] = [];
+  if (canSeeMockExams) {
+    myExamResults = student.mockExamResults.map((r) => ({
+      id: r.id,
+      examName: r.examName,
+      examDate: r.examDate.toISOString(),
+      gradeLevel: r.gradeLevel,
+      overallDeviation: r.overallDeviation,
+      overallScore: r.overallScore,
+      schoolRank: r.schoolRank,
+      judgment: r.judgment,
+      subjects: JSON.parse(r.subjects),
+      notes: r.notes,
+    }));
+    if (student.firstChoiceSchool) {
+      const currentYear = new Date().getFullYear();
+      const alumni = await prisma.student.findMany({
+        where: {
+          id: { not: student.id },
+          firstChoiceSchool: student.firstChoiceSchool,
+          OR: [
+            { graduationYear: { lt: currentYear } },
+            { status: "withdrawn" },
+          ],
+        },
+        select: {
+          id: true,
+          mockExamResults: true,
+        },
+      });
+      const keyMap = new Map<string, string>();
+      let n = 0;
+      alumniResults = alumni.flatMap((a) => {
+        if (!keyMap.has(a.id)) {
+          n++;
+          keyMap.set(a.id, `alum-${n}`);
+        }
+        const k = keyMap.get(a.id)!;
+        return a.mockExamResults.map((r) => ({
+          alumniKey: k,
+          examDate: r.examDate.toISOString(),
+          gradeLevel: r.gradeLevel,
+          overallDeviation: r.overallDeviation,
+          schoolRank: r.schoolRank,
+          subjects: JSON.parse(r.subjects),
+        }));
+      });
+    }
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-dark">{student.user.name}</h1>
-        <Link
-          href={`/students/${id}/edit`}
-          className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
-        >
-          編集
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href={`/students/${id}/report`}
+            className="bg-accent text-white px-4 py-2 rounded-md text-sm hover:opacity-90"
+          >
+            保護者向け報告書
+          </Link>
+          <Link
+            href={`/students/${id}/edit`}
+            className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
+          >
+            編集
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -269,10 +334,30 @@ export default async function StudentDetailPage({
           )}
         </div>
 
+        {/* Study Schedule */}
+        <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
+          <h2 className="text-lg font-semibold mb-3">学習スケジュール（曜日別1日の学習時間）</h2>
+          <StudyScheduleEditor
+            studentId={id}
+            initialSchedule={student.studySchedule.map((s) => ({ weekday: s.weekday, hours: s.hours }))}
+          />
+        </div>
+
         {/* Learning Goals */}
         <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
           <GoalsPanel studentId={id} initialBigGoals={student.bigGoals} />
         </div>
+
+        {/* Mock Exams (admin/teacher only) */}
+        {canSeeMockExams && (
+          <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
+            <MockExamsPanel
+              studentId={id}
+              initialResults={myExamResults}
+              alumniResults={alumniResults}
+            />
+          </div>
+        )}
 
         {/* Meeting Records */}
         <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">

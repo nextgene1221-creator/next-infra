@@ -61,8 +61,62 @@ model Student {
   routineTasks        RoutineTask[]
   assignments         StudentAssignment[]
   studySchedule       StudyScheduleDay[]
+  mockExamResults     MockExamResult[]
+  studyRoomSessions   StudyRoomSession[]
+  pointTransactions   PointTransaction[]
 
   @@map("students")
+}
+
+model StudyRoomSession {
+  id            String    @id @default(uuid())
+  studentId     String    @map("student_id")
+  campus        String    // shuri / naha
+  checkInAt     DateTime  @map("check_in_at")
+  checkOutAt    DateTime? @map("check_out_at")
+  autoCheckedOut Boolean  @default(false) @map("auto_checked_out")
+  pointAwarded  Boolean   @default(false) @map("point_awarded")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, checkOutAt])
+  @@index([campus, checkOutAt])
+  @@map("study_room_sessions")
+}
+
+model PointTransaction {
+  id        String   @id @default(uuid())
+  studentId String   @map("student_id")
+  delta     Int      // +1 付与 / -N 交換
+  reason    String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@map("point_transactions")
+}
+
+model MockExamResult {
+  id                String   @id @default(uuid())
+  studentId         String   @map("student_id")
+  examName          String   @map("exam_name")
+  examDate          DateTime @map("exam_date")
+  gradeLevel        String   @map("grade_level") // high1 / high2 / high3 / ronin
+  overallDeviation  Float?   @map("overall_deviation")
+  overallScore      Int?     @map("overall_score")
+  schoolRank        Int?     @map("school_rank")
+  judgment          String   @default("") // A / B / C / D / E
+  subjects          String   @default("[]") // JSON: [{subject, deviation, score}]
+  notes             String   @default("")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("mock_exam_results")
 }
 
 model Teacher {
@@ -235,6 +289,7 @@ model Meeting {
   type            String?   // 定期面談 / 進路相談 / 学習相談 / 保護者面談 / その他
   status          String    @default("conducted") // conducted / rescheduled
   content         String    // 面談内容
+  parentComment   String    @default("") @map("parent_comment") // 親御さんへの共有コメント
   nextMeetingDate DateTime? @map("next_meeting_date")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
@@ -285,6 +340,20 @@ model BigGoal {
   weeklyGoals  LearningGoal[]
 
   @@map("big_goals")
+}
+
+model Article {
+  id          String   @id @default(uuid())
+  title       String
+  body        String   // markdown
+  audience    String   @default("both") // student / teacher / both
+  category    String   @default("その他") // システム使い方 / 塾ルール / 事務手続き / その他
+  images      String   @default("[]") // JSON array of {url, name}
+  publishedAt DateTime @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("articles")
 }
 
 model School {

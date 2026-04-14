@@ -14,7 +14,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { date, durationMinutes, type, content, nextMeetingDate, status } = body;
+  const { date, durationMinutes, type, content, nextMeetingDate, status, parentComment } = body;
 
   const meeting = await prisma.meeting.update({
     where: { id },
@@ -24,6 +24,7 @@ export async function PUT(
       type: type || null,
       status: status === "rescheduled" ? "rescheduled" : "conducted",
       content,
+      parentComment: parentComment || "",
       nextMeetingDate: nextMeetingDate ? new Date(nextMeetingDate) : null,
     },
     include: { teacher: { include: { user: true } } },

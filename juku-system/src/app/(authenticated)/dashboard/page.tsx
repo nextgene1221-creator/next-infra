@@ -2,6 +2,8 @@ import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import EventCalendar from "@/components/EventCalendar";
+import { computeTodayPlan, type WeeklyGoalLite } from "@/lib/todayPlan";
+import { CAMPUSES, STUDY_ROOM_CAPACITY, campusLabel } from "@/lib/studyRoom";
 
 export default async function DashboardPage() {
   const session = await requireAuth();
@@ -57,6 +59,69 @@ export default async function DashboardPage() {
     }
   }
 
+  // 生徒: 今日のページ数プラン
+  let todayPlan: ReturnType<typeof computeTodayPlan> = [];
+  let scheduleConfigured = true;
+  if (role === "student") {
+    const student = await prisma.student.findFirst({
+      where: { userId },
+      include: {
+        studySchedule: true,
+        learningGoals: {
+          where: { status: { not: "completed" } },
+          include: { progressRecords: { select: { pagesCompleted: true } } },
+        },
+      },
+    });
+    if (student) {
+      const sched: number[] = Array(7).fill(0);
+      for (const s of student.studySchedule) sched[s.weekday] = s.hours;
+      scheduleConfigured = sched.some((h) => h > 0);
+      const goals: WeeklyGoalLite[] = student.learningGoals.map((g) => ({
+        id: g.id,
+        subject: g.subject,
+        materialName: g.materialName,
+        targetPages: g.targetPages,
+        startDate: g.startDate,
+        dueDate: g.dueDate,
+        status: g.status,
+        done: g.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
+      }));
+      todayPlan = computeTodayPlan(goals, sched);
+    }
+  }
+
+  // 自習室の空席状況（全ロール向け）
+  const openSessions = await prisma.studyRoomSession.findMany({
+    where: { checkOutAt: null },
+    select: { campus: true },
+  });
+  const occupancy = Object.fromEntries(
+    CAMPUSES.map((c) => [c.value, openSessions.filter((s) => s.campus === c.value).length])
+  );
+
+  // 生徒の現在状態・ポイント
+  let studentPoints = 0;
+  let studentInRoom: { campus: string; checkInAt: Date } | null = null;
+  if (role === "student") {
+    const s = await prisma.student.findUnique({
+      where: { userId },
+      include: {
+        pointTransactions: true,
+        studyRoomSessions: { where: { checkOutAt: null }, take: 1 },
+      },
+    });
+    if (s) {
+      studentPoints = s.pointTransactions.reduce((sum, t) => sum + t.delta, 0);
+      if (s.studyRoomSessions[0]) {
+        studentInRoom = {
+          campus: s.studyRoomSessions[0].campus,
+          checkInAt: s.studyRoomSessions[0].checkInAt,
+        };
+      }
+    }
+  }
+
   const showCalendar = role === "admin" || role === "teacher";
   const [schools, eventsRaw] = showCalendar
     ? await Promise.all([
@@ -91,13 +156,78 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {showCalendar && (
-        <div className="mb-6">
-          <EventCalendar schools={schools} events={calendarEvents} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {CAMPUSES.map((c) => {
+          const count = occupancy[c.value] || 0;
+          const pct = (count / STUDY_ROOM_CAPACITY) * 100;
+          return (
+            <div key={c.value} className="bg-white rounded-lg shadow p-4">
+              <p className="text-xs text-dark/60">🪑 自習室 {c.label}</p>
+              <p className="mt-1">
+                <span className="text-3xl font-bold text-primary">{count}</span>
+                <span className="text-sm text-dark/60"> / {STUDY_ROOM_CAPACITY} 席</span>
+              </p>
+              <div className="mt-2 w-full bg-gray-200 rounded-full h-1.5">
+                <div className="bg-primary h-1.5 rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
+              </div>
+            </div>
+          );
+        })}
+        {role === "student" && (
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-xs text-dark/60">🍬 獲得ポイント</p>
+            <p className="mt-1">
+              <span className="text-3xl font-bold text-accent">{studentPoints}</span>
+              <span className="text-sm text-dark/60"> P</span>
+            </p>
+            {studentInRoom && (
+              <p className="text-xs text-green-600 mt-2">
+                {campusLabel(studentInRoom.campus)} に入室中
+                <br />
+                <span className="text-dark/60">
+                  {new Date(studentInRoom.checkInAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}〜
+                </span>
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {role === "student" && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold text-dark mb-2">📚 今日進めるページ</h2>
+          {!scheduleConfigured ? (
+            <p className="text-sm text-dark/70">
+              学習スケジュールが未設定です。
+              <Link href="/study-schedule" className="text-primary hover:underline ml-1">設定する →</Link>
+            </p>
+          ) : todayPlan.length === 0 ? (
+            <p className="text-sm text-dark/70">本日対象の週次目標はありません</p>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {todayPlan.map((it) => (
+                <li key={it.goalId} className="py-2 flex justify-between items-center gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-dark truncate">[{it.subject}] {it.materialName}</div>
+                    <div className="text-xs text-dark/60">
+                      残り {it.remainingPages}p / 期日 {it.dueDate.toLocaleDateString("ja-JP")} / 残り学習 {it.remainingHours}時間
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {it.reason ? (
+                      <span className="text-xs text-orange-600">{it.reason}</span>
+                    ) : (
+                      <span className="text-lg font-bold text-primary">{it.todayPages}<span className="text-xs ml-0.5">ページ</span></span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-lg font-semibold text-dark mb-4">
           未読アラート
         </h2>
@@ -130,6 +260,12 @@ export default async function DashboardPage() {
           </Link>
         )}
       </div>
+
+      {showCalendar && (
+        <div className="mb-6">
+          <EventCalendar schools={schools} events={calendarEvents} />
+        </div>
+      )}
     </div>
   );
 }
