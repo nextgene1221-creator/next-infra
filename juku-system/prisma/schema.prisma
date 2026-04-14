@@ -87,6 +87,18 @@ model StudyRoomSession {
   @@map("study_room_sessions")
 }
 
+model Campus {
+  id         String   @id @default(uuid())
+  code       String   @unique // shuri / naha / ...
+  label      String   // 首里校舎 / 那覇校舎 / ...
+  closeTime  String   @default("21:00") @map("close_time") // HH:mm JST
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("campuses")
+}
+
 model StudyRoomConfig {
   id             String   @id @default(uuid())
   campus         String   @unique // shuri / naha

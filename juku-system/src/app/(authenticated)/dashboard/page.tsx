@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import EventCalendar from "@/components/EventCalendar";
 import { computeTodayPlan, type WeeklyGoalLite } from "@/lib/todayPlan";
-import { CAMPUSES, campusLabel, getAllConfigs } from "@/lib/studyRoom";
+import { getAllCampuses, getAllStudyRoomConfigs } from "@/lib/studyRoom";
 
 export default async function DashboardPage() {
   const session = await requireAuth();
@@ -92,27 +92,26 @@ export default async function DashboardPage() {
   }
 
   // 自習室の空席状況（全ロール向け）
-  const [openSessions, configs] = await Promise.all([
+  const [openSessions, configs, campuses] = await Promise.all([
     prisma.studyRoomSession.findMany({
       where: { checkOutAt: null },
       select: { campus: true, seatType: true },
     }),
-    getAllConfigs(),
+    getAllStudyRoomConfigs(),
+    getAllCampuses(),
   ]);
-  const occupancy = Object.fromEntries(
-    CAMPUSES.map((c) => {
-      const cfg = configs.find((x) => x.campus === c.value);
-      return [
-        c.value,
-        {
-          booth: openSessions.filter((s) => s.campus === c.value && s.seatType === "booth").length,
-          table: openSessions.filter((s) => s.campus === c.value && s.seatType === "table").length,
-          boothCap: cfg?.boothCapacity ?? 0,
-          tableCap: cfg?.tableCapacity ?? 0,
-        },
-      ];
-    })
-  );
+  const occupancy = campuses.map((c) => {
+    const cfg = configs.find((x) => x.campus === c.code);
+    return {
+      code: c.code,
+      label: c.label,
+      booth: openSessions.filter((s) => s.campus === c.code && s.seatType === "booth").length,
+      table: openSessions.filter((s) => s.campus === c.code && s.seatType === "table").length,
+      boothCap: cfg?.boothCapacity ?? 0,
+      tableCap: cfg?.tableCapacity ?? 0,
+    };
+  });
+  const campusLabelMap = Object.fromEntries(campuses.map((c) => [c.code, c.label]));
 
   // 生徒の現在状態・ポイント
   let studentPoints = 0;
@@ -171,18 +170,15 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {CAMPUSES.map((c) => {
-          const o = occupancy[c.value] as { booth: number; table: number; boothCap: number; tableCap: number };
-          return (
-            <div key={c.value} className="bg-white rounded-lg shadow p-4">
-              <p className="text-xs text-dark/60">🪑 自習室 {c.label}</p>
-              <div className="mt-2 space-y-2">
-                <SeatRow label="ブース席" used={o.booth} cap={o.boothCap} />
-                <SeatRow label="テーブル席" used={o.table} cap={o.tableCap} />
-              </div>
+        {occupancy.map((o) => (
+          <div key={o.code} className="bg-white rounded-lg shadow p-4">
+            <p className="text-xs text-dark/60">🪑 自習室 {o.label}</p>
+            <div className="mt-2 space-y-2">
+              <SeatRow label="ブース席" used={o.booth} cap={o.boothCap} />
+              <SeatRow label="テーブル席" used={o.table} cap={o.tableCap} />
             </div>
-          );
-        })}
+          </div>
+        ))}
         {role === "student" && (
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-xs text-dark/60">🍬 獲得ポイント</p>
@@ -192,7 +188,7 @@ export default async function DashboardPage() {
             </p>
             {studentInRoom && (
               <p className="text-xs text-green-600 mt-2">
-                {campusLabel(studentInRoom.campus)} に入室中
+                {campusLabelMap[studentInRoom.campus] || studentInRoom.campus} に入室中
                 <br />
                 <span className="text-dark/60">
                   {new Date(studentInRoom.checkInAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}〜

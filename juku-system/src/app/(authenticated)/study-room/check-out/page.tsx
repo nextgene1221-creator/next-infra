@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { campusLabel } from "@/lib/studyRoom";
+import { campusByCode } from "@/lib/studyRoom";
+import { notFound } from "next/navigation";
 import CheckInOutButton from "../CheckInOutButton";
 
 export default async function CheckOutPage({
@@ -10,16 +11,26 @@ export default async function CheckOutPage({
 }) {
   const session = await requireAuth();
   const { campus } = await searchParams;
-  const campusValue = campus || "shuri";
+  if (!campus) notFound();
+  const campusRec = await campusByCode(campus);
+  if (!campusRec) notFound();
 
-  let state: { inRoom: boolean; currentCampus?: string; checkInAt?: Date } = { inRoom: false };
+  let state: { inRoom: boolean; currentCampusLabel?: string; currentCampus?: string; checkInAt?: Date } = { inRoom: false };
   if (session.user.role === "student") {
     const student = await prisma.student.findUnique({ where: { userId: session.user.id } });
     if (student) {
       const open = await prisma.studyRoomSession.findFirst({
         where: { studentId: student.id, checkOutAt: null },
       });
-      state = { inRoom: !!open, currentCampus: open?.campus, checkInAt: open?.checkInAt };
+      if (open) {
+        const openCampus = await campusByCode(open.campus);
+        state = {
+          inRoom: true,
+          currentCampus: open.campus,
+          currentCampusLabel: openCampus?.label || open.campus,
+          checkInAt: open.checkInAt,
+        };
+      }
     }
   }
 
@@ -27,14 +38,14 @@ export default async function CheckOutPage({
     <div className="max-w-md mx-auto mt-8">
       <div className="bg-white rounded-lg shadow p-6 text-center">
         <p className="text-xs text-dark/60">自習室 退室</p>
-        <h1 className="text-2xl font-bold text-dark mt-1">{campusLabel(campusValue)}</h1>
+        <h1 className="text-2xl font-bold text-dark mt-1">{campusRec.label}</h1>
         {session.user.role === "student" ? (
           <div className="mt-6">
             {!state.inRoom ? (
               <p className="text-orange-600 text-sm">入室記録がありません</p>
-            ) : state.currentCampus !== campusValue ? (
+            ) : state.currentCampus !== campus ? (
               <p className="text-orange-600 text-sm">
-                入室した校舎と異なります（入室: {campusLabel(state.currentCampus!)}）。<br />
+                入室した校舎と異なります（入室: {state.currentCampusLabel}）。<br />
                 正しい校舎のQRを読み込んでください。
               </p>
             ) : (
@@ -44,7 +55,7 @@ export default async function CheckOutPage({
                 </p>
                 <p className="text-xs text-dark/60 mt-1">退室すると 1P 獲得します</p>
                 <div className="mt-4">
-                  <CheckInOutButton action="check-out" campus={campusValue} label="退室する (+1P)" />
+                  <CheckInOutButton action="check-out" campus={campus} label="退室する (+1P)" />
                 </div>
               </>
             )}

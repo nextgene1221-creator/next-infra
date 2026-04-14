@@ -74,7 +74,8 @@ export default async function StudentDetailPage({
   const examSubjects = student.examSubjects
     ? (JSON.parse(student.examSubjects) as string[])
     : [];
-  const campusLabel = student.campus === "shuri" ? "首里校舎" : student.campus === "naha" ? "那覇校舎" : "";
+  const campusRec = student.campus ? await prisma.campus.findUnique({ where: { code: student.campus } }) : null;
+  const campusLabel = campusRec?.label || "";
   const trackLabel =
     student.track === "liberal_arts" ? "文系" :
     student.track === "science" ? "理系" :

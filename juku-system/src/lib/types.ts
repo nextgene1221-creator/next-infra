@@ -48,11 +48,6 @@ export const SUBJECTS = [
 
 export type Subject = (typeof SUBJECTS)[number];
 
-export const CAMPUSES = [
-  { value: "shuri", label: "首里校舎" },
-  { value: "naha", label: "那覇校舎" },
-] as const;
-
 export const TRACKS = [
   { value: "liberal_arts", label: "文系" },
   { value: "science", label: "理系" },

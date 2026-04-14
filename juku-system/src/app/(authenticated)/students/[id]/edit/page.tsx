@@ -2,7 +2,9 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { SUBJECTS, CAMPUSES, TRACKS, GENDERS } from "@/lib/types";
+import { SUBJECTS, TRACKS, GENDERS } from "@/lib/types";
+
+type CampusOption = { code: string; label: string };
 
 type StudentForm = {
   name: string;
@@ -68,6 +70,12 @@ export default function StudentEditPage() {
 
   const [form, setForm] = useState<StudentForm>(initial);
   const [loading, setLoading] = useState(!isNew);
+  const [campusOptions, setCampusOptions] = useState<CampusOption[]>([]);
+  useEffect(() => {
+    fetch("/api/campuses").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setCampusOptions(data.map((c: { code: string; label: string }) => ({ code: c.code, label: c.label })));
+    }).catch(() => {});
+  }, []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [postalLoading, setPostalLoading] = useState(false);
@@ -244,8 +252,8 @@ export default function StudentEditPage() {
             <label className="block text-sm font-medium text-charcoal">入塾校舎</label>
             <select value={form.campus} onChange={(e) => set("campus", e.target.value)} className={inputCls}>
               <option value="">未選択</option>
-              {CAMPUSES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
+              {campusOptions.map((c) => (
+                <option key={c.code} value={c.code}>{c.label}</option>
               ))}
             </select>
           </div>

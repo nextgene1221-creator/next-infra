@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getOrInitConfig } from "@/lib/studyRoom";
+import { getOrInitStudyRoomConfig } from "@/lib/studyRoom";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "すでに入室中です", sessionId: open.id }, { status: 400 });
   }
 
-  const config = await getOrInitConfig(campus);
+  const config = await getOrInitStudyRoomConfig(campus);
   const capacity = seatType === "booth" ? config.boothCapacity : config.tableCapacity;
   const occupied = await prisma.studyRoomSession.count({
     where: { campus, seatType, checkOutAt: null },

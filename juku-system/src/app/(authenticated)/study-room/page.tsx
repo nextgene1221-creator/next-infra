@@ -1,14 +1,15 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { CAMPUSES, campusLabel, getAllConfigs, seatLabel } from "@/lib/studyRoom";
+import { getAllCampuses, getAllStudyRoomConfigs, seatLabel } from "@/lib/studyRoom";
 import StudyRoomAdmin from "./StudyRoomAdmin";
 import CapacityEditor from "./CapacityEditor";
 
 export default async function StudyRoomPage() {
   await requireAuth(["admin", "teacher"]);
 
-  const configs = await getAllConfigs();
-  const [openSessions, recentHistory, students] = await Promise.all([
+  const [campuses, configs, openSessions, recentHistory, students] = await Promise.all([
+    getAllCampuses(),
+    getAllStudyRoomConfigs(),
     prisma.studyRoomSession.findMany({
       where: { checkOutAt: null },
       include: { student: { include: { user: true } } },
@@ -33,24 +34,26 @@ export default async function StudyRoomPage() {
     schoolName: s.schoolName,
     points: s.pointTransactions.reduce((sum, t) => sum + t.delta, 0),
   }));
+  const campusLabelMap = Object.fromEntries(campuses.map((c) => [c.code, c.label]));
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-dark mb-6">自習室管理</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {CAMPUSES.map((c) => {
-          const cfg = configs.find((x) => x.campus === c.value)!;
-          const boothUsed = openSessions.filter((s) => s.campus === c.value && s.seatType === "booth").length;
-          const tableUsed = openSessions.filter((s) => s.campus === c.value && s.seatType === "table").length;
+        {campuses.map((c) => {
+          const cfg = configs.find((x) => x.campus === c.code)!;
+          const boothUsed = openSessions.filter((s) => s.campus === c.code && s.seatType === "booth").length;
+          const tableUsed = openSessions.filter((s) => s.campus === c.code && s.seatType === "table").length;
           return (
-            <div key={c.value} className="bg-white rounded-lg shadow p-4">
+            <div key={c.id} className="bg-white rounded-lg shadow p-4">
               <div className="flex justify-between items-baseline mb-3">
                 <h2 className="text-lg font-semibold">{c.label}</h2>
+                <span className="text-xs text-dark/60">自動退室 {c.closeTime}</span>
               </div>
 
               <CapacityEditor
-                campus={c.value}
+                campus={c.code}
                 boothCapacity={cfg.boothCapacity}
                 tableCapacity={cfg.tableCapacity}
               />
@@ -61,7 +64,7 @@ export default async function StudyRoomPage() {
               </div>
 
               <ul className="mt-3 divide-y divide-gray-100 text-sm">
-                {openSessions.filter((s) => s.campus === c.value).map((s) => (
+                {openSessions.filter((s) => s.campus === c.code).map((s) => (
                   <li key={s.id} className="py-1 flex justify-between">
                     <span>
                       {s.student.user.name}
@@ -72,7 +75,7 @@ export default async function StudyRoomPage() {
                     </span>
                   </li>
                 ))}
-                {openSessions.filter((s) => s.campus === c.value).length === 0 && (
+                {openSessions.filter((s) => s.campus === c.code).length === 0 && (
                   <li className="py-1 text-xs text-dark/50">入室者なし</li>
                 )}
               </ul>
@@ -87,7 +90,7 @@ export default async function StudyRoomPage() {
           id: s.id,
           studentName: s.student.user.name,
           campus: s.campus,
-          campusLabel: campusLabel(s.campus),
+          campusLabel: campusLabelMap[s.campus] || s.campus,
           seatType: s.seatType,
           seatLabel: seatLabel(s.seatType),
           checkInAt: s.checkInAt.toISOString(),
