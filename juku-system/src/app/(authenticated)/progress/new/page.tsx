@@ -2,12 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { SUBJECTS } from "@/lib/types";
 
 type StudentOption = { id: string; name: string };
 
 export default function ProgressNewPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isStudent = session?.user?.role === "student";
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentId, setStudentId] = useState("");
   const [subject, setSubject] = useState("");
@@ -19,10 +22,11 @@ export default function ProgressNewPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (isStudent) return;
     fetch("/api/students-list")
       .then((r) => r.json())
       .then(setStudents);
-  }, []);
+  }, [isStudent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,22 +59,24 @@ export default function ProgressNewPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-charcoal">生徒</label>
-            <select
-              required
-              value={studentId}
-              onChange={(e) => setStudentId(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">選択してください</option>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!isStudent && (
+            <div>
+              <label className="block text-sm font-medium text-charcoal">生徒</label>
+              <select
+                required
+                value={studentId}
+                onChange={(e) => setStudentId(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">選択してください</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-charcoal">科目</label>
             <select

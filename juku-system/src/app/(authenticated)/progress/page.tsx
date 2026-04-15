@@ -43,14 +43,12 @@ export default async function ProgressPage({
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-dark">学習進捗一覧</h1>
-        {session.user.role !== "student" && (
-          <Link
-            href="/progress/new"
-            className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
-          >
-            進捗入力
-          </Link>
-        )}
+        <Link
+          href="/progress/new"
+          className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
+        >
+          進捗入力
+        </Link>
       </div>
 
       <form className="bg-white p-4 rounded-lg shadow mb-6 flex gap-4 flex-wrap">

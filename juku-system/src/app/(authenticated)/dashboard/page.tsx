@@ -37,19 +37,28 @@ export default async function DashboardPage() {
     ];
   } else if (role === "teacher") {
     // 講師ダッシュボードは下部で個別表示するため、stats は出さない
-  } else {
-    const student = await prisma.student.findFirst({ where: { userId } });
-    if (student) {
-      const progressCount = await prisma.progressRecord.count({ where: { studentId: student.id } });
-      stats = [
-        { label: "進捗記録数", value: progressCount, href: "/progress" },
-      ];
-    }
   }
 
-  // 生徒: 今日のページ数プラン
+  // 生徒: 今日のページ数プラン + 大目標/週次目標
   let todayPlan: ReturnType<typeof computeTodayPlan> = [];
   let scheduleConfigured = true;
+  let studentBigGoals: {
+    id: string;
+    subject: string;
+    materialName: string;
+    targetPages: number;
+    done: number;
+    startDate: Date;
+    dueDate: Date;
+  }[] = [];
+  let studentWeeklyGoals: {
+    id: string;
+    subject: string;
+    materialName: string;
+    targetPages: number;
+    done: number;
+    dueDate: Date;
+  }[] = [];
   if (role === "student") {
     const student = await prisma.student.findFirst({
       where: { userId },
@@ -76,6 +85,35 @@ export default async function DashboardPage() {
         done: g.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
       }));
       todayPlan = computeTodayPlan(goals, sched);
+
+      studentWeeklyGoals = student.learningGoals.map((g) => ({
+        id: g.id,
+        subject: g.subject,
+        materialName: g.materialName,
+        targetPages: g.targetPages,
+        done: g.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
+        dueDate: g.dueDate,
+      }));
+
+      const bigGoals = await prisma.bigGoal.findMany({
+        where: { studentId: student.id, status: { not: "completed" } },
+        include: {
+          weeklyGoals: { include: { progressRecords: { select: { pagesCompleted: true } } } },
+        },
+        orderBy: { dueDate: "asc" },
+      });
+      studentBigGoals = bigGoals.map((b) => ({
+        id: b.id,
+        subject: b.subject,
+        materialName: b.materialName,
+        targetPages: b.targetPages,
+        done: b.weeklyGoals.reduce(
+          (sum, w) => sum + w.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
+          0
+        ),
+        startDate: b.startDate,
+        dueDate: b.dueDate,
+      }));
     }
   }
 
@@ -272,6 +310,63 @@ export default async function DashboardPage() {
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {role === "student" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-dark mb-4">🎯 大目標</h2>
+            {studentBigGoals.length === 0 ? (
+              <p className="text-sm text-dark/60">大目標は登録されていません</p>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {studentBigGoals.map((g) => {
+                  const pct = g.targetPages > 0 ? Math.min(100, Math.round((g.done / g.targetPages) * 100)) : 0;
+                  return (
+                    <li key={g.id} className="py-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-dark font-medium">[{g.subject}] {g.materialName}</span>
+                        <span className="text-dark/70">{g.done}/{g.targetPages}p</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                        <div className="bg-primary h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="text-xs text-dark/60 mt-1">
+                        期日 {g.dueDate.toLocaleDateString("ja-JP")}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-dark mb-4">📅 週次目標</h2>
+            {studentWeeklyGoals.length === 0 ? (
+              <p className="text-sm text-dark/60">週次目標はありません</p>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {studentWeeklyGoals.map((g) => {
+                  const pct = g.targetPages > 0 ? Math.min(100, Math.round((g.done / g.targetPages) * 100)) : 0;
+                  return (
+                    <li key={g.id} className="py-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-dark font-medium">[{g.subject}] {g.materialName}</span>
+                        <span className="text-dark/70">{g.done}/{g.targetPages}p</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                        <div className="bg-accent h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="text-xs text-dark/60 mt-1">
+                        期日 {g.dueDate.toLocaleDateString("ja-JP")}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </div>
       )}
 

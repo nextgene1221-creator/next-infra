@@ -5,8 +5,18 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role === "student") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json();
+  let { studentId } = body;
+  const { subject, date, material, topic, pagesCompleted, goalId } = body;
+
+  if (session.user.role === "student") {
+    const student = await prisma.student.findFirst({ where: { userId: session.user.id } });
+    if (!student) return NextResponse.json({ error: "No student record" }, { status: 400 });
+    studentId = student.id;
   }
 
   const teacher = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
@@ -14,9 +24,6 @@ export async function POST(req: NextRequest) {
   if (!teacherId) {
     return NextResponse.json({ error: "No teacher available" }, { status: 400 });
   }
-
-  const body = await req.json();
-  const { studentId, subject, date, material, topic, pagesCompleted, goalId } = body;
 
   const record = await prisma.progressRecord.create({
     data: {
