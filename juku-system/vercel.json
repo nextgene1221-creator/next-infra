@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/study-room/auto-checkout",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 12 * * *"
     }
   ]
 }
