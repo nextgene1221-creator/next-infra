@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import ClickableRow from "@/components/ClickableRow";
+import TaskCompleteCheckbox from "@/components/TaskCompleteCheckbox";
 
 export default async function TasksPage({
   searchParams,
@@ -144,6 +145,7 @@ export default async function TasksPage({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-surface">
             <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-dark/60 uppercase w-10">完了</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">種別</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">タスク名</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">科目</th>
@@ -157,6 +159,22 @@ export default async function TasksPage({
           <tbody className="bg-white divide-y divide-gray-200">
             {tasks.map((task) => (
               <ClickableRow key={task.id} href={`/tasks/${task.id}/edit`} className="hover:bg-surface">
+                <td className="px-4 py-4 text-sm">
+                  <TaskCompleteCheckbox
+                    taskId={task.id}
+                    initialCompleted={task.status === "completed"}
+                    task={{
+                      studentId: task.studentId,
+                      teacherId: task.teacherId,
+                      subject: task.subject,
+                      title: task.title,
+                      description: task.description,
+                      dueDate: task.dueDate.toISOString(),
+                      type: task.type,
+                      meetingDateTime: task.meetingDateTime ? task.meetingDateTime.toISOString() : null,
+                    }}
+                  />
+                </td>
                 <td className="px-6 py-4 text-sm">
                   <span
                     className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -187,7 +205,7 @@ export default async function TasksPage({
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-6 py-8 text-center text-dark/60">
+                <td colSpan={9} className="px-6 py-8 text-center text-dark/60">
                   タスクがありません
                 </td>
               </tr>

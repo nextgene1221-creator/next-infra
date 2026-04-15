@@ -2,6 +2,8 @@ import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import EventCalendar from "@/components/EventCalendar";
+import DashboardAlertItem from "@/components/DashboardAlertItem";
+import TeacherTaskList from "@/components/TeacherTaskList";
 import { computeTodayPlan, type WeeklyGoalLite } from "@/lib/todayPlan";
 import { getAllCampuses, getAllStudyRoomConfigs } from "@/lib/studyRoom";
 
@@ -34,21 +36,7 @@ export default async function DashboardPage() {
       { label: "今後のシフト", value: shiftCount, href: "/shifts" },
     ];
   } else if (role === "teacher") {
-    const teacher = await prisma.teacher.findFirst({ where: { userId } });
-    if (teacher) {
-      const [taskCount, shiftCount] = await Promise.all([
-        prisma.task.count({
-          where: { teacherId: teacher.id, status: { in: ["pending", "in_progress"] } },
-        }),
-        prisma.shift.count({
-          where: { teacherId: teacher.id, date: { gte: new Date() }, status: "scheduled" },
-        }),
-      ]);
-      stats = [
-        { label: "未完了タスク", value: taskCount, href: "/tasks" },
-        { label: "今後のシフト", value: shiftCount, href: "/shifts" },
-      ];
-    }
+    // 講師ダッシュボードは下部で個別表示するため、stats は出さない
   } else {
     const student = await prisma.student.findFirst({ where: { userId } });
     if (student) {
@@ -88,6 +76,60 @@ export default async function DashboardPage() {
         done: g.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
       }));
       todayPlan = computeTodayPlan(goals, sched);
+    }
+  }
+
+  // 講師: 未完了タスク一覧と今後1週間のシフト
+  let teacherTasks: {
+    id: string;
+    title: string;
+    studentId: string | null;
+    teacherId: string;
+    subject: string;
+    description: string;
+    dueDate: string;
+    type: string;
+    meetingDateTime: string | null;
+  }[] = [];
+  let teacherShifts: { id: string; date: Date; startTime: string; endTime: string }[] = [];
+  if (role === "teacher") {
+    const teacher = await prisma.teacher.findFirst({ where: { userId } });
+    if (teacher) {
+      const now = new Date();
+      const weekLater = new Date(now);
+      weekLater.setDate(weekLater.getDate() + 7);
+      const [tasksRaw, shiftsRaw] = await Promise.all([
+        prisma.task.findMany({
+          where: { teacherId: teacher.id, status: { in: ["pending", "in_progress"] } },
+          orderBy: { dueDate: "asc" },
+          take: 20,
+        }),
+        prisma.shift.findMany({
+          where: {
+            teacherId: teacher.id,
+            date: { gte: now, lte: weekLater },
+            status: { not: "cancelled" },
+          },
+          orderBy: [{ date: "asc" }, { startTime: "asc" }],
+        }),
+      ]);
+      teacherTasks = tasksRaw.map((t) => ({
+        id: t.id,
+        title: t.title,
+        studentId: t.studentId,
+        teacherId: t.teacherId,
+        subject: t.subject,
+        description: t.description,
+        dueDate: t.dueDate.toISOString(),
+        type: t.type,
+        meetingDateTime: t.meetingDateTime ? t.meetingDateTime.toISOString() : null,
+      }));
+      teacherShifts = shiftsRaw.map((s) => ({
+        id: s.id,
+        date: s.date,
+        startTime: s.startTime,
+        endTime: s.endTime,
+      }));
     }
   }
 
@@ -233,6 +275,38 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {role === "teacher" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-dark mb-4">未完了タスク</h2>
+            <TeacherTaskList tasks={teacherTasks} />
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-dark mb-4">今後1週間のシフト</h2>
+            {teacherShifts.length === 0 ? (
+              <p className="text-sm text-dark/60">予定されたシフトはありません</p>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {teacherShifts.map((s) => (
+                  <li key={s.id} className="py-2 text-sm text-dark flex justify-between">
+                    <span>
+                      {new Date(s.date).toLocaleDateString("ja-JP", {
+                        month: "numeric",
+                        day: "numeric",
+                        weekday: "short",
+                      })}
+                    </span>
+                    <span className="text-dark/70">
+                      {s.startTime} 〜 {s.endTime}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-lg font-semibold text-dark mb-4">
           未読アラート
@@ -242,18 +316,13 @@ export default async function DashboardPage() {
         ) : (
           <ul className="space-y-3">
             {alerts.map((alert) => (
-              <li
+              <DashboardAlertItem
                 key={alert.id}
-                className="flex items-start space-x-3 p-3 bg-primary-light border border-primary/20 rounded-md"
-              >
-                <div>
-                  <p className="font-medium text-dark">{alert.title}</p>
-                  <p className="text-sm text-charcoal">{alert.message}</p>
-                  <p className="text-xs text-dark/50 mt-1">
-                    {new Date(alert.createdAt).toLocaleString("ja-JP")}
-                  </p>
-                </div>
-              </li>
+                id={alert.id}
+                title={alert.title}
+                message={alert.message}
+                createdAt={alert.createdAt.toISOString()}
+              />
             ))}
           </ul>
         )}
