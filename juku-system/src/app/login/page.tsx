@@ -42,7 +42,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-xl">
         <div>
           <h1 className="text-center text-3xl font-bold text-dark">
-            塾管理システム
+            Next infra
           </h1>
           <p className="mt-2 text-center text-sm text-charcoal">
             出勤打刻とログイン

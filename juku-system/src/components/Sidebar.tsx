@@ -92,7 +92,7 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
             <line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
-        <h1 className="text-base font-bold">塾管理システム</h1>
+        <h1 className="text-base font-bold">Next infra</h1>
         <div className="w-8" />
       </header>
 
@@ -113,7 +113,7 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
       >
         <div className="p-4 border-b border-white/20 flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold">塾管理システム</h1>
+            <h1 className="text-lg font-bold">Next infra</h1>
             <p className="text-sm text-white/60 mt-1">
               {userName} ({roleLabel})
             </p>

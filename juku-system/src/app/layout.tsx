@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "塾管理システム",
-  description: "高校生向け学習塾の基幹システム",
+  title: "Next infra",
+  description: "Next infra - 高校生向け学習塾の基幹システム",
 };
 
 export default function RootLayout({

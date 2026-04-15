@@ -71,4 +71,9 @@ table th.whitespace-normal {
     font-size: 1.25rem;
     line-height: 1.75rem;
   }
+  /* ページタイトルとコンテンツの間隔をスマホでは詰める */
+  h1.text-2xl.mb-6,
+  .mb-6:has(> h1.text-2xl) {
+    margin-bottom: 0.75rem;
+  }
 }
