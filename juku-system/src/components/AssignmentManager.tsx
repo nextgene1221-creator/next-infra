@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import StudentSearchSelect from "./StudentSearchSelect";
 
 type StudentLite = {
   id: string;
@@ -78,18 +79,14 @@ export default function AssignmentManager({
 
       {canEdit && (
         <div className="flex gap-2 mb-4">
-          <select
-            value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
-            className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-          >
-            <option value="">生徒を選択...</option>
-            {available.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.user.name}（{s.schoolName}）
-              </option>
-            ))}
-          </select>
+          <div className="flex-1">
+            <StudentSearchSelect
+              students={available.map((s) => ({ id: s.id, name: s.user.name, hint: s.schoolName }))}
+              value={selectedId}
+              onChange={setSelectedId}
+              placeholder="生徒名で検索して担当追加"
+            />
+          </div>
           <button
             type="button"
             onClick={add}

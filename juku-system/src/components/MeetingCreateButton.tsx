@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MEETING_TYPES } from "./MeetingRecords";
+import StudentSearchSelect from "./StudentSearchSelect";
 
 type StudentOption = { id: string; name: string };
 
@@ -19,6 +20,7 @@ export default function MeetingCreateButton({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [durationMinutes, setDurationMinutes] = useState<number | "">("");
   const [type, setType] = useState("");
+  const [status, setStatus] = useState("conducted");
   const [content, setContent] = useState("");
   const [nextMeetingDate, setNextMeetingDate] = useState("");
   const [saving, setSaving] = useState(false);
@@ -29,6 +31,7 @@ export default function MeetingCreateButton({
     setDate(new Date().toISOString().split("T")[0]);
     setDurationMinutes("");
     setType("");
+    setStatus("conducted");
     setContent("");
     setNextMeetingDate("");
     setError("");
@@ -52,6 +55,7 @@ export default function MeetingCreateButton({
         date,
         durationMinutes: durationMinutes || null,
         type: type || null,
+        status,
         content,
         nextMeetingDate: nextMeetingDate || null,
       }),
@@ -100,20 +104,13 @@ export default function MeetingCreateButton({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-charcoal">対象生徒</label>
-                  <select
-                    required
+                  <label className="block text-sm font-medium text-charcoal mb-1">対象生徒</label>
+                  <StudentSearchSelect
+                    students={students.map((s) => ({ id: s.id, name: s.name }))}
                     value={studentId}
-                    onChange={(e) => setStudentId(e.target.value)}
-                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
-                  >
-                    <option value="">選択してください</option>
-                    {students.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setStudentId}
+                    placeholder="生徒名で検索して選択"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-charcoal">面談日</label>
@@ -136,7 +133,7 @@ export default function MeetingCreateButton({
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <label className="block text-sm font-medium text-charcoal">面談タイプ</label>
                   <select
                     value={type}
@@ -149,6 +146,17 @@ export default function MeetingCreateButton({
                         {t}
                       </option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-charcoal">ステータス</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                  >
+                    <option value="conducted">実施</option>
+                    <option value="rescheduled">振替</option>
                   </select>
                 </div>
               </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import StudentSearchSelect from "@/components/StudentSearchSelect";
 
 type StudentPt = { id: string; name: string; schoolName: string; points: number };
 type HistoryItem = {
@@ -60,17 +61,14 @@ export default function StudyRoomAdmin({
 
         <form onSubmit={submit} className="bg-surface rounded p-3 mb-3 space-y-2">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <select
-              required
+            <StudentSearchSelect
+              students={studentsWithPoints
+                .filter((s) => s.points > 0)
+                .map((s) => ({ id: s.id, name: s.name, hint: `${s.points}P` }))}
               value={exchangeId}
-              onChange={(e) => setExchangeId(e.target.value)}
-              className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
-            >
-              <option value="">生徒を選択</option>
-              {studentsWithPoints.filter((s) => s.points > 0).map((s) => (
-                <option key={s.id} value={s.id}>{s.name} ({s.points}P)</option>
-              ))}
-            </select>
+              onChange={setExchangeId}
+              placeholder="生徒名で検索"
+            />
             <input
               type="number"
               min={1}
