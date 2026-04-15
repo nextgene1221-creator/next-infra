@@ -323,17 +323,26 @@ export default async function DashboardPage() {
               <ul className="divide-y divide-gray-200">
                 {studentBigGoals.map((g) => {
                   const pct = g.targetPages > 0 ? Math.min(100, Math.round((g.done / g.targetPages) * 100)) : 0;
+                  const href = `/progress/new?subject=${encodeURIComponent(g.subject)}&material=${encodeURIComponent(g.materialName)}`;
                   return (
                     <li key={g.id} className="py-2">
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between items-start text-sm gap-2">
                         <span className="text-dark font-medium">[{g.subject}] {g.materialName}</span>
-                        <span className="text-dark/70">{g.done}/{g.targetPages}p</span>
+                        <span className="text-dark/70 shrink-0">{g.done}/{g.targetPages}p</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
                         <div className="bg-primary h-1.5 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
-                      <div className="text-xs text-dark/60 mt-1">
-                        期日 {g.dueDate.toLocaleDateString("ja-JP")}
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-xs text-dark/60">
+                          期日 {g.dueDate.toLocaleDateString("ja-JP")}
+                        </span>
+                        <Link
+                          href={href}
+                          className="text-xs px-2 py-1 rounded border border-primary/40 text-primary hover:bg-primary hover:text-white"
+                        >
+                          進捗を登録
+                        </Link>
                       </div>
                     </li>
                   );

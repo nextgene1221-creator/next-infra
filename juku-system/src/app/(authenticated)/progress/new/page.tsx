@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { SUBJECTS } from "@/lib/types";
@@ -9,13 +9,14 @@ type StudentOption = { id: string; name: string };
 
 export default function ProgressNewPage() {
   const router = useRouter();
+  const search = useSearchParams();
   const { data: session } = useSession();
   const isStudent = session?.user?.role === "student";
   const [students, setStudents] = useState<StudentOption[]>([]);
   const [studentId, setStudentId] = useState("");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(search.get("subject") || "");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [material, setMaterial] = useState("");
+  const [material, setMaterial] = useState(search.get("material") || "");
   const [topic, setTopic] = useState("");
   const [pagesCompleted, setPagesCompleted] = useState(0);
   const [saving, setSaving] = useState(false);
