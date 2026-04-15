@@ -250,7 +250,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        {occupancy.map((o) => (
+        {role !== "teacher" && occupancy.map((o) => (
           <div key={o.code} className="bg-white rounded-lg shadow p-4">
             <p className="text-xs text-dark/60">🪑 自習室 {o.label}</p>
             <div className="mt-2 space-y-2">
