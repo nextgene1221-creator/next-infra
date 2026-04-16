@@ -19,13 +19,12 @@ type Shift = {
 
 type Teacher = { id: string; name: string };
 
+type TemplateDay = { weekday: number; startTime: string; endTime: string };
 type Template = {
   teacherId: string;
   teacherName: string;
-  weekdays: string;
-  startTime: string;
-  endTime: string;
-} | null;
+  days: TemplateDay[];
+};
 
 export default function ShiftCalendar({
   year,
@@ -33,13 +32,15 @@ export default function ShiftCalendar({
   initialShifts,
   teachers,
   templates,
+  defaultEndTime,
   isAdmin,
 }: {
   year: number;
   month: number;
   initialShifts: Shift[];
   teachers: Teacher[];
-  templates: { teacherId: string; teacherName: string; weekdays: string; startTime: string; endTime: string }[];
+  templates: Template[];
+  defaultEndTime: string;
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -207,6 +208,7 @@ export default function ShiftCalendar({
         <TemplatesModal
           teachers={teachers}
           templates={templates}
+          defaultEndTime={defaultEndTime}
           onClose={() => setShowTemplatesModal(false)}
           onChanged={() => router.refresh()}
         />
@@ -464,11 +466,13 @@ function DayDetailModal({
 function TemplatesModal({
   teachers,
   templates,
+  defaultEndTime,
   onClose,
   onChanged,
 }: {
   teachers: Teacher[];
-  templates: { teacherId: string; teacherName: string; weekdays: string; startTime: string; endTime: string }[];
+  templates: Template[];
+  defaultEndTime: string;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -483,7 +487,7 @@ function TemplatesModal({
         </div>
 
         <p className="text-xs text-dark/60 mb-4">
-          各講師の週次テンプレートを設定します。「一括生成」ボタンで月単位のシフトに展開できます。
+          各講師の週次テンプレートを曜日ごとに設定します。「一括生成」ボタンで月単位のシフトに展開できます。
         </p>
 
         <div className="space-y-4">
@@ -494,15 +498,8 @@ function TemplatesModal({
                 <h4 className="text-sm font-semibold text-dark mb-3">{t.name}</h4>
                 <ShiftTemplateForm
                   teacherId={t.id}
-                  initialTemplate={
-                    tpl
-                      ? {
-                          weekdays: tpl.weekdays,
-                          startTime: tpl.startTime,
-                          endTime: tpl.endTime,
-                        }
-                      : null
-                  }
+                  initialDays={tpl?.days ?? []}
+                  defaultEndTime={defaultEndTime}
                   onSaved={onChanged}
                 />
               </div>

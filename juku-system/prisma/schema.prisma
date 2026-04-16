@@ -166,7 +166,7 @@ model Teacher {
   meetings            Meeting[]
   attendances         Attendance[]
   routineTasks        RoutineTask[]
-  shiftTemplate       ShiftTemplate?
+  shiftTemplateDays   ShiftTemplateDay[]
   assignments         StudentAssignment[]
 
   @@map("teachers")
@@ -240,18 +240,20 @@ model Attendance {
   @@map("attendances")
 }
 
-model ShiftTemplate {
+// 講師ごとの週次シフトテンプレート（曜日単位で時刻を個別に設定）
+model ShiftTemplateDay {
   id        String   @id @default(uuid())
-  teacherId String   @unique @map("teacher_id")
-  weekdays  String   // カンマ区切り "1,3,5" (0=日 ... 6=土)
+  teacherId String   @map("teacher_id")
+  weekday   Int      // 0=日, 1=月, ..., 6=土
   startTime String   @map("start_time") // HH:mm
   endTime   String   @map("end_time")   // HH:mm
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  teacher Teacher @relation(fields: [teacherId], references: [id])
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
-  @@map("shift_templates")
+  @@unique([teacherId, weekday])
+  @@map("shift_template_days")
 }
 
 model RoutineTask {

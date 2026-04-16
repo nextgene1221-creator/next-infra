@@ -27,7 +27,7 @@ export default async function TeacherDetailPage({
         orderBy: { clockIn: "desc" },
         take: 20,
       },
-      shiftTemplate: true,
+      shiftTemplateDays: { orderBy: { weekday: "asc" } },
       assignments: {
         include: { student: { include: { user: true } } },
         orderBy: { createdAt: "desc" },
@@ -36,6 +36,16 @@ export default async function TeacherDetailPage({
   });
 
   if (!teacher) notFound();
+
+  // 新規曜日の終了時刻デフォルトには、最優先校舎の閉校時間を利用
+  const defaultCampus = await prisma.campus.findFirst({ orderBy: { sortOrder: "asc" } });
+  const defaultEndTime = defaultCampus?.closeTime || "21:00";
+
+  const templateDays = teacher.shiftTemplateDays.map((d) => ({
+    weekday: d.weekday,
+    startTime: d.startTime,
+    endTime: d.endTime,
+  }));
 
   const subjects = JSON.parse(teacher.subjects) as string[];
   const examSubjectsTaken = teacher.examSubjectsTaken
@@ -270,15 +280,8 @@ export default async function TeacherDetailPage({
           </p>
           <ShiftTemplateForm
             teacherId={id}
-            initialTemplate={
-              teacher.shiftTemplate
-                ? {
-                    weekdays: teacher.shiftTemplate.weekdays,
-                    startTime: teacher.shiftTemplate.startTime,
-                    endTime: teacher.shiftTemplate.endTime,
-                  }
-                : null
-            }
+            initialDays={templateDays}
+            defaultEndTime={defaultEndTime}
           />
         </div>
 

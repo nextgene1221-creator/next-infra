@@ -4,60 +4,95 @@ import { useState } from "react";
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
-type Template = {
-  weekdays: string;
+export type TemplateDay = {
+  weekday: number;
   startTime: string;
   endTime: string;
-} | null;
+};
 
 export default function ShiftTemplateForm({
   teacherId,
-  initialTemplate,
+  initialDays,
+  defaultEndTime = "21:00",
   onSaved,
 }: {
   teacherId: string;
-  initialTemplate: Template;
+  initialDays: TemplateDay[];
+  /** 新しい曜日を有効化したときの終了時刻の初期値（校舎の閉校時間など） */
+  defaultEndTime?: string;
   onSaved?: () => void;
 }) {
-  const initWeekdays = initialTemplate
-    ? initialTemplate.weekdays.split(",").map(Number)
-    : [];
+  const DEFAULT_START = "14:00";
 
-  const [weekdays, setWeekdays] = useState<number[]>(initWeekdays);
-  const [startTime, setStartTime] = useState(initialTemplate?.startTime || "14:00");
-  const [endTime, setEndTime] = useState(initialTemplate?.endTime || "20:00");
+  const [days, setDays] = useState<Record<number, { startTime: string; endTime: string }>>(
+    () => Object.fromEntries(initialDays.map((d) => [d.weekday, { startTime: d.startTime, endTime: d.endTime }]))
+  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const enabledWeekdays = Object.keys(days)
+    .map(Number)
+    .sort((a, b) => a - b);
 
   const toggleDay = (d: number) => {
-    setWeekdays((prev) =>
-      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()
-    );
+    setDays((prev) => {
+      const next = { ...prev };
+      if (d in next) {
+        delete next[d]; // 無効化 → 値は破棄
+      } else {
+        next[d] = { startTime: DEFAULT_START, endTime: defaultEndTime };
+      }
+      return next;
+    });
+  };
+
+  const updateTime = (d: number, key: "startTime" | "endTime", value: string) => {
+    setDays((prev) => ({ ...prev, [d]: { ...prev[d], [key]: value } }));
+  };
+
+  const validate = (): string | null => {
+    if (enabledWeekdays.length === 0) {
+      return "曜日を1つ以上選択してください";
+    }
+    for (const w of enabledWeekdays) {
+      const { startTime, endTime } = days[w];
+      if (!startTime || !endTime) return `${WEEKDAY_LABELS[w]}曜の時刻を入力してください`;
+      if (startTime >= endTime) return `${WEEKDAY_LABELS[w]}曜の開始時刻は終了時刻より前にしてください`;
+    }
+    return null;
   };
 
   const handleSave = async () => {
-    if (weekdays.length === 0) {
-      setMessage("曜日を1つ以上選択してください");
+    const err = validate();
+    if (err) {
+      setError(err);
+      setMessage("");
       return;
     }
     setSaving(true);
+    setError("");
     setMessage("");
+
+    const payload = {
+      teacherId,
+      days: enabledWeekdays.map((w) => ({
+        weekday: w,
+        startTime: days[w].startTime,
+        endTime: days[w].endTime,
+      })),
+    };
 
     const res = await fetch("/api/shift-templates", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        teacherId,
-        weekdays: weekdays.join(","),
-        startTime,
-        endTime,
-      }),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       setMessage("保存しました");
       onSaved?.();
     } else {
-      setMessage("保存に失敗しました");
+      setError("保存に失敗しました");
     }
     setSaving(false);
   };
@@ -65,18 +100,19 @@ export default function ShiftTemplateForm({
   const handleDelete = async () => {
     if (!confirm("テンプレートを削除しますか？")) return;
     setSaving(true);
-    const res = await fetch(`/api/shift-templates/${teacherId}`, {
-      method: "DELETE",
-    });
+    setError("");
+    const res = await fetch(`/api/shift-templates/${teacherId}`, { method: "DELETE" });
     if (res.ok) {
-      setWeekdays([]);
-      setStartTime("14:00");
-      setEndTime("20:00");
+      setDays({});
       setMessage("削除しました");
       onSaved?.();
+    } else {
+      setError("削除に失敗しました");
     }
     setSaving(false);
   };
+
+  const hasAny = initialDays.length > 0;
 
   return (
     <div className="space-y-3">
@@ -89,7 +125,7 @@ export default function ShiftTemplateForm({
               type="button"
               onClick={() => toggleDay(idx)}
               className={`w-10 h-10 rounded-full text-sm font-medium ${
-                weekdays.includes(idx)
+                idx in days
                   ? "bg-primary text-white"
                   : "bg-surface text-charcoal hover:bg-gray-200"
               }`}
@@ -99,29 +135,36 @@ export default function ShiftTemplateForm({
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+
+      {enabledWeekdays.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-charcoal">開始時刻</label>
-          <input
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-          />
+          <label className="block text-sm font-medium text-charcoal mb-2">曜日ごとの勤務時間</label>
+          <div className="space-y-2">
+            {enabledWeekdays.map((w) => (
+              <div key={w} className="flex items-center gap-3">
+                <span className="w-8 text-sm font-medium text-charcoal">{WEEKDAY_LABELS[w]}</span>
+                <input
+                  type="time"
+                  value={days[w].startTime}
+                  onChange={(e) => updateTime(w, "startTime", e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+                <span className="text-sm text-charcoal">〜</span>
+                <input
+                  type="time"
+                  value={days[w].endTime}
+                  onChange={(e) => updateTime(w, "endTime", e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+            ))}
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-charcoal">終了時刻</label>
-          <input
-            type="time"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-          />
-        </div>
-      </div>
-      {message && (
-        <p className="text-sm text-primary">{message}</p>
       )}
+
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      {message && !error && <p className="text-sm text-primary">{message}</p>}
+
       <div className="flex gap-2">
         <button
           type="button"
@@ -131,7 +174,7 @@ export default function ShiftTemplateForm({
         >
           {saving ? "保存中..." : "保存"}
         </button>
-        {initialTemplate && (
+        {hasAny && (
           <button
             type="button"
             onClick={handleDelete}

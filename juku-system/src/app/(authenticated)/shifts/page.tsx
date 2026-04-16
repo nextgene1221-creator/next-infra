@@ -37,16 +37,28 @@ export default async function ShiftsPage({
     orderBy: { user: { name: "asc" } },
   });
 
-  const templatesRaw = await prisma.shiftTemplate.findMany({
-    include: { teacher: { include: { user: true } } },
+  const templatesRaw = await prisma.teacher.findMany({
+    where: { status: "active" },
+    include: {
+      user: true,
+      shiftTemplateDays: { orderBy: { weekday: "asc" } },
+    },
+    orderBy: { user: { name: "asc" } },
   });
-  const templates = templatesRaw.map((t) => ({
-    teacherId: t.teacherId,
-    teacherName: t.teacher.user.name,
-    weekdays: t.weekdays,
-    startTime: t.startTime,
-    endTime: t.endTime,
-  }));
+  const templates = templatesRaw
+    .filter((t) => t.shiftTemplateDays.length > 0)
+    .map((t) => ({
+      teacherId: t.id,
+      teacherName: t.user.name,
+      days: t.shiftTemplateDays.map((d) => ({
+        weekday: d.weekday,
+        startTime: d.startTime,
+        endTime: d.endTime,
+      })),
+    }));
+
+  const defaultCampus = await prisma.campus.findFirst({ orderBy: { sortOrder: "asc" } });
+  const defaultEndTime = defaultCampus?.closeTime || "21:00";
 
   const prevMonth = month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, "0")}`;
   const nextMonth = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -87,6 +99,7 @@ export default async function ShiftsPage({
         initialShifts={clientShifts}
         teachers={clientTeachers}
         templates={templates}
+        defaultEndTime={defaultEndTime}
         isAdmin={session.user.role === "admin"}
       />
     </div>

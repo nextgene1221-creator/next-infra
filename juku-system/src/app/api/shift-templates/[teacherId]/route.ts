@@ -13,6 +13,6 @@ export async function DELETE(
   }
 
   const { teacherId } = await params;
-  await prisma.shiftTemplate.delete({ where: { teacherId } }).catch(() => {});
+  await prisma.shiftTemplateDay.deleteMany({ where: { teacherId } });
   return NextResponse.json({ success: true });
 }

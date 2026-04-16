@@ -14,7 +14,7 @@ async function main() {
   await prisma.alert.deleteMany();
   await prisma.attendance.deleteMany();
   await prisma.shift.deleteMany();
-  await prisma.shiftTemplate.deleteMany();
+  await prisma.shiftTemplateDay.deleteMany();
   await prisma.routineTask.deleteMany();
   await prisma.task.deleteMany();
   await prisma.progressRecord.deleteMany();
