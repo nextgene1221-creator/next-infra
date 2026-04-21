@@ -11,6 +11,24 @@ export const MEETING_TYPES = [
   "その他",
 ] as const;
 
+type GoalSnapshot = {
+  subject: string;
+  materialName: string;
+  targetPages: number;
+  done: number;
+  startDate: string;
+  dueDate: string;
+  status: string;
+};
+type ProgressSnapshot = {
+  date: string;
+  subject: string;
+  material: string;
+  topic: string;
+  pagesCompleted: number;
+  teacherName: string;
+};
+
 type Meeting = {
   id: string;
   date: string | Date;
@@ -19,6 +37,8 @@ type Meeting = {
   status?: string;
   content: string;
   parentComment?: string;
+  goalsSnapshot?: string;
+  progressSnapshot?: string;
   nextMeetingDate: string | Date | null;
   teacher: { user: { name: string } };
 };
@@ -301,6 +321,7 @@ export default function MeetingRecords({
               <p className="text-sm text-dark whitespace-pre-wrap mt-2">
                 {meeting.content}
               </p>
+              <MeetingSnapshots meeting={meeting} />
               {meeting.nextMeetingDate && (
                 <p className="text-xs text-dark/60 mt-2">
                   次回面談予定:{" "}
@@ -309,6 +330,89 @@ export default function MeetingRecords({
               )}
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 面談時点のスナップショット表示
+function MeetingSnapshots({ meeting }: { meeting: Meeting }) {
+  const [open, setOpen] = useState(false);
+  const goals: GoalSnapshot[] = meeting.goalsSnapshot ? JSON.parse(meeting.goalsSnapshot) : [];
+  const progress: ProgressSnapshot[] = meeting.progressSnapshot ? JSON.parse(meeting.progressSnapshot) : [];
+
+  if (goals.length === 0 && progress.length === 0) return null;
+
+  return (
+    <div className="mt-3 border-t border-gray-100 pt-2">
+      <button
+        onClick={() => setOpen(!open)}
+        className="text-xs text-primary hover:underline"
+      >
+        {open ? "▼ 学習進捗を閉じる" : "▶ 面談時点の学習進捗を表示"}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-3">
+          {goals.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-dark mb-1">大目標 / 指標</h4>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-dark/60 border-b border-gray-100">
+                    <th className="text-left py-1 pr-2">科目</th>
+                    <th className="text-left py-1 pr-2">教材</th>
+                    <th className="text-right py-1 pr-2">進捗</th>
+                    <th className="text-right py-1 pr-2">目標</th>
+                    <th className="text-right py-1">期日</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {goals.map((g, i) => {
+                    const pct = g.targetPages > 0 ? Math.round((g.done / g.targetPages) * 100) : 0;
+                    return (
+                      <tr key={i} className="border-b border-gray-50">
+                        <td className="py-1 pr-2">{g.subject}</td>
+                        <td className="py-1 pr-2">{g.materialName}</td>
+                        <td className="py-1 pr-2 text-right">{g.done}p ({pct}%)</td>
+                        <td className="py-1 pr-2 text-right">{g.targetPages}p</td>
+                        <td className="py-1 text-right">{new Date(g.dueDate).toLocaleDateString("ja-JP")}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {progress.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-dark mb-1">前回面談からの学習進捗</h4>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-dark/60 border-b border-gray-100">
+                    <th className="text-left py-1 pr-2">日付</th>
+                    <th className="text-left py-1 pr-2">科目</th>
+                    <th className="text-left py-1 pr-2">教材</th>
+                    <th className="text-left py-1 pr-2">内容</th>
+                    <th className="text-right py-1 pr-2">ページ</th>
+                    <th className="text-left py-1">講師</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {progress.map((p, i) => (
+                    <tr key={i} className="border-b border-gray-50">
+                      <td className="py-1 pr-2 whitespace-nowrap">{new Date(p.date).toLocaleDateString("ja-JP")}</td>
+                      <td className="py-1 pr-2">{p.subject}</td>
+                      <td className="py-1 pr-2">{p.material}</td>
+                      <td className="py-1 pr-2">{p.topic}</td>
+                      <td className="py-1 pr-2 text-right">{p.pagesCompleted}p</td>
+                      <td className="py-1">{p.teacherName}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

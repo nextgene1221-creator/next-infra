@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import ShiftCalendar from "./ShiftCalendar";
+import AttendanceButton from "@/components/AttendanceButton";
 
 export default async function ShiftsPage({
   searchParams,
@@ -20,9 +21,13 @@ export default async function ShiftsPage({
   const where: Record<string, unknown> = {
     date: { gte: startDate, lte: endDate },
   };
+  let currentTeacherId: string | undefined;
   if (session.user.role === "teacher") {
     const teacher = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
-    if (teacher) where.teacherId = teacher.id;
+    if (teacher) {
+      where.teacherId = teacher.id;
+      currentTeacherId = teacher.id;
+    }
   }
 
   const shifts = await prisma.shift.findMany({
@@ -81,6 +86,12 @@ export default async function ShiftsPage({
         <h1 className="text-2xl font-bold text-dark">シフト管理</h1>
       </div>
 
+      {session.user.role === "teacher" && (
+        <div className="mb-4">
+          <AttendanceButton />
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow p-4 mb-4 flex items-center justify-between">
         <Link href={`/shifts?month=${prevMonth}`} className="text-primary hover:underline text-sm">
           ← 前月
@@ -101,6 +112,7 @@ export default async function ShiftsPage({
         templates={templates}
         defaultEndTime={defaultEndTime}
         isAdmin={session.user.role === "admin"}
+        currentTeacherId={currentTeacherId}
       />
     </div>
   );

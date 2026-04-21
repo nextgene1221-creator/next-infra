@@ -34,6 +34,7 @@ export default function ShiftCalendar({
   templates,
   defaultEndTime,
   isAdmin,
+  currentTeacherId,
 }: {
   year: number;
   month: number;
@@ -42,6 +43,7 @@ export default function ShiftCalendar({
   templates: Template[];
   defaultEndTime: string;
   isAdmin: boolean;
+  currentTeacherId?: string;
 }) {
   const router = useRouter();
   const [shifts, setShifts] = useState<Shift[]>(initialShifts);
@@ -79,6 +81,26 @@ export default function ShiftCalendar({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })();
 
+  const canClickDates = isAdmin || !!currentTeacherId;
+  const [confirming, setConfirming] = useState(false);
+
+  const handleBulkConfirm = async () => {
+    const monthStr = `${year}-${String(month).padStart(2, "0")}`;
+    if (!confirm(`${year}年${month}月の「予定」シフトをすべて「確定」にしますか？`)) return;
+    setConfirming(true);
+    const res = await fetch("/api/shifts/bulk-confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month: monthStr }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      alert(`${data.confirmed}件を確定しました`);
+      router.refresh();
+    }
+    setConfirming(false);
+  };
+
   const handleBulkGenerate = async () => {
     if (!confirm(`${year}年${month}月のテンプレートからシフトを一括生成しますか？\n（既存のシフトはスキップされます）`)) return;
     setGenerating(true);
@@ -114,6 +136,13 @@ export default function ShiftCalendar({
           >
             {generating ? "生成中..." : "一括生成"}
           </button>
+          <button
+            onClick={handleBulkConfirm}
+            disabled={confirming}
+            className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 disabled:opacity-50"
+          >
+            {confirming ? "処理中..." : "一括確定"}
+          </button>
         </div>
       )}
 
@@ -148,8 +177,8 @@ export default function ShiftCalendar({
             return (
               <div
                 key={idx}
-                onClick={() => isAdmin && setSelectedDate(dateKey)}
-                className={`bg-white p-2 ${isAdmin ? "cursor-pointer hover:bg-surface" : ""} min-h-24`}
+                onClick={() => canClickDates && setSelectedDate(dateKey)}
+                className={`bg-white p-2 ${canClickDates ? "cursor-pointer hover:bg-surface" : ""} min-h-24`}
               >
                 <div
                   className={`text-sm font-medium mb-1 ${
@@ -195,6 +224,8 @@ export default function ShiftCalendar({
           dateKey={selectedDate}
           initialShifts={shiftsByDate[selectedDate] || []}
           teachers={teachers}
+          isAdmin={isAdmin}
+          currentTeacherId={currentTeacherId}
           onClose={() => setSelectedDate(null)}
           onChanged={() => {
             setSelectedDate(null);
@@ -224,12 +255,16 @@ function DayDetailModal({
   dateKey,
   initialShifts,
   teachers,
+  isAdmin,
+  currentTeacherId,
   onClose,
   onChanged,
 }: {
   dateKey: string;
   initialShifts: Shift[];
   teachers: Teacher[];
+  isAdmin: boolean;
+  currentTeacherId?: string;
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -357,12 +392,16 @@ function DayDetailModal({
                   {s.notes && <p className="text-xs text-dark/50 mt-1">{s.notes}</p>}
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => openEdit(s)} className="text-xs text-primary hover:underline">
-                    編集
-                  </button>
-                  <button onClick={() => handleDelete(s.id)} className="text-xs text-red-500 hover:underline">
-                    削除
-                  </button>
+                  {(isAdmin || (currentTeacherId && s.teacherId === currentTeacherId)) && (
+                    <button onClick={() => openEdit(s)} className="text-xs text-primary hover:underline">
+                      編集
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button onClick={() => handleDelete(s.id)} className="text-xs text-red-500 hover:underline">
+                      削除
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -370,31 +409,37 @@ function DayDetailModal({
         )}
 
         {!showAddForm ? (
-          <button
-            onClick={openAdd}
-            className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
-          >
-            シフトを追加
-          </button>
+          isAdmin && (
+            <button
+              onClick={openAdd}
+              className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
+            >
+              シフトを追加
+            </button>
+          )
         ) : (
           <form onSubmit={handleSubmit} className="bg-surface rounded-lg p-4 space-y-3">
             <h4 className="text-sm font-semibold text-dark">{editingId ? "シフト編集" : "シフト追加"}</h4>
-            <div>
-              <label className="block text-sm font-medium text-charcoal">講師</label>
-              <select
-                required
-                value={teacherId}
-                onChange={(e) => setTeacherId(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
-              >
-                <option value="">選択してください</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isAdmin ? (
+              <div>
+                <label className="block text-sm font-medium text-charcoal">講師</label>
+                <select
+                  required
+                  value={teacherId}
+                  onChange={(e) => setTeacherId(e.target.value)}
+                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                >
+                  <option value="">選択してください</option>
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <input type="hidden" value={teacherId} />
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-charcoal">開始時刻</label>

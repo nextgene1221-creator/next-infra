@@ -313,9 +313,11 @@ model Meeting {
   durationMinutes Int?      @map("duration_minutes") // 面談時間（分）
   type            String?   // 定期面談 / 進路相談 / 学習相談 / 保護者面談 / その他
   status          String    @default("conducted") // conducted / rescheduled
-  content         String    // 面談内容
-  parentComment   String    @default("") @map("parent_comment") // 親御さんへの共有コメント
-  nextMeetingDate DateTime? @map("next_meeting_date")
+  content          String    // 面談内容
+  parentComment    String    @default("") @map("parent_comment") // 親御さんへの共有コメント
+  goalsSnapshot    String    @default("[]") @map("goals_snapshot")    // JSON: 面談時点の大目標/指標スナップショット
+  progressSnapshot String    @default("[]") @map("progress_snapshot") // JSON: 前回面談〜今回の学習進捗一覧
+  nextMeetingDate  DateTime? @map("next_meeting_date")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
@@ -412,7 +414,8 @@ model StudyScheduleDay {
   id        String   @id @default(uuid())
   studentId String   @map("student_id")
   weekday   Int      // 0=日 ... 6=土
-  hours     Float    @default(0)
+  hours     Float    @default(0) // 後方互換用（slotsから自動計算）
+  slots     String   @default("[]") // JSON: [{subject: string, minutes: number}]
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

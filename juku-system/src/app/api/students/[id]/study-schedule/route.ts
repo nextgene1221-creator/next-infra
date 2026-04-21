@@ -38,19 +38,34 @@ export async function PUT(
   if (!a.ok) return NextResponse.json({ error: "Unauthorized" }, { status: a.status });
 
   const body = await req.json();
-  const schedule = body.schedule as { weekday: number; hours: number }[];
+  const schedule = body.schedule as {
+    weekday: number;
+    hours?: number;
+    slots?: { subject: string; minutes: number }[];
+  }[];
   if (!Array.isArray(schedule)) {
     return NextResponse.json({ error: "schedule must be array" }, { status: 400 });
   }
 
   await prisma.$transaction(
-    schedule.map((s) =>
-      prisma.studyScheduleDay.upsert({
+    schedule.map((s) => {
+      const slots = s.slots || [];
+      // hours は slots から自動計算（後方互換）
+      const hours = s.hours ?? slots.reduce((sum, sl) => sum + sl.minutes, 0) / 60;
+      return prisma.studyScheduleDay.upsert({
         where: { studentId_weekday: { studentId: id, weekday: s.weekday } },
-        create: { studentId: id, weekday: s.weekday, hours: s.hours },
-        update: { hours: s.hours },
-      })
-    )
+        create: {
+          studentId: id,
+          weekday: s.weekday,
+          hours,
+          slots: JSON.stringify(slots),
+        },
+        update: {
+          hours,
+          slots: JSON.stringify(slots),
+        },
+      });
+    })
   );
 
   const days = await prisma.studyScheduleDay.findMany({

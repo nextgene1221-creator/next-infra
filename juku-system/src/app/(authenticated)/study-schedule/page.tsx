@@ -15,14 +15,22 @@ export default async function StudySchedulePage() {
     if (!student) {
       return <p className="text-dark/60">生徒情報が見つかりません</p>;
     }
+    const examSubjects: string[] = student.examSubjects
+      ? JSON.parse(student.examSubjects)
+      : [];
     return (
       <div>
         <h1 className="text-2xl font-bold text-dark mb-2">学習スケジュール</h1>
-        <p className="text-sm text-dark/60 mb-6">曜日ごとに1日の学習時間（時間単位）を入力してください。</p>
-        <div className="bg-white rounded-lg shadow p-6 max-w-2xl">
+        <p className="text-sm text-dark/60 mb-6">曜日ごとに科目と学習時間（10分単位）を設定してください。</p>
+        <div className="bg-white rounded-lg shadow p-6">
           <StudyScheduleEditor
             studentId={student.id}
-            initialSchedule={student.studySchedule.map((s) => ({ weekday: s.weekday, hours: s.hours }))}
+            initialSchedule={student.studySchedule.map((s) => ({
+              weekday: s.weekday,
+              hours: s.hours,
+              slots: JSON.parse(s.slots || "[]"),
+            }))}
+            examSubjects={examSubjects}
           />
         </div>
       </div>

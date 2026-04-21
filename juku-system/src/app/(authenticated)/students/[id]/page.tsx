@@ -337,10 +337,15 @@ export default async function StudentDetailPage({
 
         {/* Study Schedule */}
         <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
-          <h2 className="text-lg font-semibold mb-3">学習スケジュール（曜日別1日の学習時間）</h2>
+          <h2 className="text-lg font-semibold mb-3">学習スケジュール</h2>
           <StudyScheduleEditor
             studentId={id}
-            initialSchedule={student.studySchedule.map((s) => ({ weekday: s.weekday, hours: s.hours }))}
+            initialSchedule={student.studySchedule.map((s) => ({
+              weekday: s.weekday,
+              hours: s.hours,
+              slots: JSON.parse(s.slots || "[]"),
+            }))}
+            examSubjects={examSubjects}
           />
         </div>
 
@@ -356,6 +361,7 @@ export default async function StudentDetailPage({
               studentId={id}
               initialResults={myExamResults}
               alumniResults={alumniResults}
+              examSubjects={examSubjects}
             />
           </div>
         )}

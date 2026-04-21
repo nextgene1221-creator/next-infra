@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export const MOCK_SUBJECTS = ["英語", "国語", "数学", "理科", "社会"] as const;
+/** @deprecated Use examSubjects prop instead */
+export const MOCK_SUBJECTS = ["英語", "国���", "数学", "理科", "社会"] as const;
 export const GRADE_LEVELS = [
   { value: "high1", label: "高1" },
   { value: "high2", label: "高2" },
@@ -67,10 +68,12 @@ export default function MockExamsPanel({
   studentId,
   initialResults,
   alumniResults,
+  examSubjects,
 }: {
   studentId: string;
   initialResults: ExamResult[];
   alumniResults: AnonymousResult[];
+  examSubjects: string[];
 }) {
   const router = useRouter();
   const [results, setResults] = useState<ExamResult[]>(initialResults);
@@ -87,7 +90,7 @@ export default function MockExamsPanel({
   const [schoolRank, setSchoolRank] = useState<string>("");
   const [judgment, setJudgment] = useState("");
   const [subjects, setSubjects] = useState<SubjectEntry[]>(
-    MOCK_SUBJECTS.map((s) => ({ subject: s, deviation: null, score: null }))
+    examSubjects.map((s) => ({ subject: s, deviation: null, score: null }))
   );
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -96,7 +99,7 @@ export default function MockExamsPanel({
     setExamName(""); setExamDate(""); setGradeLevel("high3");
     setOverallDeviation(""); setOverallScore(""); setSchoolRank("");
     setJudgment(""); setNotes("");
-    setSubjects(MOCK_SUBJECTS.map((s) => ({ subject: s, deviation: null, score: null })));
+    setSubjects(examSubjects.map((s) => ({ subject: s, deviation: null, score: null })));
     setEditingId(null); setShowForm(false);
   };
   const openNew = () => {
@@ -115,7 +118,7 @@ export default function MockExamsPanel({
     setNotes(r.notes);
     // 既存科目をマージ
     const existingMap = new Map(r.subjects.map((s) => [s.subject, s]));
-    setSubjects(MOCK_SUBJECTS.map((s) => existingMap.get(s) || { subject: s, deviation: null, score: null }));
+    setSubjects(examSubjects.map((s) => existingMap.get(s) || { subject: s, deviation: null, score: null }));
     setEditingId(r.id);
     setShowForm(true);
   };
@@ -209,7 +212,7 @@ export default function MockExamsPanel({
   const invertY = tab === "rank"; // 順位は小さいほうが上
   let minY = yValues.length > 0 ? Math.min(...yValues) : 30;
   let maxY = yValues.length > 0 ? Math.max(...yValues) : 70;
-  if (tab === "overall" || MOCK_SUBJECTS.includes(tab as typeof MOCK_SUBJECTS[number])) {
+  if (tab === "overall" || examSubjects.includes(tab)) {
     minY = Math.min(minY, 30);
     maxY = Math.max(maxY, 75);
   }
@@ -257,7 +260,7 @@ export default function MockExamsPanel({
       <div className="flex flex-wrap gap-1 mb-2">
         {tabBtn("overall", "総合偏差値")}
         {tabBtn("rank", "校内順位")}
-        {MOCK_SUBJECTS.map((s) => tabBtn(s, s))}
+        {examSubjects.map((s) => tabBtn(s, s))}
       </div>
       <p className="text-xs text-dark/60 mb-2">
         グラフ: あなたの記録（🟥赤の太線） + 同じ第1志望校を目指した卒業生（🩶灰色の細線、匿名）

@@ -64,11 +64,6 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
   const handleLogout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
-    try {
-      await fetch("/api/attendance/clock-out", { method: "POST" });
-    } catch (e) {
-      console.error("Clock-out failed", e);
-    }
     signOut({ callbackUrl: "/login" });
   };
 
@@ -164,7 +159,7 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
             disabled={loggingOut}
             className="w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white rounded-md transition-colors disabled:opacity-50"
           >
-            {loggingOut ? "処理中..." : "退勤してログアウト"}
+            {loggingOut ? "処理中..." : "ログアウト"}
           </button>
         </div>
       </aside>

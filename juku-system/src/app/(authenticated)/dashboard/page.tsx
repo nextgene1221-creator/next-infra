@@ -4,6 +4,7 @@ import Link from "next/link";
 import EventCalendar from "@/components/EventCalendar";
 import DashboardAlertItem from "@/components/DashboardAlertItem";
 import TeacherTaskList from "@/components/TeacherTaskList";
+import AttendanceButton from "@/components/AttendanceButton";
 import { computeTodayPlan, type WeeklyGoalLite } from "@/lib/todayPlan";
 import { getAllCampuses, getAllStudyRoomConfigs } from "@/lib/studyRoom";
 
@@ -376,6 +377,12 @@ export default async function DashboardPage() {
               </ul>
             )}
           </div>
+        </div>
+      )}
+
+      {role === "teacher" && (
+        <div className="mb-4">
+          <AttendanceButton />
         </div>
       )}
 

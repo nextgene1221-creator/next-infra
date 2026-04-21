@@ -26,13 +26,6 @@ export default function LoginPage() {
       setError("メールアドレスまたはパスワードが正しくありません");
       setLoading(false);
     } else {
-      // 出勤打刻（講師でない/admin/studentは内部でスキップされる）
-      try {
-        await fetch("/api/attendance/clock-in", { method: "POST" });
-      } catch (e) {
-        // 失敗してもログインは続行
-        console.error("Clock-in failed", e);
-      }
       router.push("/dashboard");
     }
   };
@@ -45,7 +38,7 @@ export default function LoginPage() {
             Next infra
           </h1>
           <p className="mt-2 text-center text-sm text-charcoal">
-            出勤打刻とログイン
+            ログイン
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -87,11 +80,8 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 transition-colors"
           >
-            {loading ? "処理中..." : "出勤してログイン"}
+            {loading ? "処理中..." : "ログイン"}
           </button>
-          <p className="text-xs text-charcoal/60 text-center">
-            ※ 講師の方は出勤打刻が同時に行われます
-          </p>
         </form>
       </div>
     </div>
