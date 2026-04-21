@@ -11,18 +11,24 @@ export type WeeklyGoalLite = {
   done: number; // 既に完了したページ数
 };
 
-export type ScheduleByWeekday = number[]; // length 7, 日=0
+type Slot = { subject: string; minutes: number };
+
+// 曜日ごとのスロット配列 (length 7, 日=0)
+export type ScheduleSlots = Slot[][];
+
+// 後方互換: 旧 number[] → 新 Slot[][] への変換なし。呼び出し元で slots を渡す。
+export type ScheduleByWeekday = number[]; // 未使用だが���互換のために残す
 
 export type TodayItem = {
   goalId: string;
   subject: string;
   materialName: string;
   remainingPages: number;
-  remainingHours: number;
-  todayHours: number;
+  remainingMinutes: number;
+  todayMinutes: number;
   todayPages: number;
   dueDate: Date;
-  reason?: string; // 計算不能時の理由
+  reason?: string; // 計算不能時の���由
 };
 
 function startOfDay(d: Date): Date {
@@ -31,13 +37,20 @@ function startOfDay(d: Date): Date {
   return x;
 }
 
+/** 特定曜日のスロットからある科目の合計分数を取得 */
+function subjectMinutes(slots: Slot[], subject: string): number {
+  return slots
+    .filter((s) => s.subject === subject)
+    .reduce((sum, s) => sum + s.minutes, 0);
+}
+
 export function computeTodayPlan(
   goals: WeeklyGoalLite[],
-  schedule: ScheduleByWeekday,
+  scheduleSlots: ScheduleSlots,
   now: Date = new Date()
 ): TodayItem[] {
   const today = startOfDay(now);
-  const todayHours = schedule[today.getDay()] ?? 0;
+  const todayDow = today.getDay();
 
   const items: TodayItem[] = [];
   for (const g of goals) {
@@ -47,22 +60,25 @@ export function computeTodayPlan(
     const remainingPages = Math.max(0, g.targetPages - g.done);
     if (remainingPages === 0) continue;
 
-    // 今日〜期日 までの累計学習時間（曜日に応じて）
-    let remainingHours = 0;
-    const daysToDue = Math.floor((due.getTime() - today.getTime()) / MS_DAY) + 1; // 期日含む
+    // 今日のこの科目の学習分数
+    const todayMinutes = subjectMinutes(scheduleSlots[todayDow] ?? [], g.subject);
+
+    // 今日���期日 までのこの科目の累計学習分数
+    let remainingMinutes = 0;
+    const daysToDue = Math.floor((due.getTime() - today.getTime()) / MS_DAY) + 1;
     for (let i = 0; i < daysToDue; i++) {
       const d = new Date(today.getTime() + i * MS_DAY);
-      remainingHours += schedule[d.getDay()] ?? 0;
+      remainingMinutes += subjectMinutes(scheduleSlots[d.getDay()] ?? [], g.subject);
     }
 
     let todayPages = 0;
     let reason: string | undefined;
-    if (remainingHours <= 0) {
-      reason = "残り日数の学習スケジュールが0時間です";
-    } else if (todayHours <= 0) {
-      reason = "本日の学習時間が0時間です";
+    if (remainingMinutes <= 0) {
+      reason = "残り日数のスケジュールにこの科目がありません";
+    } else if (todayMinutes <= 0) {
+      reason = "本日のスケジュールにこの科目がありません";
     } else {
-      todayPages = Math.ceil((remainingPages / remainingHours) * todayHours);
+      todayPages = Math.ceil((remainingPages / remainingMinutes) * todayMinutes);
     }
 
     items.push({
@@ -70,15 +86,15 @@ export function computeTodayPlan(
       subject: g.subject,
       materialName: g.materialName,
       remainingPages,
-      remainingHours,
-      todayHours,
+      remainingMinutes,
+      todayMinutes,
       todayPages,
       dueDate: due,
       reason,
     });
   }
 
-  // 期日が近い順
+  // 期���が近い順
   items.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
   return items;
 }

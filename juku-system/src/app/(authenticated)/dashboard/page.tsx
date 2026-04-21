@@ -5,7 +5,7 @@ import EventCalendar from "@/components/EventCalendar";
 import DashboardAlertItem from "@/components/DashboardAlertItem";
 import TeacherTaskList from "@/components/TeacherTaskList";
 import AttendanceButton from "@/components/AttendanceButton";
-import { computeTodayPlan, type WeeklyGoalLite } from "@/lib/todayPlan";
+import { computeTodayPlan, type WeeklyGoalLite, type ScheduleSlots } from "@/lib/todayPlan";
 import { getAllCampuses, getAllStudyRoomConfigs } from "@/lib/studyRoom";
 
 export default async function DashboardPage() {
@@ -72,9 +72,13 @@ export default async function DashboardPage() {
       },
     });
     if (student) {
-      const sched: number[] = Array(7).fill(0);
-      for (const s of student.studySchedule) sched[s.weekday] = s.hours;
-      scheduleConfigured = sched.some((h) => h > 0);
+      // スロットベースのスケジュールを構築
+      const schedSlots: ScheduleSlots = Array.from({ length: 7 }, () => []);
+      for (const s of student.studySchedule) {
+        const parsed: { subject: string; minutes: number }[] = JSON.parse(s.slots || "[]");
+        schedSlots[s.weekday] = parsed;
+      }
+      scheduleConfigured = schedSlots.some((slots) => slots.length > 0);
       const goals: WeeklyGoalLite[] = student.learningGoals.map((g) => ({
         id: g.id,
         subject: g.subject,
@@ -85,7 +89,7 @@ export default async function DashboardPage() {
         status: g.status,
         done: g.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
       }));
-      todayPlan = computeTodayPlan(goals, sched);
+      todayPlan = computeTodayPlan(goals, schedSlots);
 
       studentWeeklyGoals = student.learningGoals.map((g) => ({
         id: g.id,
@@ -170,6 +174,36 @@ export default async function DashboardPage() {
         endTime: s.endTime,
       }));
     }
+  }
+
+  // 本日のゼミプリント一覧（講師/admin向け）
+  let todayPrints: {
+    studentName: string;
+    subject: string;
+    unitName: string;
+    printNo: number;
+  }[] = [];
+  if (role === "admin" || role === "teacher") {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const rawPrints = await prisma.studentPrint.findMany({
+      where: {
+        scheduledDate: { gte: todayStart, lte: todayEnd },
+        completedDate: null,
+      },
+      include: {
+        printUnit: true,
+        student: { include: { user: { select: { name: true } } } },
+      },
+      orderBy: [{ student: { user: { name: "asc" } } }, { printUnit: { subject: "asc" } }, { printNo: "asc" }],
+    });
+    todayPrints = rawPrints.map((p) => ({
+      studentName: p.student.user.name,
+      subject: p.printUnit.subject,
+      unitName: p.printUnit.name,
+      printNo: p.printNo,
+    }));
   }
 
   // 自習室の空席状況（全ロール向け）
@@ -297,7 +331,7 @@ export default async function DashboardPage() {
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-dark truncate">[{it.subject}] {it.materialName}</div>
                     <div className="text-xs text-dark/60">
-                      残り {it.remainingPages}p / 期日 {it.dueDate.toLocaleDateString("ja-JP")} / 残り学習 {it.remainingHours}時間
+                      残り {it.remainingPages}p / 期日 {it.dueDate.toLocaleDateString("ja-JP")} / 残り学習 {it.remainingMinutes}分
                     </div>
                   </div>
                   <div className="text-right shrink-0">
@@ -415,6 +449,33 @@ export default async function DashboardPage() {
               </ul>
             )}
           </div>
+        </div>
+      )}
+
+      {(role === "admin" || role === "teacher") && todayPrints.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-lg font-semibold text-dark mb-4">本日のゼミプリント（印刷対象）</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-dark/60 border-b">
+                <th className="text-left py-1">生徒</th>
+                <th className="text-left py-1">科目</th>
+                <th className="text-left py-1">単元</th>
+                <th className="text-right py-1">No.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {todayPrints.map((p, i) => (
+                <tr key={i} className="border-b border-gray-50">
+                  <td className="py-1">{p.studentName}</td>
+                  <td className="py-1">{p.subject}</td>
+                  <td className="py-1">{p.unitName}</td>
+                  <td className="py-1 text-right">{p.printNo}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-dark/50 mt-2">合計 {todayPrints.length} 枚</p>
         </div>
       )}
 

@@ -16,9 +16,12 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  student  Student?
-  teacher  Teacher?
-  alerts   Alert[]
+  student      Student?
+  teacher      Teacher?
+  alerts       Alert[]
+  articleReads ArticleRead[]
+  blogPosts    BlogPost[]
+  blogReads    BlogRead[]
 
   @@map("users")
 }
@@ -64,6 +67,7 @@ model Student {
   mockExamResults     MockExamResult[]
   studyRoomSessions   StudyRoomSession[]
   pointTransactions   PointTransaction[]
+  studentPrints       StudentPrint[]
 
   @@map("students")
 }
@@ -380,7 +384,96 @@ model Article {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  reads ArticleRead[]
+
   @@map("articles")
+}
+
+model ArticleRead {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  articleId String   @map("article_id")
+  readAt    DateTime @default(now()) @map("read_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@map("article_reads")
+}
+
+model BlogCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  posts BlogPost[]
+
+  @@map("blog_categories")
+}
+
+model BlogPost {
+  id          String   @id @default(uuid())
+  title       String
+  body        String   // markdown
+  audience    String   @default("both") // student / teacher / admin / both
+  categoryId  String   @map("category_id")
+  authorId    String   @map("author_id")
+  images      String   @default("[]") // JSON array of {url, name}
+  publishedAt DateTime @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  category BlogCategory @relation(fields: [categoryId], references: [id])
+  author   User         @relation(fields: [authorId], references: [id])
+  reads    BlogRead[]
+
+  @@map("blog_posts")
+}
+
+model BlogRead {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  blogPostId String   @map("blog_post_id")
+  readAt     DateTime @default(now()) @map("read_at")
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogPostId])
+  @@map("blog_reads")
+}
+
+model PrintUnit {
+  id         String   @id @default(uuid())
+  subject    String
+  name       String
+  printCount Int      @map("print_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  studentPrints StudentPrint[]
+
+  @@map("print_units")
+}
+
+model StudentPrint {
+  id            String    @id @default(uuid())
+  studentId     String    @map("student_id")
+  printUnitId   String    @map("print_unit_id")
+  printNo       Int       @map("print_no")
+  scheduledDate DateTime  @map("scheduled_date")
+  completedDate DateTime? @map("completed_date")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  printUnit PrintUnit @relation(fields: [printUnitId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, printUnitId, printNo])
+  @@index([scheduledDate])
+  @@map("student_prints")
 }
 
 model School {

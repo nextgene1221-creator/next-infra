@@ -17,42 +17,69 @@ const navItems: NavItem[] = [
   { label: "講師管理", href: "/teachers", roles: ["admin"] },
   { label: "学習進捗", href: "/progress", roles: ["admin", "teacher", "student"] },
   { label: "学習スケジュール", href: "/study-schedule", roles: ["student"] },
+  { label: "ゼミ管理", href: "/seminar", roles: ["admin", "teacher", "student"] },
   { label: "タスク管理", href: "/tasks", roles: ["admin", "teacher"] },
   { label: "面談管理", href: "/meetings", roles: ["admin", "teacher"] },
   { label: "イベント管理", href: "/events", roles: ["admin", "teacher"] },
   { label: "自習室管理", href: "/study-room", roles: ["admin", "teacher"] },
   { label: "校舎管理", href: "/campuses", roles: ["admin", "teacher"] },
   { label: "イントロダクション", href: "/articles", roles: ["admin", "teacher", "student"] },
+  { label: "ブログ", href: "/blog", roles: ["admin", "teacher", "student"] },
   { label: "出退勤管理", href: "/attendance", roles: ["admin"] },
   { label: "アラート", href: "/alerts", roles: ["admin", "teacher", "student"] },
   { label: "シフト管理", href: "/shifts", roles: ["admin", "teacher"] },
 ];
 
+type BadgeCounts = {
+  unreadAlerts: number;
+  unreadArticles: number;
+  unreadBlog: number;
+  studentAlertCount: number;
+};
+
 export default function Sidebar({ userName, userRole }: { userName: string; userRole: string }) {
   const pathname = usePathname();
   const [loggingOut, setLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [alertCount, setAlertCount] = useState(0);
+  const [badges, setBadges] = useState<BadgeCounts>({
+    unreadAlerts: 0,
+    unreadArticles: 0,
+    unreadBlog: 0,
+    studentAlertCount: 0,
+  });
 
   // ページ遷移時にメニューを閉じる
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // 両方該当の生徒数を取得して定期的に更新
+  // バッジ情報を一括取得
   useEffect(() => {
-    if (userRole === "student") return;
     let cancelled = false;
-    const fetchCount = async () => {
+    const fetchCounts = async () => {
       try {
-        const res = await fetch("/api/students/alert-count");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) setAlertCount(data.count || 0);
+        const [sidebarRes, alertRes] = await Promise.all([
+          fetch("/api/sidebar-counts"),
+          userRole !== "student" ? fetch("/api/students/alert-count") : null,
+        ]);
+        if (cancelled) return;
+        if (sidebarRes.ok) {
+          const data = await sidebarRes.json();
+          setBadges((prev) => ({
+            ...prev,
+            unreadAlerts: data.unreadAlerts || 0,
+            unreadArticles: data.unreadArticles || 0,
+            unreadBlog: data.unreadBlog || 0,
+          }));
+        }
+        if (alertRes?.ok) {
+          const data = await alertRes.json();
+          if (!cancelled) setBadges((prev) => ({ ...prev, studentAlertCount: data.count || 0 }));
+        }
       } catch {}
     };
-    fetchCount();
-    const id = setInterval(fetchCount, 5 * 60 * 1000);
+    fetchCounts();
+    const id = setInterval(fetchCounts, 5 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -65,6 +92,16 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
     if (loggingOut) return;
     setLoggingOut(true);
     signOut({ callbackUrl: "/login" });
+  };
+
+  const getBadge = (href: string): number => {
+    switch (href) {
+      case "/students": return badges.studentAlertCount;
+      case "/articles": return badges.unreadArticles;
+      case "/blog": return badges.unreadBlog;
+      case "/alerts": return badges.unreadAlerts;
+      default: return 0;
+    }
   };
 
   const sidebarBg = { background: "linear-gradient(to bottom, #020381, #32373c)" };
@@ -129,7 +166,7 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
             .filter((item) => item.roles.includes(userRole))
             .map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-              const showBadge = item.href === "/students" && alertCount > 0;
+              const badgeCount = getBadge(item.href);
               return (
                 <Link
                   key={item.href}
@@ -141,12 +178,9 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
                   }`}
                 >
                   <span>{item.label}</span>
-                  {showBadge && (
-                    <span
-                      className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold animate-pulse"
-                      title="面談空き・学習遅れ 両方該当の生徒数"
-                    >
-                      🚨 {alertCount}
+                  {badgeCount > 0 && (
+                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
+                      {badgeCount}
                     </span>
                   )}
                 </Link>

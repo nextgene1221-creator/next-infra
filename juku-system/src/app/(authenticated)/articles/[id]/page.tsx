@@ -24,6 +24,13 @@ export default async function ArticleDetailPage({
     notFound();
   }
 
+  // 既読マーク
+  await prisma.articleRead.upsert({
+    where: { userId_articleId: { userId: session.user.id, articleId: id } },
+    create: { userId: session.user.id, articleId: id },
+    update: {},
+  });
+
   const html = marked.parse(article.body, { breaks: true, async: false }) as string;
   const images: { url: string; name: string }[] = article.images
     ? JSON.parse(article.images)
