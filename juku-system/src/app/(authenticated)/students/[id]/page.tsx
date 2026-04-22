@@ -336,7 +336,7 @@ export default async function StudentDetailPage({
         </div>
 
         {/* Study Schedule */}
-        <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
+        <div className="bg-white rounded-lg shadow p-4">
           <h2 className="text-lg font-semibold mb-3">学習スケジュール</h2>
           <StudyScheduleEditor
             studentId={id}
