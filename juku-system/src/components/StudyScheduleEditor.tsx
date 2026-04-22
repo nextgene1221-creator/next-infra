@@ -12,7 +12,7 @@ const SUBJECT_COLORS = [
 ];
 
 const STEP = 10; // 10分刻み
-const MAX_MINUTES = 300;
+const MAX_MINUTES = 1440; // 24時間
 
 type Slot = { subject: string; minutes: number };
 type ScheduleDay = { weekday: number; hours: number; slots: Slot[] };
@@ -191,9 +191,6 @@ export default function StudyScheduleEditor({
     }
     setSaving(false);
   };
-
-  const minuteOptions: number[] = [];
-  for (let m = 10; m <= MAX_MINUTES; m += 10) minuteOptions.push(m);
 
   const fmt = (m: number) =>
     m >= 60 ? `${Math.floor(m / 60)}h${m % 60 > 0 ? `${m % 60}m` : ""}` : m > 0 ? `${m}m` : "-";
@@ -411,9 +408,32 @@ export default function StudyScheduleEditor({
                     <select value={slot.subject} onChange={(e) => updateSlot(editingDay, i, "subject", e.target.value)} className="text-sm border border-gray-300 rounded px-2 py-1 bg-white flex-1 min-w-0">
                       {examSubjects.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
-                    <select value={slot.minutes} onChange={(e) => updateSlot(editingDay, i, "minutes", e.target.value)} className="text-sm border border-gray-300 rounded px-2 py-1 bg-white w-24">
-                      {minuteOptions.map((m) => <option key={m} value={m}>{fmt(m)}</option>)}
-                    </select>
+                    <div className="flex items-center gap-0.5">
+                      <input
+                        type="number"
+                        min={0}
+                        max={24}
+                        value={Math.floor(slot.minutes / 60)}
+                        onChange={(e) => {
+                          const h = Math.max(0, Math.min(24, parseInt(e.target.value) || 0));
+                          const m = slot.minutes % 60;
+                          updateSlot(editingDay, i, "minutes", h * 60 + m);
+                        }}
+                        className="text-sm border border-gray-300 rounded px-1.5 py-1 bg-white w-12 text-center"
+                      />
+                      <span className="text-xs text-dark/50">h</span>
+                      <select
+                        value={slot.minutes % 60}
+                        onChange={(e) => {
+                          const h = Math.floor(slot.minutes / 60);
+                          updateSlot(editingDay, i, "minutes", h * 60 + Number(e.target.value));
+                        }}
+                        className="text-sm border border-gray-300 rounded px-1 py-1 bg-white w-14"
+                      >
+                        {[0, 10, 20, 30, 40, 50].map((m) => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <span className="text-xs text-dark/50">m</span>
+                    </div>
                     <button onClick={() => removeSlot(editingDay, i)} className="text-red-400 hover:text-red-600 text-sm">✕</button>
                   </div>
                 ))}
