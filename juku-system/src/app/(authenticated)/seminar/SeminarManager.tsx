@@ -54,6 +54,18 @@ export default function SeminarManager({
     setAddingSaving(false);
   };
 
+  const updatePrintCount = async (id: string, printCount: number) => {
+    if (printCount < 1) return;
+    const res = await fetch(`/api/print-units/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printCount }),
+    });
+    if (res.ok) {
+      setUnits((prev) => prev.map((u) => u.id === id ? { ...u, printCount } : u));
+    }
+  };
+
   const deleteUnit = async (id: string) => {
     if (!confirm("この単元と関連するプリント予定をすべて削除しますか？")) return;
     const res = await fetch(`/api/print-units/${id}`, { method: "DELETE" });
@@ -162,7 +174,18 @@ export default function SeminarManager({
                     <tr key={u.id} className="border-b border-gray-50">
                       <td className="py-1">{u.subject}</td>
                       <td className="py-1">{u.name}</td>
-                      <td className="py-1 text-right">{u.printCount}</td>
+                      <td className="py-1 text-right">
+                        <input
+                          type="number"
+                          min={1}
+                          defaultValue={u.printCount}
+                          onBlur={(e) => {
+                            const v = parseInt(e.target.value) || u.printCount;
+                            if (v !== u.printCount) updatePrintCount(u.id, v);
+                          }}
+                          className="w-14 text-right border border-gray-300 rounded px-1 py-0.5 text-xs"
+                        />
+                      </td>
                       <td className="py-1 text-right"><button onClick={() => deleteUnit(u.id)} className="text-red-500 hover:underline">削除</button></td>
                     </tr>
                   ))}
