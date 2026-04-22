@@ -88,11 +88,12 @@ export default function StudyScheduleEditor({
       const barEl = (e.currentTarget as HTMLElement).closest("[data-bar]") as HTMLElement;
       if (!barEl) return;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      const barAreaHeight = barEl.clientHeight;
       dragRef.current = {
         weekday: w,
         startY: clientY,
         startMinutes: getSubjectMinutes(w, activeSubject),
-        barHeight: barEl.clientHeight,
+        barHeight: barAreaHeight,
       };
       setDragValue({ w, minutes: getSubjectMinutes(w, activeSubject) });
 
@@ -244,35 +245,37 @@ export default function StudyScheduleEditor({
           if (activeSubject) {
             // 科目モード: 単色バー + ドラッグ
             const mins = isDragging ? dragValue.minutes : getSubjectMinutes(w, activeSubject);
-            const pct = maxVal > 0 ? (mins / maxVal) * 100 : 0;
+            const barAreaH = BAR_H - 20; // ラベル分を引いた描画領域
+            const barPx = maxVal > 0 ? Math.max(mins > 0 ? 4 : 1, (mins / maxVal) * barAreaH) : 1;
             const color = subjectColorMap.get(activeSubject) || "#94a3b8";
             return (
               <div key={`bar-${w}`} className="flex flex-col items-center" style={{ height: BAR_H }}>
-                <div className="flex-1 w-full flex items-end justify-center" data-bar>
-                  <div className="relative w-10">
+                <div
+                  className="flex-1 w-full flex items-end justify-center relative"
+                  data-bar
+                >
+                  <div
+                    className={`w-10 rounded-t relative ${isDragging ? "" : "transition-[height] duration-300"} ${isToday ? "ring-2 ring-accent" : ""}`}
+                    style={{ height: barPx, backgroundColor: color }}
+                  >
+                    {/* ドラッグハンドル */}
                     <div
-                      className={`w-full rounded-t transition-[height] ${isDragging ? "" : "duration-300"} ${isToday ? "ring-2 ring-accent" : ""}`}
-                      style={{
-                        height: `${Math.max(mins > 0 ? 8 : 2, pct)}%`,
-                        backgroundColor: color,
-                      }}
+                      className="absolute -top-3 left-0 right-0 h-6 cursor-ns-resize flex items-center justify-center"
+                      onMouseDown={(e) => handleDragStart(w, e)}
+                      onTouchStart={(e) => handleDragStart(w, e)}
                     >
-                      {/* ドラッグハンドル */}
-                      <div
-                        className="absolute -top-2 left-0 right-0 h-4 cursor-ns-resize flex items-center justify-center"
-                        onMouseDown={(e) => handleDragStart(w, e)}
-                        onTouchStart={(e) => handleDragStart(w, e)}
-                      >
-                        <div className="w-5 h-1 bg-white/80 rounded-full shadow" />
-                      </div>
+                      <div className="w-6 h-1.5 bg-white/90 rounded-full shadow border border-gray-300" />
                     </div>
-                    {/* ドラッグ中の値表示 */}
-                    {isDragging && (
-                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-dark text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap">
-                        {fmt(dragValue.minutes)}
-                      </div>
-                    )}
                   </div>
+                  {/* ドラッグ中の値表示 */}
+                  {isDragging && (
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2 bg-dark text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap pointer-events-none z-10"
+                      style={{ bottom: barPx + 8 }}
+                    >
+                      {fmt(dragValue.minutes)}
+                    </div>
+                  )}
                 </div>
                 <div className="text-[10px] text-dark/60 mt-1 h-4">{fmt(mins)}</div>
               </div>
@@ -280,7 +283,8 @@ export default function StudyScheduleEditor({
           }
 
           // 合計モード: 積み上げ棒
-          const pct = maxVal > 0 ? (total / maxVal) * 100 : 0;
+          const barAreaH = BAR_H - 20;
+          const barPx = maxVal > 0 ? Math.max(total > 0 ? 4 : 1, (total / maxVal) * barAreaH) : 1;
           return (
             <div
               key={`bar-${w}`}
@@ -292,7 +296,7 @@ export default function StudyScheduleEditor({
               <div className="flex-1 w-full flex items-end justify-center">
                 <div
                   className={`w-10 rounded-t overflow-hidden transition-all duration-300 ${isToday ? "ring-2 ring-accent" : ""}`}
-                  style={{ height: `${Math.max(total > 0 ? 8 : 2, pct)}%` }}
+                  style={{ height: barPx }}
                 >
                   <div className="w-full h-full flex flex-col-reverse">
                     {total > 0 ? slots.map((sl, i) => {
