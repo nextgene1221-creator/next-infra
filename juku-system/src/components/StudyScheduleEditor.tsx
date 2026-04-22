@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
-// 科目ごとの色（最大20色）
 const SUBJECT_COLORS = [
   "#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6",
   "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#84cc16",
   "#06b6d4", "#e11d48", "#10b981", "#d97706", "#7c3aed",
   "#db2777", "#0d9488", "#ea580c", "#4f46e5", "#65a30d",
 ];
+
+const STEP = 10; // 10分刻み
+const MAX_MINUTES = 300;
 
 type Slot = { subject: string; minutes: number };
 type ScheduleDay = { weekday: number; hours: number; slots: Slot[] };
@@ -32,25 +34,113 @@ export default function StudyScheduleEditor({
   const [savedAt, setSavedAt] = useState("");
   const [error, setError] = useState("");
   const [editingDay, setEditingDay] = useState<number | null>(null);
+  const [activeSubject, setActiveSubject] = useState<string | null>(null); // null = 合計
 
   const todayIdx = new Date().getDay();
   const dayTotal = (w: number) => (schedule[w] || []).reduce((s, sl) => s + sl.minutes, 0);
   const weekTotal = Array.from({ length: 7 }, (_, w) => dayTotal(w)).reduce((a, b) => a + b, 0);
-  const maxMinutes = Math.max(1, ...Array.from({ length: 7 }, (_, w) => dayTotal(w)));
 
-  // 使用中の全科目 → 色マップ
-  const allSubjects = new Set<string>();
-  for (let w = 0; w < 7; w++) for (const s of schedule[w] || []) allSubjects.add(s.subject);
+  const getSubjectMinutes = (w: number, subject: string) => {
+    const slot = (schedule[w] || []).find((s) => s.subject === subject);
+    return slot?.minutes || 0;
+  };
+
+  const setSubjectMinutes = (w: number, subject: string, minutes: number) => {
+    const clamped = Math.max(0, Math.min(MAX_MINUTES, Math.round(minutes / STEP) * STEP));
+    setSchedule((prev) => {
+      const slots = [...(prev[w] || [])];
+      const idx = slots.findIndex((s) => s.subject === subject);
+      if (clamped === 0) {
+        if (idx >= 0) slots.splice(idx, 1);
+      } else if (idx >= 0) {
+        slots[idx] = { ...slots[idx], minutes: clamped };
+      } else {
+        slots.push({ subject, minutes: clamped });
+      }
+      return { ...prev, [w]: slots };
+    });
+  };
+
+  // 色マップ
   const subjectColorMap = new Map<string, string>();
-  let ci = 0;
-  for (const s of examSubjects) {
-    if (allSubjects.has(s)) {
-      subjectColorMap.set(s, SUBJECT_COLORS[ci % SUBJECT_COLORS.length]);
-      ci++;
-    }
-  }
+  examSubjects.forEach((s, i) => {
+    subjectColorMap.set(s, SUBJECT_COLORS[i % SUBJECT_COLORS.length]);
+  });
 
-  // --- 編集モーダル用 ---
+  // 科目モードの最大値（グラフスケール用）
+  const maxVal = activeSubject
+    ? Math.max(STEP, ...Array.from({ length: 7 }, (_, w) => getSubjectMinutes(w, activeSubject)))
+    : Math.max(STEP, ...Array.from({ length: 7 }, (_, w) => dayTotal(w)));
+
+  // --- ドラッグ ---
+  const dragRef = useRef<{
+    weekday: number;
+    startY: number;
+    startMinutes: number;
+    barHeight: number;
+  } | null>(null);
+  const [dragValue, setDragValue] = useState<{ w: number; minutes: number } | null>(null);
+
+  const handleDragStart = useCallback(
+    (w: number, e: React.MouseEvent | React.TouchEvent) => {
+      if (!activeSubject) return;
+      e.preventDefault();
+      const barEl = (e.currentTarget as HTMLElement).closest("[data-bar]") as HTMLElement;
+      if (!barEl) return;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      dragRef.current = {
+        weekday: w,
+        startY: clientY,
+        startMinutes: getSubjectMinutes(w, activeSubject),
+        barHeight: barEl.clientHeight,
+      };
+      setDragValue({ w, minutes: getSubjectMinutes(w, activeSubject) });
+
+      const onMove = (ev: MouseEvent | TouchEvent) => {
+        if (!dragRef.current) return;
+        const cy = "touches" in ev ? ev.touches[0].clientY : ev.clientY;
+        const dy = dragRef.current.startY - cy;
+        const minutesPerPx = MAX_MINUTES / dragRef.current.barHeight;
+        const raw = dragRef.current.startMinutes + dy * minutesPerPx;
+        const snapped = Math.max(0, Math.min(MAX_MINUTES, Math.round(raw / STEP) * STEP));
+        setDragValue({ w: dragRef.current.weekday, minutes: snapped });
+      };
+
+      const onEnd = () => {
+        if (dragRef.current && activeSubject) {
+          const dv = dragRef.current;
+          // 最終値を読み取る
+          setDragValue((cur) => {
+            if (cur) setSubjectMinutes(dv.weekday, activeSubject, cur.minutes);
+            return null;
+          });
+        }
+        dragRef.current = null;
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onEnd);
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend", onEnd);
+      };
+
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onEnd);
+      document.addEventListener("touchmove", onMove, { passive: false });
+      document.addEventListener("touchend", onEnd);
+    },
+    [activeSubject, schedule]
+  );
+
+  // +/- ボタン
+  const stepUp = (w: number) => {
+    if (!activeSubject) return;
+    setSubjectMinutes(w, activeSubject, getSubjectMinutes(w, activeSubject) + STEP);
+  };
+  const stepDown = (w: number) => {
+    if (!activeSubject) return;
+    setSubjectMinutes(w, activeSubject, getSubjectMinutes(w, activeSubject) - STEP);
+  };
+
+  // モーダル用
   const addSlot = (w: number) => {
     const used = new Set((schedule[w] || []).map((s) => s.subject));
     const available = examSubjects.filter((s) => !used.has(s));
@@ -60,14 +150,9 @@ export default function StudyScheduleEditor({
       [w]: [...(prev[w] || []), { subject: defaultSubject, minutes: 60 }],
     }));
   };
-
   const removeSlot = (w: number, idx: number) => {
-    setSchedule((prev) => ({
-      ...prev,
-      [w]: prev[w].filter((_, i) => i !== idx),
-    }));
+    setSchedule((prev) => ({ ...prev, [w]: prev[w].filter((_, i) => i !== idx) }));
   };
-
   const updateSlot = (w: number, idx: number, field: "subject" | "minutes", value: string | number) => {
     setSchedule((prev) => ({
       ...prev,
@@ -76,7 +161,6 @@ export default function StudyScheduleEditor({
       ),
     }));
   };
-
   const copyToAll = (fromW: number) => {
     const source = schedule[fromW] || [];
     setSchedule((prev) => {
@@ -100,9 +184,8 @@ export default function StudyScheduleEditor({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ schedule: scheduleArr }),
     });
-    if (res.ok) {
-      setSavedAt(new Date().toLocaleTimeString("ja-JP"));
-    } else {
+    if (res.ok) setSavedAt(new Date().toLocaleTimeString("ja-JP"));
+    else {
       const data = await res.json();
       setError(data.error || "保存に失敗しました");
     }
@@ -110,22 +193,97 @@ export default function StudyScheduleEditor({
   };
 
   const minuteOptions: number[] = [];
-  for (let m = 10; m <= 300; m += 10) minuteOptions.push(m);
+  for (let m = 10; m <= MAX_MINUTES; m += 10) minuteOptions.push(m);
 
-  const BAR_H = 120;
+  const fmt = (m: number) =>
+    m >= 60 ? `${Math.floor(m / 60)}h${m % 60 > 0 ? `${m % 60}m` : ""}` : m > 0 ? `${m}m` : "-";
 
-  const formatMinutes = (m: number) =>
-    m >= 60 ? `${Math.floor(m / 60)}h${m % 60 > 0 ? `${m % 60}m` : ""}` : `${m}m`;
+  const BAR_H = 140;
 
   return (
     <div>
-      {/* 積み上げ棒グラフ */}
-      <div className="grid grid-cols-7 gap-2 mb-2">
+      {/* 科目タブ */}
+      <div className="flex flex-wrap gap-1 mb-3">
+        <button
+          onClick={() => setActiveSubject(null)}
+          className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+            activeSubject === null
+              ? "bg-primary text-white"
+              : "bg-surface text-charcoal hover:bg-gray-200"
+          }`}
+        >
+          合計
+        </button>
+        {examSubjects.map((s) => (
+          <button
+            key={s}
+            onClick={() => setActiveSubject(s)}
+            className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+              activeSubject === s
+                ? "text-white"
+                : "bg-surface text-charcoal hover:bg-gray-200"
+            }`}
+            style={activeSubject === s ? { backgroundColor: subjectColorMap.get(s) } : undefined}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {activeSubject && (
+        <p className="text-[10px] text-dark/50 mb-2">
+          バーをドラッグして時間を調整 / ＋−ボタンで10分ずつ調整
+        </p>
+      )}
+
+      {/* 棒グラフ */}
+      <div className="grid grid-cols-7 gap-2 mb-1">
         {WEEKDAY_LABELS.map((_, w) => {
-          const total = dayTotal(w);
-          const pct = maxMinutes > 0 ? (total / maxMinutes) * 100 : 0;
           const isToday = w === todayIdx;
+          const isDragging = dragValue?.w === w;
           const slots = schedule[w] || [];
+          const total = dayTotal(w);
+
+          if (activeSubject) {
+            // 科目モード: 単色バー + ドラッグ
+            const mins = isDragging ? dragValue.minutes : getSubjectMinutes(w, activeSubject);
+            const pct = maxVal > 0 ? (mins / maxVal) * 100 : 0;
+            const color = subjectColorMap.get(activeSubject) || "#94a3b8";
+            return (
+              <div key={`bar-${w}`} className="flex flex-col items-center" style={{ height: BAR_H }}>
+                <div className="flex-1 w-full flex items-end justify-center" data-bar>
+                  <div className="relative w-10">
+                    <div
+                      className={`w-full rounded-t transition-[height] ${isDragging ? "" : "duration-300"} ${isToday ? "ring-2 ring-accent" : ""}`}
+                      style={{
+                        height: `${Math.max(mins > 0 ? 8 : 2, pct)}%`,
+                        backgroundColor: color,
+                      }}
+                    >
+                      {/* ドラッグハンドル */}
+                      <div
+                        className="absolute -top-2 left-0 right-0 h-4 cursor-ns-resize flex items-center justify-center"
+                        onMouseDown={(e) => handleDragStart(w, e)}
+                        onTouchStart={(e) => handleDragStart(w, e)}
+                      >
+                        <div className="w-5 h-1 bg-white/80 rounded-full shadow" />
+                      </div>
+                    </div>
+                    {/* ドラッグ中の値表示 */}
+                    {isDragging && (
+                      <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-dark text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap">
+                        {fmt(dragValue.minutes)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-[10px] text-dark/60 mt-1 h-4">{fmt(mins)}</div>
+              </div>
+            );
+          }
+
+          // 合計モード: 積み上げ棒
+          const pct = maxVal > 0 ? (total / maxVal) * 100 : 0;
           return (
             <div
               key={`bar-${w}`}
@@ -136,34 +294,47 @@ export default function StudyScheduleEditor({
             >
               <div className="flex-1 w-full flex items-end justify-center">
                 <div
-                  className={`w-8 rounded-t overflow-hidden transition-all duration-300 ${isToday ? "ring-2 ring-accent" : ""}`}
+                  className={`w-10 rounded-t overflow-hidden transition-all duration-300 ${isToday ? "ring-2 ring-accent" : ""}`}
                   style={{ height: `${Math.max(total > 0 ? 8 : 2, pct)}%` }}
                 >
-                  {/* 積み上げセグメント（下から上へ） */}
                   <div className="w-full h-full flex flex-col-reverse">
                     {total > 0 ? slots.map((sl, i) => {
                       const segPct = (sl.minutes / total) * 100;
                       const color = subjectColorMap.get(sl.subject) || "#94a3b8";
-                      return (
-                        <div
-                          key={i}
-                          style={{ height: `${segPct}%`, backgroundColor: color }}
-                          title={`${sl.subject} ${formatMinutes(sl.minutes)}`}
-                        />
-                      );
+                      return <div key={i} style={{ height: `${segPct}%`, backgroundColor: color }} />;
                     }) : (
                       <div className="w-full h-full bg-gray-200" />
                     )}
                   </div>
                 </div>
               </div>
-              <div className="text-[10px] text-dark/60 mt-1">
-                {total > 0 ? formatMinutes(total) : "-"}
-              </div>
+              <div className="text-[10px] text-dark/60 mt-1 h-4">{fmt(total)}</div>
             </div>
           );
         })}
       </div>
+
+      {/* +/- ボタン（科目モード時） */}
+      {activeSubject && (
+        <div className="grid grid-cols-7 gap-2 mb-1">
+          {WEEKDAY_LABELS.map((_, w) => (
+            <div key={`pm-${w}`} className="flex justify-center gap-1">
+              <button
+                onClick={() => stepDown(w)}
+                className="w-6 h-6 rounded bg-surface text-dark/60 text-xs hover:bg-gray-200 flex items-center justify-center"
+              >
+                −
+              </button>
+              <button
+                onClick={() => stepUp(w)}
+                className="w-6 h-6 rounded bg-surface text-dark/60 text-xs hover:bg-gray-200 flex items-center justify-center"
+              >
+                ＋
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 曜日ラベル */}
       <div className="grid grid-cols-7 gap-2 mb-3">
@@ -172,10 +343,12 @@ export default function StudyScheduleEditor({
           return (
             <div
               key={w}
-              className={`text-center text-xs cursor-pointer hover:text-primary ${
-                w === 0 ? "text-red-500" : w === 6 ? "text-blue-500" : "text-dark/70"
-              } ${isToday ? "font-bold" : ""}`}
-              onClick={() => setEditingDay(w)}
+              className={`text-center text-xs ${
+                !activeSubject ? "cursor-pointer hover:text-primary" : ""
+              } ${w === 0 ? "text-red-500" : w === 6 ? "text-blue-500" : "text-dark/70"} ${
+                isToday ? "font-bold" : ""
+              }`}
+              onClick={() => !activeSubject && setEditingDay(w)}
             >
               {label}{isToday && " (今日)"}
             </div>
@@ -183,14 +356,18 @@ export default function StudyScheduleEditor({
         })}
       </div>
 
-      {/* 凡例 */}
-      {subjectColorMap.size > 0 && (
+      {/* 凡例（合計モード時） */}
+      {!activeSubject && (
         <div className="flex flex-wrap gap-x-3 gap-y-1 mb-3">
-          {Array.from(subjectColorMap.entries()).map(([subject, color]) => (
-            <span key={subject} className="flex items-center gap-1 text-[10px] text-dark/60">
-              <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
-              {subject}
-            </span>
+          {examSubjects.map((s) => (
+            <button
+              key={s}
+              className="flex items-center gap-1 text-[10px] text-dark/60 hover:text-dark"
+              onClick={() => setActiveSubject(s)}
+            >
+              <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: subjectColorMap.get(s) }} />
+              {s}
+            </button>
           ))}
         </div>
       )}
@@ -216,82 +393,42 @@ export default function StudyScheduleEditor({
         </div>
       </div>
 
-      {/* 曜日編集モーダル */}
+      {/* 合計モード: 曜日編集モーダル */}
       {editingDay !== null && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setEditingDay(null)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-semibold text-dark">
-                {WEEKDAY_LABELS[editingDay]}曜日の学習科目
-              </h3>
-              <button onClick={() => setEditingDay(null)} className="text-dark/60 hover:text-dark">
-                ✕
-              </button>
+              <h3 className="text-base font-semibold text-dark">{WEEKDAY_LABELS[editingDay]}曜日の学習科目</h3>
+              <button onClick={() => setEditingDay(null)} className="text-dark/60 hover:text-dark">✕</button>
             </div>
-
             {(schedule[editingDay] || []).length === 0 ? (
               <p className="text-sm text-dark/40 mb-3">科目が未設定です</p>
             ) : (
               <div className="space-y-2 mb-3">
                 {(schedule[editingDay] || []).map((slot, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <span
-                      className="w-3 h-3 rounded-sm shrink-0"
-                      style={{ backgroundColor: subjectColorMap.get(slot.subject) || "#94a3b8" }}
-                    />
-                    <select
-                      value={slot.subject}
-                      onChange={(e) => updateSlot(editingDay, i, "subject", e.target.value)}
-                      className="text-sm border border-gray-300 rounded px-2 py-1 bg-white flex-1 min-w-0"
-                    >
+                    <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: subjectColorMap.get(slot.subject) || "#94a3b8" }} />
+                    <select value={slot.subject} onChange={(e) => updateSlot(editingDay, i, "subject", e.target.value)} className="text-sm border border-gray-300 rounded px-2 py-1 bg-white flex-1 min-w-0">
                       {examSubjects.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
-                    <select
-                      value={slot.minutes}
-                      onChange={(e) => updateSlot(editingDay, i, "minutes", e.target.value)}
-                      className="text-sm border border-gray-300 rounded px-2 py-1 bg-white w-24"
-                    >
-                      {minuteOptions.map((m) => (
-                        <option key={m} value={m}>{formatMinutes(m)}</option>
-                      ))}
+                    <select value={slot.minutes} onChange={(e) => updateSlot(editingDay, i, "minutes", e.target.value)} className="text-sm border border-gray-300 rounded px-2 py-1 bg-white w-24">
+                      {minuteOptions.map((m) => <option key={m} value={m}>{fmt(m)}</option>)}
                     </select>
-                    <button onClick={() => removeSlot(editingDay, i)} className="text-red-400 hover:text-red-600 text-sm">
-                      ✕
-                    </button>
+                    <button onClick={() => removeSlot(editingDay, i)} className="text-red-400 hover:text-red-600 text-sm">✕</button>
                   </div>
                 ))}
               </div>
             )}
-
             <div className="flex items-center justify-between">
-              <button
-                onClick={() => addSlot(editingDay)}
-                disabled={examSubjects.length === 0}
-                className="text-sm text-primary hover:underline disabled:opacity-50"
-              >
-                + 科目を追加
-              </button>
+              <button onClick={() => addSlot(editingDay)} disabled={examSubjects.length === 0} className="text-sm text-primary hover:underline disabled:opacity-50">+ 科目を追加</button>
               <div className="flex gap-2">
                 {(schedule[editingDay] || []).length > 0 && (
-                  <button
-                    onClick={() => copyToAll(editingDay)}
-                    className="text-xs text-dark/50 hover:text-primary border border-gray-200 px-2 py-1 rounded"
-                  >
-                    全曜日に適用
-                  </button>
+                  <button onClick={() => copyToAll(editingDay)} className="text-xs text-dark/50 hover:text-primary border border-gray-200 px-2 py-1 rounded">全曜日に適用</button>
                 )}
-                <button
-                  onClick={() => setEditingDay(null)}
-                  className="bg-primary text-white px-3 py-1 rounded text-sm hover:bg-primary-dark"
-                >
-                  閉じる
-                </button>
+                <button onClick={() => setEditingDay(null)} className="bg-primary text-white px-3 py-1 rounded text-sm hover:bg-primary-dark">閉じる</button>
               </div>
             </div>
-
-            <div className="mt-3 text-xs text-dark/50 text-right">
-              合計: {formatMinutes(dayTotal(editingDay))}
-            </div>
+            <div className="mt-3 text-xs text-dark/50 text-right">合計: {fmt(dayTotal(editingDay))}</div>
           </div>
         </div>
       )}
