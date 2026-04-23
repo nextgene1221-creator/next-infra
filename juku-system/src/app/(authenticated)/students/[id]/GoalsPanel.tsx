@@ -617,7 +617,7 @@ export default function GoalsPanel({
                             const behind = isPast && planned !== null && v < planned;
                             return (
                               <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right font-medium ${behind ? "text-red-600" : isPast ? "text-green-700" : "text-green-600/70"}`}>
-                                {v}{!isPast && <span className="text-[9px] ml-0.5">*</span>}
+                                {v}
                               </td>
                             );
                           })}
