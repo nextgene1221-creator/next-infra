@@ -531,84 +531,108 @@ export default function GoalsPanel({
                 <tbody>
                   {bigGoals.map((bg) => {
                     const s = computeBigGoalStats(bg, now);
-                    // 事前計算: 週ごとの projected 値と達成週インデックス
-                    const projectedValues: (number | null)[] = weeks.map((weekStart) => {
-                      const weekEnd = addDays(weekStart, 6);
-                      const inRange = weekEnd.getTime() >= s.start && weekStart.getTime() <= s.end;
-                      if (!inRange) return null;
-                      const actual = s.allProgress.reduce((sum, p) => {
-                        if (!p.date) return sum;
-                        return p.date.getTime() <= weekEnd.getTime() ? sum + p.pages : sum;
-                      }, 0);
-                      if (!s.latestDate) return null;
-                      if (weekEnd.getTime() > s.latestDate.getTime() && s.currentPace > 0) {
-                        const extraDays = (weekEnd.getTime() - s.latestDate.getTime()) / MS_DAY;
-                        return Math.round(s.actualTotal + s.currentPace * extraDays);
-                      }
-                      return actual;
-                    });
-                    const achieveWeekIdx = projectedValues.findIndex((v) => v !== null && v >= bg.targetPages);
+                    const nowTime = now.getTime();
 
-                    const cellFor = (weekStart: Date, idx: number) => {
-                      const weekEnd = addDays(weekStart, 6);
-                      const inRange = weekEnd.getTime() >= s.start && weekStart.getTime() <= s.end;
+                    // 正常予定: 開始→期日まで均等累計
+                    const calcPlanned = (weekEnd: Date) => {
+                      const inRange = weekEnd.getTime() >= s.start && addDays(weekEnd, -6).getTime() <= s.end;
                       if (!inRange) return null;
                       const daysFromStart = Math.max(0, Math.min(s.totalDays, (weekEnd.getTime() - s.start) / MS_DAY));
-                      const planned = Math.round(s.pagesPerDay * daysFromStart);
-                      const actual = s.allProgress.reduce((sum, p) => {
+                      return Math.round(s.pagesPerDay * daysFromStart);
+                    };
+
+                    // 実績累計（その週末まで）
+                    const calcActual = (weekEnd: Date) => {
+                      return s.allProgress.reduce((sum, p) => {
                         if (!p.date) return sum;
                         return p.date.getTime() <= weekEnd.getTime() ? sum + p.pages : sum;
                       }, 0);
-                      let projected: number | string | null = projectedValues[idx];
-                      if (achieveWeekIdx >= 0) {
-                        if (idx === achieveWeekIdx) projected = "達成";
-                        else if (idx > achieveWeekIdx) projected = "";
-                      }
-                      return { planned, actual, projected };
                     };
+
+                    // 実績＋調整予定: 過去=実績, 未来=残ページを期日まで均等
+                    const calcAdjusted = (weekEnd: Date) => {
+                      const inRange = weekEnd.getTime() >= s.start && addDays(weekEnd, -6).getTime() <= s.end;
+                      if (!inRange) return null;
+                      if (weekEnd.getTime() <= nowTime) {
+                        // 今週以前: 実績
+                        return calcActual(weekEnd);
+                      }
+                      // 未来: 残ページを今日〜期日で均等配分
+                      const remainingPages = Math.max(0, bg.targetPages - s.actualTotal);
+                      const remainingDays = Math.max(1, (s.end - nowTime) / MS_DAY);
+                      const adjustedPace = remainingPages / remainingDays;
+                      const daysFromNow = Math.min((weekEnd.getTime() - nowTime) / MS_DAY, (s.end - nowTime) / MS_DAY);
+                      return Math.round(s.actualTotal + adjustedPace * daysFromNow);
+                    };
+
+                    // 現ペース予想: 日平均 = 実績 / 経過日数、累計で延伸
+                    const elapsedDays = Math.max(1, (nowTime - s.start) / MS_DAY);
+                    const dailyPace = s.actualTotal / elapsedDays;
+                    const calcPace = (weekEnd: Date) => {
+                      const inRange = weekEnd.getTime() >= s.start;
+                      if (!inRange) return null;
+                      const daysFromStart = Math.max(0, (weekEnd.getTime() - s.start) / MS_DAY);
+                      return Math.round(dailyPace * daysFromStart);
+                    };
+
+                    // 現ペース達成週を探す
+                    const paceAchieveIdx = dailyPace > 0
+                      ? weeks.findIndex((w) => {
+                          const v = calcPace(addDays(w, 6));
+                          return v !== null && v >= bg.targetPages;
+                        })
+                      : -1;
+
                     return (
                       <Fragment key={bg.id}>
                         <tr className="bg-primary-light/40">
                           <td className="sticky left-0 bg-primary-light/40 z-10 border-b border-r border-gray-200 px-2 py-1 font-semibold text-dark" colSpan={1}>
-                            📘 [{bg.subject}] {bg.materialName}
+                            [{bg.subject}] {bg.materialName}
                           </td>
                           <td colSpan={weeks.length} className="border-b border-gray-200 px-2 py-1 text-dark/70">
                             {new Date(bg.startDate).toLocaleDateString("ja-JP")}〜{new Date(bg.dueDate).toLocaleDateString("ja-JP")} / 目標{bg.targetPages}p
                           </td>
                         </tr>
-                        <tr key={bg.id + "-planned"}>
-                          <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-blue-700">📘 予定</td>
-                          {weeks.map((w, idx) => {
-                            const c = cellFor(w, idx);
+                        {/* 正常予定 */}
+                        <tr>
+                          <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-blue-700">正常予定</td>
+                          {weeks.map((w) => {
+                            const v = calcPlanned(addDays(w, 6));
                             return (
                               <td key={w.getTime()} className="border-b border-r border-gray-200 px-2 py-1 text-right text-blue-700">
-                                {c ? c.planned : ""}
+                                {v !== null ? v : ""}
                               </td>
                             );
                           })}
                         </tr>
-                        <tr key={bg.id + "-actual"}>
-                          <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-green-700">✅ 実績</td>
-                          {weeks.map((w, idx) => {
-                            const c = cellFor(w, idx);
-                            if (!c) return <td key={w.getTime()} className="border-b border-r border-gray-200 px-2 py-1" />;
-                            const behind = c.actual < c.planned;
+                        {/* 実績＋調整予定 */}
+                        <tr>
+                          <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-green-700">実績/調整</td>
+                          {weeks.map((w) => {
+                            const weekEnd = addDays(w, 6);
+                            const v = calcAdjusted(weekEnd);
+                            if (v === null) return <td key={w.getTime()} className="border-b border-r border-gray-200 px-2 py-1" />;
+                            const isPast = weekEnd.getTime() <= nowTime;
+                            const planned = calcPlanned(weekEnd);
+                            const behind = isPast && planned !== null && v < planned;
                             return (
-                              <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right font-medium ${behind ? "text-red-600" : "text-green-700"}`}>
-                                {c.actual}
+                              <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right font-medium ${behind ? "text-red-600" : isPast ? "text-green-700" : "text-green-600/70"}`}>
+                                {v}{!isPast && <span className="text-[9px] ml-0.5">*</span>}
                               </td>
                             );
                           })}
                         </tr>
-                        <tr key={bg.id + "-projected"}>
-                          <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-orange-600">🔮 現ペース</td>
+                        {/* 現ペース予想 */}
+                        <tr>
+                          <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-orange-600">現ペース</td>
                           {weeks.map((w, idx) => {
-                            const c = cellFor(w, idx);
-                            const val = c ? c.projected : "";
-                            const isAchieve = val === "達成";
+                            const v = calcPace(addDays(w, 6));
+                            if (v === null) return <td key={w.getTime()} className="border-b border-r border-gray-200 px-2 py-1" />;
+                            const isAchieve = paceAchieveIdx >= 0 && idx === paceAchieveIdx;
+                            const isPastAchieve = paceAchieveIdx >= 0 && idx > paceAchieveIdx;
                             return (
                               <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right whitespace-nowrap ${isAchieve ? "text-green-700 font-bold bg-green-50" : "text-orange-600"}`}>
-                                {val === null || val === undefined ? "-" : val === "" ? "" : val}
+                                {isPastAchieve ? "" : isAchieve ? "達成" : v}
                               </td>
                             );
                           })}
