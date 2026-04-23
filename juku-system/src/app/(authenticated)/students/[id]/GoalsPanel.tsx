@@ -521,11 +521,14 @@ export default function GoalsPanel({
                 <thead>
                   <tr>
                     <th className="sticky left-0 bg-surface z-20 border-b border-r border-gray-200 px-2 py-1 text-left w-56">大目標 / 指標</th>
-                    {weeks.map((w) => (
-                      <th key={w.getTime()} className="border-b border-r border-gray-200 px-2 py-1 whitespace-nowrap bg-surface">
-                        {fmtMd(w)}
-                      </th>
-                    ))}
+                    {weeks.map((w) => {
+                      const isCurrentWeek = now >= w && now < addDays(w, 7);
+                      return (
+                        <th key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 whitespace-nowrap ${isCurrentWeek ? "bg-primary/15 font-bold text-primary" : "bg-surface"}`}>
+                          {fmtMd(w)}{isCurrentWeek && " ◀"}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
@@ -597,9 +600,10 @@ export default function GoalsPanel({
                         <tr>
                           <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-blue-700">正常予定</td>
                           {weeks.map((w) => {
+                            const cw = now >= w && now < addDays(w, 7);
                             const v = calcPlanned(addDays(w, 6));
                             return (
-                              <td key={w.getTime()} className="border-b border-r border-gray-200 px-2 py-1 text-right text-blue-700">
+                              <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right text-blue-700 ${cw ? "bg-primary/10" : ""}`}>
                                 {v !== null ? v : ""}
                               </td>
                             );
@@ -609,14 +613,15 @@ export default function GoalsPanel({
                         <tr>
                           <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-green-700">実績/調整</td>
                           {weeks.map((w) => {
+                            const cw = now >= w && now < addDays(w, 7);
                             const weekEnd = addDays(w, 6);
                             const v = calcAdjusted(weekEnd);
-                            if (v === null) return <td key={w.getTime()} className="border-b border-r border-gray-200 px-2 py-1" />;
+                            if (v === null) return <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 ${cw ? "bg-primary/10" : ""}`} />;
                             const isPast = weekEnd.getTime() <= nowTime;
                             const planned = calcPlanned(weekEnd);
                             const behind = isPast && planned !== null && v < planned;
                             return (
-                              <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right font-medium ${behind ? "text-red-600" : isPast ? "text-green-700" : "text-green-600/70"}`}>
+                              <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right font-medium ${behind ? "text-red-600" : isPast ? "text-green-700" : "text-green-600/70"} ${cw ? "bg-primary/10" : ""}`}>
                                 {v}
                               </td>
                             );
@@ -626,12 +631,13 @@ export default function GoalsPanel({
                         <tr>
                           <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-orange-600">現ペース</td>
                           {weeks.map((w, idx) => {
+                            const cw = now >= w && now < addDays(w, 7);
                             const v = calcPace(addDays(w, 6));
-                            if (v === null) return <td key={w.getTime()} className="border-b border-r border-gray-200 px-2 py-1" />;
+                            if (v === null) return <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 ${cw ? "bg-primary/10" : ""}`} />;
                             const isAchieve = paceAchieveIdx >= 0 && idx === paceAchieveIdx;
                             const isPastAchieve = paceAchieveIdx >= 0 && idx > paceAchieveIdx;
                             return (
-                              <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right whitespace-nowrap ${isAchieve ? "text-green-700 font-bold bg-green-50" : "text-orange-600"}`}>
+                              <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right whitespace-nowrap ${isAchieve ? "text-green-700 font-bold bg-green-50" : "text-orange-600"} ${cw && !isAchieve ? "bg-primary/10" : ""}`}>
                                 {isPastAchieve ? "" : isAchieve ? "達成" : v}
                               </td>
                             );
