@@ -517,7 +517,7 @@ export default function GoalsPanel({
 
             {/* 横断カレンダー表 */}
             <div className="overflow-x-auto border border-gray-200 rounded-lg">
-              <table className="text-xs border-collapse">
+              <table className="text-xs border-collapse min-w-max">
                 <thead>
                   <tr>
                     <th className="sticky left-0 bg-surface z-20 border-b border-r border-gray-200 px-2 py-1 text-left w-56">大目標 / 指標</th>
