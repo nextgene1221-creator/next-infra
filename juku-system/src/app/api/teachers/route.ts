@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const {
-    name, email, password, subjects, employmentType, phone, status,
+    name, email, subjects, employmentType, phone, status,
     universityFaculty, department, graduationYear, examSubjectsTaken,
     emergencyContact, universityClub,
   } = body;
@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "このメールアドレスは既に使用されています" }, { status: 400 });
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  // 新規登録時のパスワードは一律 password123 とし、本人にログイン後変更してもらう
+  const passwordHash = await bcrypt.hash("password123", 10);
 
   const teacher = await prisma.teacher.create({
     data: {

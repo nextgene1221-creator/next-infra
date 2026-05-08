@@ -8,7 +8,6 @@ import FieldLabel from "@/components/FieldLabel";
 type TeacherForm = {
   name: string;
   email: string;
-  password: string;
   subjects: string[];
   employmentType: string;
   phone: string;
@@ -24,7 +23,6 @@ type TeacherForm = {
 const initial: TeacherForm = {
   name: "",
   email: "",
-  password: "",
   subjects: [],
   employmentType: "part_time",
   phone: "",
@@ -56,7 +54,6 @@ export default function TeacherEditPage() {
           setForm({
             name: data.user.name,
             email: data.user.email,
-            password: "",
             subjects: JSON.parse(data.subjects),
             employmentType: data.employmentType,
             phone: data.phone,
@@ -130,6 +127,12 @@ export default function TeacherEditPage() {
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">{error}</div>
         )}
 
+        {isNew && (
+          <div className="bg-primary-light border border-primary/20 text-dark px-4 py-3 rounded text-sm">
+            初期パスワードは <code className="bg-white/60 px-1 rounded font-mono">password123</code> です。登録後、本人にログインしてもらい、サイドバーの「パスワード変更」から新しいパスワードに変更してもらってください。
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <FieldLabel required className="block text-sm font-medium text-charcoal">氏名</FieldLabel>
@@ -139,12 +142,6 @@ export default function TeacherEditPage() {
             <FieldLabel required className="block text-sm font-medium text-charcoal">メールアドレス</FieldLabel>
             <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputCls} />
           </div>
-          {isNew && (
-            <div>
-              <FieldLabel required className="block text-sm font-medium text-charcoal">パスワード</FieldLabel>
-              <input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={inputCls} />
-            </div>
-          )}
           <div>
             <FieldLabel required className="block text-sm font-medium text-charcoal">電話番号</FieldLabel>
             <input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={inputCls} />
