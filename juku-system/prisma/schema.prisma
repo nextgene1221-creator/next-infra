@@ -343,6 +343,7 @@ model LearningGoal {
   status       String    @default("in_progress") // in_progress / completed
   notes        String    @default("")
   paceAlerted  Boolean   @default(false) @map("pace_alerted")
+  createdById  String?   @map("created_by_id")   // 作成者の User.id（null=既存・作成者不明）
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
@@ -364,6 +365,7 @@ model BigGoal {
   status       String   @default("in_progress") // in_progress / completed
   notes        String   @default("")
   paceAlerted  Boolean  @default(false) @map("pace_alerted")
+  createdById  String?  @map("created_by_id") // 作成者の User.id（null=既存・作成者不明）
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

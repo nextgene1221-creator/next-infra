@@ -5,12 +5,25 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role === "student") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json();
-  const { studentId, bigGoalId, subject, materialName, targetPages, startDate, dueDate, notes } = body;
+  const { bigGoalId, subject, materialName, targetPages, startDate, dueDate, notes } = body;
+  let studentId: string | undefined = body.studentId;
+
+  if (session.user.role === "student") {
+    const student = await prisma.student.findFirst({ where: { userId: session.user.id } });
+    if (!student) {
+      return NextResponse.json({ error: "Student record not found" }, { status: 403 });
+    }
+    studentId = student.id;
+  }
+
+  if (!studentId || !subject || !materialName || !targetPages || !dueDate) {
+    return NextResponse.json({ error: "必須項目が不足しています" }, { status: 400 });
+  }
 
   const goal = await prisma.learningGoal.create({
     data: {
@@ -23,6 +36,7 @@ export async function POST(req: NextRequest) {
       dueDate: new Date(dueDate),
       status: "in_progress",
       notes: notes || "",
+      createdById: session.user.id,
     },
   });
 
