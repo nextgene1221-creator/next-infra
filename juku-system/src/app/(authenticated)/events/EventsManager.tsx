@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import FieldLabel from "@/components/FieldLabel";
 
 export const EVENT_TYPES = ["試験", "文化祭", "体育祭", "修学旅行", "その他"] as const;
 
@@ -183,7 +184,7 @@ export default function EventsManager({
             <h3 className="text-sm font-semibold">{editingId ? "イベントを編集" : "イベントを追加"}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-charcoal">学校</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">学校</FieldLabel>
                 <select required value={schoolId} onChange={(e) => setSchoolId(e.target.value)} className={inputCls}>
                   <option value="">選択してください</option>
                   {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -196,11 +197,11 @@ export default function EventsManager({
                 </select>
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-charcoal">タイトル</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">タイトル</FieldLabel>
                 <input required value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">開始日</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">開始日</FieldLabel>
                 <input type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
               </div>
               <div>

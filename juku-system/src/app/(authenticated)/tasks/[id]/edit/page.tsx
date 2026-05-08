@@ -3,6 +3,7 @@
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SUBJECTS } from "@/lib/types";
+import FieldLabel from "@/components/FieldLabel";
 
 const TASK_TYPES = ["通常", "要引き継ぎ", "面談"] as const;
 
@@ -107,7 +108,7 @@ export default function TaskEditPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-charcoal">タスク名</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">タスク名</FieldLabel>
             <input
               required
               value={title}
@@ -145,7 +146,7 @@ export default function TaskEditPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">科目</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">科目</FieldLabel>
             <select
               required
               value={subject}
@@ -161,7 +162,7 @@ export default function TaskEditPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">期限</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">期限</FieldLabel>
             <input
               type="date"
               required
@@ -172,7 +173,7 @@ export default function TaskEditPage() {
           </div>
           {!isNew && (
             <div>
-              <label className="block text-sm font-medium text-charcoal">担当者</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">担当者</FieldLabel>
               <select
                 required
                 value={teacherId}
@@ -205,7 +206,7 @@ export default function TaskEditPage() {
           )}
           {type === "面談" && (
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-charcoal">面談予定日時</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">面談予定日時</FieldLabel>
               <input
                 type="datetime-local"
                 required

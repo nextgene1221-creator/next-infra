@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { marked } from "marked";
+import FieldLabel from "@/components/FieldLabel";
 
 const AUDIENCE_OPTIONS = [
   { value: "both", label: "全員向け" },
@@ -115,7 +116,7 @@ export default function BlogEditor({
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="md:col-span-4">
-          <label className="block text-sm font-medium text-charcoal">タイトル</label>
+          <FieldLabel required className="block text-sm font-medium text-charcoal">タイトル</FieldLabel>
           <input required value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
         </div>
         <div>
@@ -131,7 +132,7 @@ export default function BlogEditor({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-charcoal">公開日</label>
+          <FieldLabel required className="block text-sm font-medium text-charcoal">公開日</FieldLabel>
           <input type="date" required value={publishedAt} onChange={(e) => setPublishedAt(e.target.value)} className={inputCls} />
         </div>
       </div>
@@ -158,7 +159,7 @@ export default function BlogEditor({
 
       <div>
         <div className="flex justify-between items-center">
-          <label className="block text-sm font-medium text-charcoal">本文（マークダウン）</label>
+          <FieldLabel required className="block text-sm font-medium text-charcoal">本文（マークダウン）</FieldLabel>
           <button type="button" onClick={() => setShowPreview((v) => !v)} className="text-xs text-primary hover:underline">
             {showPreview ? "編集に戻る" : "プレビュー"}
           </button>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SUBJECTS } from "@/lib/types";
+import FieldLabel from "@/components/FieldLabel";
 
 export type WeeklyGoalView = {
   id: string;
@@ -520,7 +521,7 @@ function GoalFormView({
           </select>
         </div>
         <div>
-          <label className="block text-xs text-dark/60 mb-1">教材名</label>
+          <FieldLabel required className="block text-xs text-dark/60 mb-1">教材名</FieldLabel>
           <input
             required
             value={form.materialName}
@@ -530,7 +531,7 @@ function GoalFormView({
           />
         </div>
         <div>
-          <label className="block text-xs text-dark/60 mb-1">目標ページ数</label>
+          <FieldLabel required className="block text-xs text-dark/60 mb-1">目標ページ数</FieldLabel>
           <input
             required
             type="number"
@@ -541,9 +542,9 @@ function GoalFormView({
           />
         </div>
         <div>
-          <label className="block text-xs text-dark/60 mb-1">
+          <FieldLabel required={startDateRequired} className="block text-xs text-dark/60 mb-1">
             開始日{startDateRequired ? "" : "（任意）"}
-          </label>
+          </FieldLabel>
           <input
             type="date"
             required={startDateRequired}
@@ -553,7 +554,7 @@ function GoalFormView({
           />
         </div>
         <div>
-          <label className="block text-xs text-dark/60 mb-1">期日</label>
+          <FieldLabel required className="block text-xs text-dark/60 mb-1">期日</FieldLabel>
           <input
             required
             type="date"

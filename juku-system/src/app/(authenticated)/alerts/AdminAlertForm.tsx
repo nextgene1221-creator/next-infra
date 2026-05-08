@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import StudentSearchSelect from "@/components/StudentSearchSelect";
+import FieldLabel from "@/components/FieldLabel";
 
 type User = { id: string; name: string; role: string; userId: string };
 
@@ -110,11 +111,11 @@ export default function AdminAlertForm() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">タイトル</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">タイトル</FieldLabel>
                 <input required value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">本文</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">本文</FieldLabel>
                 <textarea required value={message} onChange={(e) => setMessage(e.target.value)} rows={4} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               {msg && <p className="text-sm text-dark/70">{msg}</p>}

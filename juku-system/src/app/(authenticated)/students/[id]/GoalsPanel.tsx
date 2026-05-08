@@ -3,6 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SUBJECTS } from "@/lib/types";
+import FieldLabel from "@/components/FieldLabel";
 
 type WeeklyGoal = {
   id: string;
@@ -325,7 +326,7 @@ export default function GoalsPanel({
             <h3 className="text-sm font-semibold">{weekEditingId ? "週次目標を編集" : "週次目標を追加"}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-charcoal">紐づく大目標</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">紐づく大目標</FieldLabel>
                 <select required value={wBigGoalId} onChange={(e) => {
                   setWBigGoalId(e.target.value);
                   const bg = bigGoals.find((g) => g.id === e.target.value);
@@ -336,26 +337,26 @@ export default function GoalsPanel({
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">科目</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">科目</FieldLabel>
                 <select required value={wSubject} onChange={(e) => setWSubject(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
                   <option value="">選択してください</option>
                   {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">教材名</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">教材名</FieldLabel>
                 <input required value={wMaterial} onChange={(e) => setWMaterial(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">目標ページ数</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">目標ページ数</FieldLabel>
                 <input type="number" required min={1} value={wTargetPages || ""} onChange={(e) => setWTargetPages(parseInt(e.target.value) || 0)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">週の開始日</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">週の開始日</FieldLabel>
                 <input type="date" required value={wStartDate} onChange={(e) => setWStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">週の終了日</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">週の終了日</FieldLabel>
                 <input type="date" required value={wDueDate} onChange={(e) => setWDueDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
             </div>
@@ -442,26 +443,26 @@ export default function GoalsPanel({
             <h3 className="text-sm font-semibold">{bigEditingId ? "大目標を編集" : "大目標を追加"}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-charcoal">科目</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">科目</FieldLabel>
                 <select required value={bSubject} onChange={(e) => setBSubject(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white">
                   <option value="">選択してください</option>
                   {SUBJECTS.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">教材名</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">教材名</FieldLabel>
                 <input required value={bMaterial} onChange={(e) => setBMaterial(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">目標ページ数</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">目標ページ数</FieldLabel>
                 <input type="number" required min={1} value={bTargetPages || ""} onChange={(e) => setBTargetPages(parseInt(e.target.value) || 0)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">開始日</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">開始日</FieldLabel>
                 <input type="date" required value={bStartDate} onChange={(e) => setBStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">完了期限</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">完了期限</FieldLabel>
                 <input type="date" required value={bDueDate} onChange={(e) => setBDueDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
             </div>
@@ -685,11 +686,11 @@ export default function GoalsPanel({
             </div>
             <form onSubmit={submitProgress} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-charcoal">授業日</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">授業日</FieldLabel>
                 <input type="date" required value={progressDate} onChange={(e) => setProgressDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">今回進めたページ数</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">今回進めたページ数</FieldLabel>
                 <input type="number" required min={1} value={progressPages || ""} onChange={(e) => setProgressPages(parseInt(e.target.value) || 0)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ShiftTemplateForm from "@/components/ShiftTemplateForm";
+import FieldLabel from "@/components/FieldLabel";
 
 const WEEKDAY_HEADERS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -422,7 +423,7 @@ function DayDetailModal({
             <h4 className="text-sm font-semibold text-dark">{editingId ? "シフト編集" : "シフト追加"}</h4>
             {isAdmin ? (
               <div>
-                <label className="block text-sm font-medium text-charcoal">講師</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">講師</FieldLabel>
                 <select
                   required
                   value={teacherId}
@@ -442,7 +443,7 @@ function DayDetailModal({
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-charcoal">開始時刻</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">開始時刻</FieldLabel>
                 <input
                   type="time"
                   required
@@ -452,7 +453,7 @@ function DayDetailModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">終了時刻</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">終了時刻</FieldLabel>
                 <input
                   type="time"
                   required

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { MeetingSnapshots, MEETING_TYPES } from "@/components/MeetingRecords";
+import FieldLabel from "@/components/FieldLabel";
 
 export type MeetingListItem = {
   id: string;
@@ -189,7 +190,7 @@ export default function MeetingsListClient({
               <form onSubmit={handleSubmit} className="bg-surface rounded-lg p-4 mt-2 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-charcoal">面談日</label>
+                    <FieldLabel required className="block text-sm font-medium text-charcoal">面談日</FieldLabel>
                     <input
                       type="date"
                       required
@@ -237,7 +238,7 @@ export default function MeetingsListClient({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-charcoal">面談内容</label>
+                  <FieldLabel required className="block text-sm font-medium text-charcoal">面談内容</FieldLabel>
                   <textarea
                     required
                     value={content}

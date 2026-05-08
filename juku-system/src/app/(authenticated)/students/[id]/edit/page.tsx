@@ -3,6 +3,7 @@
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SUBJECTS, TRACKS, GENDERS } from "@/lib/types";
+import FieldLabel from "@/components/FieldLabel";
 
 type CampusOption = { code: string; label: string };
 
@@ -187,7 +188,7 @@ export default function StudentEditPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-charcoal">氏名</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">氏名</FieldLabel>
             <input required value={form.name} onChange={(e) => set("name", e.target.value)} className={inputCls} />
           </div>
           <div>
@@ -195,12 +196,12 @@ export default function StudentEditPage() {
             <input value={form.furigana} onChange={(e) => set("furigana", e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">メールアドレス</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">メールアドレス</FieldLabel>
             <input type="email" required value={form.email} onChange={(e) => set("email", e.target.value)} className={inputCls} />
           </div>
           {isNew && (
             <div>
-              <label className="block text-sm font-medium text-charcoal">パスワード</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">パスワード</FieldLabel>
               <input type="password" required value={form.password} onChange={(e) => set("password", e.target.value)} className={inputCls} />
             </div>
           )}
@@ -218,11 +219,11 @@ export default function StudentEditPage() {
             <input type="date" value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">高校名</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">高校名</FieldLabel>
             <input required value={form.schoolName} onChange={(e) => set("schoolName", e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">卒業年度</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">卒業年度</FieldLabel>
             <input type="number" required min={2020} max={2040} value={form.graduationYear} onChange={(e) => set("graduationYear", parseInt(e.target.value))} className={inputCls} />
           </div>
           <div>
@@ -301,19 +302,19 @@ export default function StudentEditPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">入塾日</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">入塾日</FieldLabel>
             <input type="date" required value={form.enrollmentDate} onChange={(e) => set("enrollmentDate", e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">保護者氏名</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">保護者氏名</FieldLabel>
             <input required value={form.parentName} onChange={(e) => set("parentName", e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">保護者電話番号</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">保護者電話番号</FieldLabel>
             <input required value={form.parentPhone} onChange={(e) => set("parentPhone", e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">保護者メール</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">保護者メール</FieldLabel>
             <input type="email" required value={form.parentEmail} onChange={(e) => set("parentEmail", e.target.value)} className={inputCls} />
           </div>
         </div>

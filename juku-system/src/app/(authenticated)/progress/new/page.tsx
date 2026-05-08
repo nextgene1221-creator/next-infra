@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { SUBJECTS } from "@/lib/types";
+import FieldLabel from "@/components/FieldLabel";
 
 type StudentOption = { id: string; name: string };
 
@@ -62,7 +63,7 @@ export default function ProgressNewPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {!isStudent && (
             <div>
-              <label className="block text-sm font-medium text-charcoal">生徒</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">生徒</FieldLabel>
               <select
                 required
                 value={studentId}
@@ -79,7 +80,7 @@ export default function ProgressNewPage() {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-charcoal">科目</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">科目</FieldLabel>
             <select
               required
               value={subject}
@@ -95,7 +96,7 @@ export default function ProgressNewPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">授業日</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">授業日</FieldLabel>
             <input
               type="date"
               required
@@ -105,7 +106,7 @@ export default function ProgressNewPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">教材</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">教材</FieldLabel>
             <input
               required
               value={material}
@@ -115,7 +116,7 @@ export default function ProgressNewPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">進めたページ数</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">進めたページ数</FieldLabel>
             <input
               type="number"
               required

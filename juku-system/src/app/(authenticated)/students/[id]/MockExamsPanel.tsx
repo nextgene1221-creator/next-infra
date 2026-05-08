@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import FieldLabel from "@/components/FieldLabel";
 
 /** @deprecated Use examSubjects prop instead */
 export const MOCK_SUBJECTS = ["英語", "国���", "数学", "理科", "社会"] as const;
@@ -326,11 +327,11 @@ export default function MockExamsPanel({
           <h4 className="text-sm font-semibold">{editingId ? "模試結果を編集" : "模試結果を追加"}</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-medium text-charcoal">模試名</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">模試名</FieldLabel>
               <input required value={examName} onChange={(e) => setExamName(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" placeholder="例: 河合全統記述模試" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-charcoal">実施日</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">実施日</FieldLabel>
               <input type="date" required value={examDate} onChange={(e) => setExamDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
             </div>
             <div>

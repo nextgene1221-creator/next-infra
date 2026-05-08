@@ -3,6 +3,7 @@
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SUBJECTS } from "@/lib/types";
+import FieldLabel from "@/components/FieldLabel";
 
 type TeacherForm = {
   name: string;
@@ -131,21 +132,21 @@ export default function TeacherEditPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-charcoal">氏名</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">氏名</FieldLabel>
             <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputCls} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">メールアドレス</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">メールアドレス</FieldLabel>
             <input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputCls} />
           </div>
           {isNew && (
             <div>
-              <label className="block text-sm font-medium text-charcoal">パスワード</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">パスワード</FieldLabel>
               <input type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={inputCls} />
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-charcoal">電話番号</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">電話番号</FieldLabel>
             <input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={inputCls} />
           </div>
           <div>

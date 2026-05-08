@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SUBJECTS } from "@/lib/types";
+import FieldLabel from "@/components/FieldLabel";
 
 type Goal = {
   id: string;
@@ -184,7 +185,7 @@ export default function LearningGoals({
         <form onSubmit={handleGoalSubmit} className="bg-surface rounded-lg p-4 mb-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-charcoal">科目</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">科目</FieldLabel>
               <select
                 required
                 value={subject}
@@ -200,7 +201,7 @@ export default function LearningGoals({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-charcoal">教材名</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">教材名</FieldLabel>
               <input
                 required
                 value={materialName}
@@ -210,7 +211,7 @@ export default function LearningGoals({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-charcoal">目標ページ数</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">目標ページ数</FieldLabel>
               <input
                 type="number"
                 required
@@ -221,7 +222,7 @@ export default function LearningGoals({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-charcoal">完了期限</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">完了期限</FieldLabel>
               <input
                 type="date"
                 required
@@ -356,7 +357,7 @@ export default function LearningGoals({
             </div>
             <form onSubmit={handleProgressSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-charcoal">授業日</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">授業日</FieldLabel>
                 <input
                   type="date"
                   required
@@ -366,7 +367,7 @@ export default function LearningGoals({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-charcoal">今回進めたページ数</label>
+                <FieldLabel required className="block text-sm font-medium text-charcoal">今回進めたページ数</FieldLabel>
                 <input
                   type="number"
                   required

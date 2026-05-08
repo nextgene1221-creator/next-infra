@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import FieldLabel from "@/components/FieldLabel";
 
 export const MEETING_TYPES = [
   "定期面談",
@@ -168,7 +169,7 @@ export default function MeetingRecords({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-medium text-charcoal">面談日</label>
+              <FieldLabel required className="block text-sm font-medium text-charcoal">面談日</FieldLabel>
               <input
                 type="date"
                 required
@@ -216,7 +217,7 @@ export default function MeetingRecords({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-charcoal">面談内容</label>
+            <FieldLabel required className="block text-sm font-medium text-charcoal">面談内容</FieldLabel>
             <textarea
               required
               value={content}

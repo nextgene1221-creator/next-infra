@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { marked } from "marked";
 import { ARTICLE_CATEGORIES } from "@/lib/articles";
+import FieldLabel from "@/components/FieldLabel";
 
 type ImageMeta = { url: string; name: string };
 
@@ -97,7 +98,7 @@ export default function ArticleEditor({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="md:col-span-3">
-          <label className="block text-sm font-medium text-charcoal">タイトル</label>
+          <FieldLabel required className="block text-sm font-medium text-charcoal">タイトル</FieldLabel>
           <input required value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
         </div>
         <div>
@@ -115,7 +116,7 @@ export default function ArticleEditor({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-charcoal">公開日</label>
+          <FieldLabel required className="block text-sm font-medium text-charcoal">公開日</FieldLabel>
           <input type="date" required value={publishedAt} onChange={(e) => setPublishedAt(e.target.value)} className={inputCls} />
         </div>
       </div>
@@ -148,7 +149,7 @@ export default function ArticleEditor({
       {/* 本文 */}
       <div>
         <div className="flex justify-between items-center">
-          <label className="block text-sm font-medium text-charcoal">本文（マークダウン）</label>
+          <FieldLabel required className="block text-sm font-medium text-charcoal">本文（マークダウン）</FieldLabel>
           <button
             type="button"
             onClick={() => setShowPreview((v) => !v)}
