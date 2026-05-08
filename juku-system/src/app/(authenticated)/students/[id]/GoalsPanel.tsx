@@ -207,9 +207,9 @@ export default function GoalsPanel({
   };
   const openNewWeek = () => {
     resetWeekForm();
-    const monday = startOfWeek(new Date());
-    setWStartDate(monday.toISOString().split("T")[0]);
-    setWDueDate(addDays(monday, 6).toISOString().split("T")[0]);
+    const today = new Date();
+    setWStartDate(today.toISOString().split("T")[0]);
+    setWDueDate(addDays(today, 7).toISOString().split("T")[0]);
     if (bigGoals[0]) {
       setWBigGoalId(bigGoals[0].id);
       setWSubject(bigGoals[0].subject);
@@ -353,7 +353,11 @@ export default function GoalsPanel({
               </div>
               <div>
                 <FieldLabel required className="block text-sm font-medium text-charcoal">週の開始日</FieldLabel>
-                <input type="date" required value={wStartDate} onChange={(e) => setWStartDate(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
+                <input type="date" required value={wStartDate} onChange={(e) => {
+                  const v = e.target.value;
+                  setWStartDate(v);
+                  if (v) setWDueDate(addDays(new Date(v), 7).toISOString().split("T")[0]);
+                }} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" />
               </div>
               <div>
                 <FieldLabel required className="block text-sm font-medium text-charcoal">週の終了日</FieldLabel>

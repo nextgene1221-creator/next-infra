@@ -50,6 +50,15 @@ const emptyForm = (): GoalForm => ({
   notes: "",
 });
 
+function todayIso(): string {
+  return new Date().toISOString().split("T")[0];
+}
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
+}
+
 export default function MyGoalsClient({
   userId,
   initialBigGoals,
@@ -74,7 +83,7 @@ export default function MyGoalsClient({
 
   // ---- BigGoal handlers ----
   const openNewBig = () => {
-    setBigForm(emptyForm());
+    setBigForm({ ...emptyForm(), startDate: todayIso() });
     setEditingBigId(null);
     setShowBigForm(true);
   };
@@ -184,10 +193,13 @@ export default function MyGoalsClient({
 
   // ---- WeeklyGoal handlers ----
   const openNewWeekly = (bigGoalId: string, bigGoal: BigGoalView) => {
+    const t = todayIso();
     setWeeklyForm({
       ...emptyForm(),
       subject: bigGoal.subject,
       materialName: bigGoal.materialName,
+      startDate: t,
+      dueDate: addDaysIso(t, 7),
     });
     setEditingWeeklyId(null);
     setWeeklyFormFor(bigGoalId);
@@ -549,7 +561,15 @@ function GoalFormView({
             type="date"
             required={startDateRequired}
             value={form.startDate}
-            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            onChange={(e) => {
+              const newStart = e.target.value;
+              const next = { ...form, startDate: newStart };
+              // 週次目標（開始日が任意の場合）は、開始日変更で期日を 7 日後に追従
+              if (!startDateRequired && newStart) {
+                next.dueDate = addDaysIso(newStart, 7);
+              }
+              setForm(next);
+            }}
             className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
           />
         </div>
