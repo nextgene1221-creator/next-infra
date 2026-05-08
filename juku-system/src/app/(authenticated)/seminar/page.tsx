@@ -2,6 +2,9 @@ import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import SeminarManager from "./SeminarManager";
 
+// 別ロール/別タブから見たときに最新の予定が反映されるよう、毎リクエスト DB を読む
+export const dynamic = "force-dynamic";
+
 export default async function SeminarPage({
   searchParams,
 }: {

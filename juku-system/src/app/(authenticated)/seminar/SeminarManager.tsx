@@ -137,6 +137,7 @@ export default function SeminarManager({
         }];
       });
       closeSchedule();
+      router.refresh();
     } else {
       const j = await res.json().catch(() => ({}));
       setScheduleError(j.error || "登録に失敗しました");
@@ -153,6 +154,7 @@ export default function SeminarManager({
     });
     if (res.ok) {
       setPrints((prev) => prev.map((p) => p.id === printId ? { ...p, completedDate: new Date(today).toISOString() } : p));
+      router.refresh();
     }
   };
 
@@ -196,6 +198,7 @@ export default function SeminarManager({
       const updated = await res.json();
       setPrints((prev) => prev.map((p) => p.id === editing.id ? { ...p, scheduledDate: updated.scheduledDate } : p));
       closeEdit();
+      router.refresh();
     } else {
       const j = await res.json().catch(() => ({}));
       setEditError(j.error || "更新に失敗しました");
@@ -216,6 +219,7 @@ export default function SeminarManager({
     if (res.ok) {
       setPrints((prev) => prev.filter((p) => p.id !== editing.id));
       closeEdit();
+      router.refresh();
     }
   };
 
