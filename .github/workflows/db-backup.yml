@@ -1,0 +1,61 @@
+# Daily Neon PostgreSQL backup → Vercel Blob (db-backups/ prefix, 30-day retention).
+#
+# Required GitHub repository secrets:
+#   - BACKUP_DATABASE_URL    Neon connection string (postgresql://...sslmode=require)
+#   - BLOB_READ_WRITE_TOKEN  Vercel Blob token with read/write scope
+#
+# Manual run: Actions tab → "Database Backup" → Run workflow.
+name: Database Backup
+
+on:
+  schedule:
+    # 03:00 JST = 18:00 UTC
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Install Vercel Blob client
+        run: npm install --no-save @vercel/blob@^2.3.3
+
+      - name: Dump database
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "BACKUP_DATABASE_URL secret is not set" >&2
+            exit 1
+          fi
+          TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+          FILENAME="backup-${TIMESTAMP}.sql.gz"
+          pg_dump --no-owner --no-acl --format=plain "$DATABASE_URL" | gzip -9 > "$FILENAME"
+          echo "FILENAME=$FILENAME" >> "$GITHUB_ENV"
+          ls -lh "$FILENAME"
+
+      - name: Upload to Vercel Blob
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: node .github/scripts/upload-backup.mjs "$FILENAME"
+
+      - name: Cleanup backups older than 30 days
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: node .github/scripts/cleanup-backups.mjs

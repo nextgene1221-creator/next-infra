@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SUBJECTS } from "@/lib/types";
+import { SUBJECTS, STANDARD_UNITS } from "@/lib/types";
 
 type Unit = { id: string; subject: string; name: string; printCount: number };
 type StudentPrint = {
@@ -118,6 +118,69 @@ export default function SeminarManager({
     }
   };
 
+  // --- 予定日編集モーダル ---
+  const [editing, setEditing] = useState<StudentPrint | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const openEdit = (p: StudentPrint) => {
+    if (p.completedDate) return;
+    setEditing(p);
+    setEditDate(p.scheduledDate.split("T")[0]);
+    setEditError("");
+  };
+
+  const closeEdit = () => {
+    setEditing(null);
+    setEditError("");
+  };
+
+  // 生徒は過去予定日 or 過去日付への変更不可
+  const todayStr = new Date().toISOString().split("T")[0];
+  const isPastSchedule = editing ? editing.scheduledDate.split("T")[0] < todayStr : false;
+  const studentCantEdit = role === "student" && isPastSchedule;
+
+  const saveSchedule = async () => {
+    if (!editing) return;
+    if (role === "student" && editDate < todayStr) {
+      setEditError("過去の日付には変更できません");
+      return;
+    }
+    setEditSaving(true);
+    setEditError("");
+    const res = await fetch("/api/student-prints", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editing.id, scheduledDate: editDate }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setPrints((prev) => prev.map((p) => p.id === editing.id ? { ...p, scheduledDate: updated.scheduledDate } : p));
+      closeEdit();
+    } else {
+      const j = await res.json().catch(() => ({}));
+      setEditError(j.error || "更新に失敗しました");
+    }
+    setEditSaving(false);
+  };
+
+  const completeFromModal = async () => {
+    if (!editing) return;
+    await markComplete(editing.id);
+    closeEdit();
+  };
+
+  const deleteFromModal = async () => {
+    if (!editing) return;
+    if (!confirm("この予定を削除しますか？")) return;
+    const res = await fetch(`/api/student-prints?id=${editing.id}`, { method: "DELETE" });
+    if (res.ok) {
+      setPrints((prev) => prev.filter((p) => p.id !== editing.id));
+      closeEdit();
+    }
+  };
+
   // 受験科目でフィルタされた単元のみ表示（生徒向け）
   const visibleUnits = role === "student"
     ? units.filter((u) => examSubjects.includes(u.subject))
@@ -154,7 +217,20 @@ export default function SeminarManager({
             </div>
             <div>
               <label className="block text-xs text-dark/60">単元名</label>
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="border border-gray-300 rounded px-2 py-1.5 text-sm" placeholder="例: 二次関数" />
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                list={`unit-options-${newSubject}`}
+                className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+                placeholder="選択または入力"
+              />
+              <datalist id={`unit-options-${newSubject}`}>
+                {(STANDARD_UNITS[newSubject] || [])
+                  .filter((n) => !units.some((u) => u.subject === newSubject && u.name === n))
+                  .map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+              </datalist>
             </div>
             <div>
               <label className="block text-xs text-dark/60">プリント枚数</label>
@@ -283,9 +359,9 @@ export default function SeminarManager({
                         return (
                           <td
                             key={i}
-                            className={`text-center py-0.5 px-0.5 border border-gray-200 ${bg} cursor-pointer hover:opacity-80`}
+                            className={`text-center py-0.5 px-0.5 border border-gray-200 ${bg} ${p && !p.completedDate ? "cursor-pointer hover:opacity-80" : ""}`}
                             title={title}
-                            onClick={() => p && !p.completedDate && markComplete(p.id)}
+                            onClick={() => p && !p.completedDate && openEdit(p)}
                           >
                             <span className="text-[10px]">{content}</span>
                           </td>
@@ -299,8 +375,61 @@ export default function SeminarManager({
           ))}
           <div className="flex gap-4 mt-2 text-xs text-dark/60">
             <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-green-100 border border-gray-200 rounded-sm" /> 完了</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-yellow-50 border border-gray-200 rounded-sm" /> 予定あり（クリックで完了）</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-yellow-50 border border-gray-200 rounded-sm" /> 予定あり（クリックで編集）</span>
             <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-white border border-gray-200 rounded-sm" /> 未登録</span>
+          </div>
+        </div>
+      )}
+
+      {/* 予定編集モーダル */}
+      {editing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={closeEdit}>
+          <div className="bg-white rounded-lg shadow-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-dark mb-3">プリント予定の編集</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-dark/60 mb-1">予定日</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  min={role === "student" ? todayStr : undefined}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  disabled={studentCantEdit}
+                  className="border border-gray-300 rounded px-2 py-1.5 text-sm w-full disabled:bg-gray-100"
+                />
+                {studentCantEdit && (
+                  <p className="text-xs text-red-600 mt-1">過去の予定日は講師・運営のみ変更できます</p>
+                )}
+                {editError && <p className="text-xs text-red-600 mt-1">{editError}</p>}
+              </div>
+              <div className="flex gap-2 flex-wrap pt-2">
+                <button
+                  onClick={saveSchedule}
+                  disabled={editSaving || studentCantEdit || editDate === editing.scheduledDate.split("T")[0]}
+                  className="bg-primary text-white px-3 py-1.5 rounded text-sm hover:bg-primary-dark disabled:opacity-50"
+                >
+                  {editSaving ? "保存中..." : "予定日を保存"}
+                </button>
+                <button
+                  onClick={completeFromModal}
+                  className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700"
+                >
+                  完了にする
+                </button>
+                <button
+                  onClick={deleteFromModal}
+                  className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"
+                >
+                  削除
+                </button>
+                <button
+                  onClick={closeEdit}
+                  className="ml-auto text-dark/60 px-3 py-1.5 rounded text-sm hover:bg-gray-100"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -44,3 +44,7 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# test data batch files (contain production record IDs)
+prisma/.test-batch-*.json
+prisma/.test-batch-content-*.json

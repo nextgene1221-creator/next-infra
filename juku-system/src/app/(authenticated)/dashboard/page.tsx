@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const alerts = await prisma.alert.findMany({
     where: { userId, isRead: false },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    take: 20,
   });
 
   let stats: { label: string; value: number; href: string }[] = [];
@@ -486,7 +486,7 @@ export default async function DashboardPage() {
         {alerts.length === 0 ? (
           <p className="text-charcoal/70">未読のアラートはありません</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-3 max-h-[26rem] overflow-y-auto pr-2">
             {alerts.map((alert) => (
               <DashboardAlertItem
                 key={alert.id}

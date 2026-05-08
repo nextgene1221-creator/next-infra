@@ -65,18 +65,49 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(print);
 }
 
-// PUT: プリント完了日を登録
+// PUT: プリント完了日 or 予定日を更新
 export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id, completedDate } = await req.json();
+  const body = await req.json();
+  const { id, completedDate, scheduledDate } = body;
   if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
 
-  const print = await prisma.studentPrint.update({
-    where: { id },
-    data: { completedDate: completedDate ? new Date(completedDate) : null },
-  });
+  const existing = await prisma.studentPrint.findUnique({ where: { id } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const data: { completedDate?: Date | null; scheduledDate?: Date } = {};
+
+  if (completedDate !== undefined) {
+    data.completedDate = completedDate ? new Date(completedDate) : null;
+  }
+
+  if (scheduledDate !== undefined) {
+    if (existing.completedDate) {
+      return NextResponse.json({ error: "完了済みのプリントは予定日を変更できません" }, { status: 400 });
+    }
+
+    if (session.user.role === "student") {
+      const student = await prisma.student.findFirst({ where: { userId: session.user.id } });
+      if (!student || student.id !== existing.studentId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const oldDate = new Date(existing.scheduledDate);
+      oldDate.setHours(0, 0, 0, 0);
+      const newDate = new Date(scheduledDate);
+      newDate.setHours(0, 0, 0, 0);
+      if (oldDate.getTime() < today.getTime() || newDate.getTime() < today.getTime()) {
+        return NextResponse.json({ error: "過去の予定日は変更できません" }, { status: 403 });
+      }
+    }
+
+    data.scheduledDate = new Date(scheduledDate);
+  }
+
+  const print = await prisma.studentPrint.update({ where: { id }, data });
   return NextResponse.json(print);
 }
 

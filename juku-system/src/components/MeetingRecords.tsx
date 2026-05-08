@@ -337,7 +337,7 @@ export default function MeetingRecords({
 }
 
 // 面談時点のスナップショット表示
-function MeetingSnapshots({ meeting }: { meeting: Meeting }) {
+export function MeetingSnapshots({ meeting }: { meeting: { goalsSnapshot?: string; progressSnapshot?: string } }) {
   const [open, setOpen] = useState(false);
   const goals: GoalSnapshot[] = meeting.goalsSnapshot ? JSON.parse(meeting.goalsSnapshot) : [];
   const progress: ProgressSnapshot[] = meeting.progressSnapshot ? JSON.parse(meeting.progressSnapshot) : [];

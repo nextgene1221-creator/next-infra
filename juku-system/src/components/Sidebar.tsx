@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { label: "出退勤管理", href: "/attendance", roles: ["admin"] },
   { label: "アラート", href: "/alerts", roles: ["admin", "teacher", "student"] },
   { label: "シフト管理", href: "/shifts", roles: ["admin", "teacher"] },
+  { label: "バックアップ", href: "/backup", roles: ["admin"] },
 ];
 
 type BadgeCounts = {

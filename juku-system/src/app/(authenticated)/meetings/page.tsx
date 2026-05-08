@@ -1,8 +1,6 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
-import ClickableRow from "@/components/ClickableRow";
-import MeetingCreateButton from "@/components/MeetingCreateButton";
+import MeetingsListClient, { type MeetingListItem } from "./MeetingsListClient";
 
 export default async function MeetingsPage({
   searchParams,
@@ -36,20 +34,25 @@ export default async function MeetingsPage({
     take: 100,
   });
 
-  // 新規作成モーダル用の生徒リスト
-  const studentsList = await prisma.student.findMany({
-    where: { status: "active" },
-    include: { user: { select: { name: true } } },
-    orderBy: { user: { name: "asc" } },
-  });
-  const studentOptions = studentsList.map((s) => ({ id: s.id, name: s.user.name }));
+  const items: MeetingListItem[] = meetings.map((m) => ({
+    id: m.id,
+    studentId: m.student.id,
+    studentName: m.student.user.name,
+    date: m.date.toISOString(),
+    durationMinutes: m.durationMinutes,
+    type: m.type,
+    status: m.status,
+    content: m.content,
+    parentComment: m.parentComment,
+    goalsSnapshot: m.goalsSnapshot,
+    progressSnapshot: m.progressSnapshot,
+    nextMeetingDate: m.nextMeetingDate ? m.nextMeetingDate.toISOString() : null,
+    teacherName: m.teacher.user.name,
+  }));
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-dark">面談管理</h1>
-        <MeetingCreateButton students={studentOptions} currentUserName={session.user.name} />
-      </div>
+      <h1 className="text-2xl font-bold text-dark mb-6">面談管理</h1>
 
       <form className="bg-white p-4 rounded-lg shadow mb-6 flex gap-4 flex-wrap">
         <input
@@ -78,71 +81,7 @@ export default async function MeetingsPage({
         </button>
       </form>
 
-      <p className="text-sm text-dark/60 mb-3">
-        ※ 編集・削除は各生徒の詳細ページから行ってください
-      </p>
-
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-surface">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">面談日</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">生徒</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">タイプ</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">時間</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">内容</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">講師</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">次回予定</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {meetings.map((meeting) => (
-              <ClickableRow
-                key={meeting.id}
-                href={`/students/${meeting.student.id}`}
-                className="hover:bg-surface"
-              >
-                <td className="px-6 py-4 text-sm text-primary font-medium whitespace-nowrap">
-                  {new Date(meeting.date).toLocaleDateString("ja-JP")}
-                </td>
-                <td className="px-6 py-4 text-sm text-dark whitespace-nowrap">
-                  {meeting.student.user.name}
-                </td>
-                <td className="px-6 py-4 text-sm">
-                  {meeting.type ? (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary-light text-primary font-medium">
-                      {meeting.type}
-                    </span>
-                  ) : (
-                    <span className="text-dark/40">-</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-sm text-dark whitespace-nowrap">
-                  {meeting.durationMinutes ? `${meeting.durationMinutes}分` : "-"}
-                </td>
-                <td className="px-6 py-4 text-sm text-dark max-w-md">
-                  <p className="line-clamp-2">{meeting.content}</p>
-                </td>
-                <td className="px-6 py-4 text-sm text-dark whitespace-nowrap">
-                  {meeting.teacher.user.name}
-                </td>
-                <td className="px-6 py-4 text-sm text-dark whitespace-nowrap">
-                  {meeting.nextMeetingDate
-                    ? new Date(meeting.nextMeetingDate).toLocaleDateString("ja-JP")
-                    : "-"}
-                </td>
-              </ClickableRow>
-            ))}
-            {meetings.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-dark/60">
-                  面談記録がありません
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <MeetingsListClient initialMeetings={items} />
     </div>
   );
 }

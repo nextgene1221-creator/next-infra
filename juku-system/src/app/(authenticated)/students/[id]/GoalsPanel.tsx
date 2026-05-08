@@ -552,15 +552,10 @@ export default function GoalsPanel({
                       }, 0);
                     };
 
-                    // 実績＋調整予定: 過去=実績, 未来=残ページを期日まで均等
-                    const calcAdjusted = (weekEnd: Date) => {
+                    // 調整予定（演算結果）: 残ページを今日〜期日で均等配分
+                    const calcProjected = (weekEnd: Date) => {
                       const inRange = weekEnd.getTime() >= s.start && addDays(weekEnd, -6).getTime() <= s.end;
                       if (!inRange) return null;
-                      if (weekEnd.getTime() <= nowTime) {
-                        // 今週以前: 実績
-                        return calcActual(weekEnd);
-                      }
-                      // 未来: 残ページを今日〜期日で均等配分
                       const remainingPages = Math.max(0, bg.targetPages - s.actualTotal);
                       const remainingDays = Math.max(1, (s.end - nowTime) / MS_DAY);
                       const adjustedPace = remainingPages / remainingDays;
@@ -611,17 +606,43 @@ export default function GoalsPanel({
                         </tr>
                         {/* 実績＋調整予定 */}
                         <tr>
-                          <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1 text-green-700">実績/調整</td>
+                          <td className="sticky left-0 bg-white z-10 border-b border-r border-gray-200 px-2 py-1">
+                            <span className="text-green-700">実績</span>
+                            <span className="text-gray-400">/</span>
+                            <span className="text-slate-500">調整</span>
+                          </td>
                           {weeks.map((w) => {
                             const cw = now >= w && now < addDays(w, 7);
                             const weekEnd = addDays(w, 6);
-                            const v = calcAdjusted(weekEnd);
-                            if (v === null) return <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 ${cw ? "bg-primary/10" : ""}`} />;
+                            const inRange = weekEnd.getTime() >= s.start && addDays(weekEnd, -6).getTime() <= s.end;
+                            const baseClass = `border-b border-r border-gray-200 px-2 py-1 text-right font-medium ${cw ? "bg-primary/10" : ""}`;
+                            if (!inRange) return <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 ${cw ? "bg-primary/10" : ""}`} />;
+                            if (cw) {
+                              // 今週: 実績と演算結果を両方表示
+                              const actualVal = calcActual(weekEnd);
+                              const projectedVal = calcProjected(weekEnd);
+                              return (
+                                <td key={w.getTime()} className={baseClass}>
+                                  <span className="text-green-700">{actualVal}</span>
+                                  <span className="text-gray-400">/</span>
+                                  <span className="text-slate-500">{projectedVal}</span>
+                                </td>
+                              );
+                            }
                             const isPast = weekEnd.getTime() <= nowTime;
-                            const planned = calcPlanned(weekEnd);
-                            const behind = isPast && planned !== null && v < planned;
+                            if (isPast) {
+                              const v = calcActual(weekEnd);
+                              const planned = calcPlanned(weekEnd);
+                              const behind = planned !== null && v < planned;
+                              return (
+                                <td key={w.getTime()} className={`${baseClass} ${behind ? "text-red-600" : "text-green-700"}`}>
+                                  {v}
+                                </td>
+                              );
+                            }
+                            const v = calcProjected(weekEnd);
                             return (
-                              <td key={w.getTime()} className={`border-b border-r border-gray-200 px-2 py-1 text-right font-medium ${behind ? "text-red-600" : isPast ? "text-green-700" : "text-green-600/70"} ${cw ? "bg-primary/10" : ""}`}>
+                              <td key={w.getTime()} className={`${baseClass} text-slate-500`}>
                                 {v}
                               </td>
                             );

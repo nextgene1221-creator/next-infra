@@ -22,7 +22,7 @@ export default async function StudentDetailPage({
       progressRecords: {
         include: { teacher: { include: { user: true } } },
         orderBy: { date: "desc" },
-        take: 10,
+        take: 30,
       },
       bigGoals: {
         orderBy: { dueDate: "asc" },
@@ -315,7 +315,7 @@ export default async function StudentDetailPage({
           {student.progressRecords.length === 0 ? (
             <p className="text-dark/60 text-sm">進捗記録がありません</p>
           ) : (
-            <ul className="space-y-2">
+            <ul className="space-y-2 max-h-[22rem] overflow-y-auto pr-2">
               {student.progressRecords.map((record) => (
                 <li key={record.id} className="p-2 bg-surface rounded">
                   <Link href={`/progress/${record.id}`} className="hover:underline">
