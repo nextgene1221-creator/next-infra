@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import RoutineTaskManager from "@/components/RoutineTaskManager";
 import ShiftTemplateForm from "@/components/ShiftTemplateForm";
 import AssignmentManager from "@/components/AssignmentManager";
+import PasswordResetButton from "@/components/PasswordResetButton";
 
 export default async function TeacherDetailPage({
   params,
@@ -73,12 +74,17 @@ export default async function TeacherDetailPage({
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-dark">{teacher.user.name}</h1>
-        <Link
-          href={`/teachers/${id}/edit`}
-          className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
-        >
-          編集
-        </Link>
+        <div className="flex gap-2 items-center">
+          {session.user.role === "admin" && (
+            <PasswordResetButton userId={teacher.user.id} userName={teacher.user.name} />
+          )}
+          <Link
+            href={`/teachers/${id}/edit`}
+            className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
+          >
+            編集
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

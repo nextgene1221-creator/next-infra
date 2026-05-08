@@ -6,6 +6,7 @@ import GoalsPanel from "./GoalsPanel";
 import MockExamsPanel, { type ExamResult, type AnonymousResult } from "./MockExamsPanel";
 import MeetingRecords from "@/components/MeetingRecords";
 import StudyScheduleEditor from "@/components/StudyScheduleEditor";
+import PasswordResetButton from "@/components/PasswordResetButton";
 
 export default async function StudentDetailPage({
   params,
@@ -142,7 +143,10 @@ export default async function StudentDetailPage({
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-dark">{student.user.name}</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {session.user.role === "admin" && (
+            <PasswordResetButton userId={student.user.id} userName={student.user.name} />
+          )}
           <Link
             href={`/students/${id}/report`}
             className="bg-accent text-white px-4 py-2 rounded-md text-sm hover:opacity-90"

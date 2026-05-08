@@ -189,7 +189,13 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
               );
             })}
         </nav>
-        <div className="p-4 border-t border-white/20">
+        <div className="p-4 border-t border-white/20 space-y-1">
+          <Link
+            href="/account/password"
+            className="block w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white rounded-md transition-colors"
+          >
+            パスワード変更
+          </Link>
           <button
             onClick={handleLogout}
             disabled={loggingOut}

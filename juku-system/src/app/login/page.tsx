@@ -82,6 +82,9 @@ export default function LoginPage() {
           >
             {loading ? "処理中..." : "ログイン"}
           </button>
+          <p className="text-center text-xs text-dark/60 pt-2">
+            パスワードを忘れた方は運営にお問い合わせください
+          </p>
         </form>
       </div>
     </div>
