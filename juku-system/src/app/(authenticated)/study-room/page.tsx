@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAllCampuses, getAllStudyRoomConfigs, seatLabel } from "@/lib/studyRoom";
 import StudyRoomAdmin from "./StudyRoomAdmin";
 import CapacityEditor from "./CapacityEditor";
+import CheckInQR from "./CheckInQR";
 
 export default async function StudyRoomPage() {
   await requireAuth(["admin", "teacher"]);
@@ -79,6 +80,8 @@ export default async function StudyRoomPage() {
                   <li className="py-1 text-xs text-dark/50">入室者なし</li>
                 )}
               </ul>
+
+              <CheckInQR campus={c.code} label={c.label} />
             </div>
           );
         })}
