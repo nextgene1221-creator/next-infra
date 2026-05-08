@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   let { studentId } = body;
-  const { subject, date, material, topic, pagesCompleted, goalId } = body;
+  const { subject, date, material, topic, pagesCompleted, goalId, bigGoalId } = body;
 
   if (session.user.role === "student") {
     const student = await prisma.student.findFirst({ where: { userId: session.user.id } });
@@ -35,10 +35,11 @@ export async function POST(req: NextRequest) {
       topic: topic || "",
       pagesCompleted: parseInt(pagesCompleted) || 0,
       goalId: goalId || null,
+      bigGoalId: bigGoalId || null,
     },
   });
 
-  // 目標と紐づく場合、目標の達成判定
+  // 週次目標と紐づく場合、目標の達成判定
   if (goalId) {
     const goal = await prisma.learningGoal.findUnique({
       where: { id: goalId },
@@ -49,6 +50,31 @@ export async function POST(req: NextRequest) {
       if (totalDone >= goal.targetPages && goal.status !== "completed") {
         await prisma.learningGoal.update({
           where: { id: goalId },
+          data: { status: "completed" },
+        });
+      }
+    }
+  }
+
+  // 大目標と紐づく場合、目標の達成判定（直紐付き + 配下週次目標の合計）
+  if (bigGoalId) {
+    const bigGoal = await prisma.bigGoal.findUnique({
+      where: { id: bigGoalId },
+      include: {
+        progressRecords: { select: { pagesCompleted: true } },
+        weeklyGoals: { include: { progressRecords: { select: { pagesCompleted: true } } } },
+      },
+    });
+    if (bigGoal) {
+      const directDone = bigGoal.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0);
+      const weeklyDone = bigGoal.weeklyGoals.reduce(
+        (sum, w) => sum + w.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
+        0,
+      );
+      const totalDone = directDone + weeklyDone;
+      if (totalDone >= bigGoal.targetPages && bigGoal.status !== "completed") {
+        await prisma.bigGoal.update({
+          where: { id: bigGoalId },
           data: { status: "completed" },
         });
       }

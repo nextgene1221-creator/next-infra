@@ -32,6 +32,7 @@ export default async function StudentDetailPage({
             orderBy: { dueDate: "asc" },
             include: { progressRecords: { select: { pagesCompleted: true, date: true } } },
           },
+          progressRecords: { select: { pagesCompleted: true, date: true } },
         },
       },
       meetings: {

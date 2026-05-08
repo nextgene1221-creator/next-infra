@@ -28,6 +28,7 @@ type BigGoal = {
   status: string;
   notes: string;
   weeklyGoals: WeeklyGoal[];
+  progressRecords?: { pagesCompleted: number; date?: string | Date }[];
 };
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -57,12 +58,18 @@ function computeBigGoalStats(bg: BigGoal, now: Date) {
   const totalDays = Math.max(1, (end - start) / MS_DAY);
   const pagesPerDay = bg.targetPages / totalDays;
 
-  const allProgress = bg.weeklyGoals.flatMap((w) =>
+  const weeklyProgress = bg.weeklyGoals.flatMap((w) =>
     (w.progressRecords || []).map((r) => ({
       date: r.date ? new Date(r.date) : null,
       pages: r.pagesCompleted,
     }))
   );
+  // 大目標に直接紐づく進捗（週次目標を介さないもの）
+  const directProgress = (bg.progressRecords || []).map((r) => ({
+    date: r.date ? new Date(r.date) : null,
+    pages: r.pagesCompleted,
+  }));
+  const allProgress = [...weeklyProgress, ...directProgress];
   const actualTotal = allProgress.reduce((sum, p) => sum + p.pages, 0);
 
   const latestDate =

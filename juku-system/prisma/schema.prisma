@@ -198,13 +198,15 @@ model ProgressRecord {
   material        String   // 教材名
   topic           String   @default("") // 学習内容
   pagesCompleted  Int      @map("pages_completed") // 今回進めたページ数
-  goalId          String?  @map("goal_id") // 紐づく学習目標（任意）
+  goalId          String?  @map("goal_id") // 紐づく週次学習目標（任意）
+  bigGoalId       String?  @map("big_goal_id") // 紐づく大目標（任意）
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   student Student        @relation(fields: [studentId], references: [id])
   teacher Teacher        @relation(fields: [teacherId], references: [id])
   goal    LearningGoal?  @relation(fields: [goalId], references: [id])
+  bigGoal BigGoal?       @relation("BigGoalProgress", fields: [bigGoalId], references: [id])
 
   @@map("progress_records")
 }
@@ -369,8 +371,9 @@ model BigGoal {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  student      Student        @relation(fields: [studentId], references: [id])
-  weeklyGoals  LearningGoal[]
+  student         Student          @relation(fields: [studentId], references: [id])
+  weeklyGoals     LearningGoal[]
+  progressRecords ProgressRecord[] @relation("BigGoalProgress")
 
   @@map("big_goals")
 }

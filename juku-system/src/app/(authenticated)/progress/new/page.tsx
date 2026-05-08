@@ -1,12 +1,20 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { SUBJECTS } from "@/lib/types";
 import FieldLabel from "@/components/FieldLabel";
 
 type StudentOption = { id: string; name: string };
+type BigGoalOption = { id: string; subject: string; materialName: string };
+type WeeklyGoalOption = {
+  id: string;
+  subject: string;
+  materialName: string;
+  startDate: string | null;
+  dueDate: string;
+};
 
 export default function ProgressNewPage() {
   const router = useRouter();
@@ -23,6 +31,17 @@ export default function ProgressNewPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const initialGoalKey = (() => {
+    const wq = search.get("goalId");
+    if (wq) return `weekly:${wq}`;
+    const bq = search.get("bigGoalId");
+    if (bq) return `big:${bq}`;
+    return "";
+  })();
+  const [goalKey, setGoalKey] = useState<string>(initialGoalKey);
+  const [bigGoals, setBigGoals] = useState<BigGoalOption[]>([]);
+  const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoalOption[]>([]);
+
   useEffect(() => {
     if (isStudent) return;
     fetch("/api/students-list")
@@ -30,15 +49,75 @@ export default function ProgressNewPage() {
       .then(setStudents);
   }, [isStudent]);
 
+  useEffect(() => {
+    if (!isStudent && !studentId) {
+      setBigGoals([]);
+      setWeeklyGoals([]);
+      return;
+    }
+    const url = isStudent
+      ? "/api/student-goals"
+      : `/api/student-goals?studentId=${encodeURIComponent(studentId)}`;
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : { bigGoals: [], weeklyGoals: [] }))
+      .then((data) => {
+        setBigGoals(data.bigGoals || []);
+        setWeeklyGoals(data.weeklyGoals || []);
+      })
+      .catch(() => {
+        setBigGoals([]);
+        setWeeklyGoals([]);
+      });
+  }, [isStudent, studentId]);
+
+  const datalistMaterials = useMemo(() => {
+    const set = new Set<string>();
+    for (const g of bigGoals) set.add(g.materialName);
+    for (const g of weeklyGoals) set.add(g.materialName);
+    return Array.from(set);
+  }, [bigGoals, weeklyGoals]);
+
+  const onGoalChange = (key: string) => {
+    setGoalKey(key);
+    if (!key) return;
+    const [kind, id] = key.split(":");
+    if (kind === "big") {
+      const g = bigGoals.find((x) => x.id === id);
+      if (g) {
+        setSubject(g.subject);
+        setMaterial(g.materialName);
+      }
+    } else if (kind === "weekly") {
+      const g = weeklyGoals.find((x) => x.id === id);
+      if (g) {
+        setSubject(g.subject);
+        setMaterial(g.materialName);
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError("");
 
+    const [kind, id] = goalKey ? goalKey.split(":") : ["", ""];
+    const goalId = kind === "weekly" ? id : null;
+    const bigGoalId = kind === "big" ? id : null;
+
     const res = await fetch("/api/progress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studentId, subject, date, material, topic, pagesCompleted }),
+      body: JSON.stringify({
+        studentId,
+        subject,
+        date,
+        material,
+        topic,
+        pagesCompleted,
+        goalId,
+        bigGoalId,
+      }),
     });
 
     if (res.ok) {
@@ -50,6 +129,9 @@ export default function ProgressNewPage() {
       setSaving(false);
     }
   };
+
+  const fmtDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
 
   return (
     <div>
@@ -112,8 +194,12 @@ export default function ProgressNewPage() {
               value={material}
               onChange={(e) => setMaterial(e.target.value)}
               placeholder="例: 青チャート数学IA"
+              list="progress-material-options"
               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
+            <datalist id="progress-material-options">
+              {datalistMaterials.map((m) => <option key={m} value={m} />)}
+            </datalist>
           </div>
           <div>
             <FieldLabel required className="block text-sm font-medium text-charcoal">進めたページ数</FieldLabel>
@@ -125,6 +211,39 @@ export default function ProgressNewPage() {
               onChange={(e) => setPagesCompleted(parseInt(e.target.value) || 0)}
               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-charcoal">紐づく目標（任意）</label>
+            <select
+              value={goalKey}
+              onChange={(e) => onGoalChange(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+              disabled={!isStudent && !studentId}
+            >
+              <option value="">紐付けなし</option>
+              {bigGoals.length > 0 && (
+                <optgroup label="大目標">
+                  {bigGoals.map((g) => (
+                    <option key={`big:${g.id}`} value={`big:${g.id}`}>
+                      [{g.subject}] {g.materialName}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {weeklyGoals.length > 0 && (
+                <optgroup label="週次目標">
+                  {weeklyGoals.map((g) => (
+                    <option key={`weekly:${g.id}`} value={`weekly:${g.id}`}>
+                      [{g.subject}] {g.materialName}
+                      {g.startDate ? ` (${fmtDate(g.startDate)}〜${fmtDate(g.dueDate)})` : ` (〜${fmtDate(g.dueDate)})`}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <p className="text-xs text-dark/60 mt-1">
+              選択すると科目・教材名が自動で目標に揃います。紐付けると大目標・週次目標の進捗カウントに反映されます。
+            </p>
           </div>
         </div>
 

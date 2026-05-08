@@ -78,6 +78,10 @@ export async function DELETE(
     where: { bigGoalId: id },
     data: { bigGoalId: null },
   });
+  await prisma.progressRecord.updateMany({
+    where: { bigGoalId: id },
+    data: { bigGoalId: null },
+  });
   await prisma.bigGoal.delete({ where: { id } });
 
   return NextResponse.json({ success: true });

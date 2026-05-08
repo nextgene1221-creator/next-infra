@@ -61,12 +61,14 @@ export default async function DashboardPage() {
     dueDate: Date;
   }[] = [];
   if (role === "student") {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
     const student = await prisma.student.findFirst({
       where: { userId },
       include: {
         studySchedule: true,
         learningGoals: {
-          where: { status: { not: "completed" } },
+          where: { status: { not: "completed" }, dueDate: { gte: todayStart } },
           include: { progressRecords: { select: { pagesCompleted: true } } },
         },
       },
@@ -104,6 +106,7 @@ export default async function DashboardPage() {
         where: { studentId: student.id, status: { not: "completed" } },
         include: {
           weeklyGoals: { include: { progressRecords: { select: { pagesCompleted: true } } } },
+          progressRecords: { select: { pagesCompleted: true } },
         },
         orderBy: { dueDate: "asc" },
       });
@@ -112,10 +115,12 @@ export default async function DashboardPage() {
         subject: b.subject,
         materialName: b.materialName,
         targetPages: b.targetPages,
-        done: b.weeklyGoals.reduce(
-          (sum, w) => sum + w.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
-          0
-        ),
+        done:
+          b.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0) +
+          b.weeklyGoals.reduce(
+            (sum, w) => sum + w.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
+            0,
+          ),
         startDate: b.startDate,
         dueDate: b.dueDate,
       }));
@@ -393,6 +398,7 @@ export default async function DashboardPage() {
               <ul className="divide-y divide-gray-200">
                 {studentWeeklyGoals.map((g) => {
                   const pct = g.targetPages > 0 ? Math.min(100, Math.round((g.done / g.targetPages) * 100)) : 0;
+                  const href = `/progress/new?goalId=${g.id}&subject=${encodeURIComponent(g.subject)}&material=${encodeURIComponent(g.materialName)}`;
                   return (
                     <li key={g.id} className="py-2">
                       <div className="flex justify-between text-sm">
@@ -402,8 +408,16 @@ export default async function DashboardPage() {
                       <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
                         <div className="bg-accent h-1.5 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
-                      <div className="text-xs text-dark/60 mt-1">
-                        期日 {g.dueDate.toLocaleDateString("ja-JP")}
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-xs text-dark/60">
+                          期日 {g.dueDate.toLocaleDateString("ja-JP")}
+                        </span>
+                        <Link
+                          href={href}
+                          className="text-xs px-2 py-1 rounded border border-primary/40 text-primary hover:bg-primary hover:text-white"
+                        >
+                          進捗を登録
+                        </Link>
                       </div>
                     </li>
                   );
