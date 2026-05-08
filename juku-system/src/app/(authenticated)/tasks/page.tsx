@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import ClickableRow from "@/components/ClickableRow";
 import TaskCompleteCheckbox from "@/components/TaskCompleteCheckbox";
+import InlineTaskCreate from "./InlineTaskCreate";
 
 export default async function TasksPage({
   searchParams,
@@ -74,12 +75,14 @@ export default async function TasksPage({
           </Link>
           <Link
             href="/tasks/new/edit"
-            className="bg-primary text-white px-4 py-2 rounded-md text-sm hover:bg-primary-dark"
+            className="bg-white text-charcoal border border-gray-300 px-4 py-2 rounded-md text-sm hover:bg-gray-100"
           >
-            新規作成
+            詳細作成
           </Link>
         </div>
       </div>
+
+      <InlineTaskCreate />
 
       <form className="bg-white p-4 rounded-lg shadow mb-6 flex gap-4 flex-wrap">
         {session.user.role === "admin" && (
