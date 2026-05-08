@@ -72,20 +72,53 @@ export default function SeminarManager({
     if (res.ok) setUnits((prev) => prev.filter((u) => u.id !== id));
   };
 
-  // --- プリント予定登録 ---
-  const [scheduleUnit, setScheduleUnit] = useState("");
-  const [schedulePrintNo, setSchedulePrintNo] = useState(1);
+  // --- 新規プリント予定登録モーダル（マトリクス空欄クリック起点） ---
+  const [scheduling, setScheduling] = useState<{
+    unitId: string;
+    unitName: string;
+    unitSubject: string;
+    nextNo: number;
+  } | null>(null);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split("T")[0]);
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
+
+  // 単元の最小空き No を返す（全 No 埋まりなら null）
+  const getNextPrintNo = (unitId: string, printCount: number): number | null => {
+    const taken = new Set(
+      prints.filter((p) => p.printUnitId === unitId).map((p) => p.printNo),
+    );
+    for (let n = 1; n <= printCount; n++) {
+      if (!taken.has(n)) return n;
+    }
+    return null;
+  };
+
+  const openSchedule = (unit: Unit) => {
+    if (!selectedStudentId) return;
+    const next = getNextPrintNo(unit.id, unit.printCount);
+    if (next === null) return;
+    setScheduling({ unitId: unit.id, unitName: unit.name, unitSubject: unit.subject, nextNo: next });
+    setScheduleDate(new Date().toISOString().split("T")[0]);
+    setScheduleError("");
+  };
+
+  const closeSchedule = () => {
+    setScheduling(null);
+    setScheduleError("");
+  };
 
   const schedulePrint = async () => {
-    if (!scheduleUnit || !selectedStudentId) return;
+    if (!scheduling || !selectedStudentId) return;
+    setScheduleSaving(true);
+    setScheduleError("");
     const res = await fetch("/api/student-prints", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         studentId: selectedStudentId,
-        printUnitId: scheduleUnit,
-        printNo: schedulePrintNo,
+        printUnitId: scheduling.unitId,
+        printNo: scheduling.nextNo,
         scheduledDate: scheduleDate,
       }),
     });
@@ -103,7 +136,12 @@ export default function SeminarManager({
           completedDate: p.completedDate,
         }];
       });
+      closeSchedule();
+    } else {
+      const j = await res.json().catch(() => ({}));
+      setScheduleError(j.error || "登録に失敗しました");
     }
+    setScheduleSaving(false);
   };
 
   const markComplete = async (printId: string) => {
@@ -200,8 +238,6 @@ export default function SeminarManager({
     printMap.set(`${p.printUnitId}-${p.printNo}`, p);
   }
 
-  const selectedUnit = units.find((u) => u.id === scheduleUnit);
-
   return (
     <div className="space-y-6">
       {/* 管理者: 単元追加フォーム */}
@@ -287,35 +323,10 @@ export default function SeminarManager({
         </div>
       )}
 
-      {/* プリント予定登録 */}
       {selectedStudentId && visibleUnits.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-4">
-          <h2 className="text-sm font-semibold text-dark mb-3">プリント予定登録</h2>
-          <div className="flex gap-2 flex-wrap items-end">
-            <div>
-              <label className="block text-xs text-dark/60">単元</label>
-              <select value={scheduleUnit} onChange={(e) => { setScheduleUnit(e.target.value); setSchedulePrintNo(1); }} className="border border-gray-300 rounded px-2 py-1.5 text-sm">
-                <option value="">選択</option>
-                {visibleUnits.map((u) => <option key={u.id} value={u.id}>[{u.subject}] {u.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-dark/60">プリントNo.</label>
-              <select value={schedulePrintNo} onChange={(e) => setSchedulePrintNo(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1.5 text-sm">
-                {selectedUnit && Array.from({ length: selectedUnit.printCount }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-dark/60">予定日</label>
-              <input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="border border-gray-300 rounded px-2 py-1.5 text-sm" />
-            </div>
-            <button onClick={schedulePrint} disabled={!scheduleUnit} className="bg-primary text-white px-3 py-1.5 rounded text-sm hover:bg-primary-dark disabled:opacity-50">
-              登録
-            </button>
-          </div>
-        </div>
+        <p className="text-xs text-dark/60">
+          ※ プリント予定はマトリクスの空欄セルをクリックして登録します。プリントは必ず連番で登録される仕様です（途中の番号を飛ばせません）。
+        </p>
       )}
 
       {/* マトリクス表 */}
@@ -345,6 +356,8 @@ export default function SeminarManager({
                         let bg = "bg-white";
                         let content = "";
                         let title = `No.${no}`;
+                        const nextNo = !p ? getNextPrintNo(u.id, u.printCount) : null;
+                        const emptyClickable = !p && nextNo !== null;
                         if (p?.completedDate) {
                           bg = "bg-green-100";
                           const d = new Date(p.completedDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
@@ -355,13 +368,23 @@ export default function SeminarManager({
                           const d = new Date(p.scheduledDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
                           content = d;
                           title += ` 予定: ${d}`;
+                        } else if (emptyClickable) {
+                          title += `（クリックで予定登録 → 次は No.${nextNo}）`;
                         }
+                        const isClickable = (p && !p.completedDate) || emptyClickable;
                         return (
                           <td
                             key={i}
-                            className={`text-center py-0.5 px-0.5 border border-gray-200 ${bg} ${p && !p.completedDate ? "cursor-pointer hover:opacity-80" : ""}`}
+                            className={`text-center py-0.5 px-0.5 border border-gray-200 ${bg} ${isClickable ? "cursor-pointer hover:opacity-80" : ""}`}
                             title={title}
-                            onClick={() => p && !p.completedDate && openEdit(p)}
+                            onClick={() => {
+                              if (p?.completedDate) return;
+                              if (p) {
+                                openEdit(p);
+                                return;
+                              }
+                              if (emptyClickable) openSchedule(u);
+                            }}
                           >
                             <span className="text-[10px]">{content}</span>
                           </td>
@@ -373,10 +396,52 @@ export default function SeminarManager({
               </table>
             </div>
           ))}
-          <div className="flex gap-4 mt-2 text-xs text-dark/60">
+          <div className="flex gap-4 mt-2 text-xs text-dark/60 flex-wrap">
             <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-green-100 border border-gray-200 rounded-sm" /> 完了</span>
             <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-yellow-50 border border-gray-200 rounded-sm" /> 予定あり（クリックで編集）</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-white border border-gray-200 rounded-sm" /> 未登録</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-white border border-gray-200 rounded-sm" /> 未登録（クリックで次の連番を予定登録）</span>
+          </div>
+        </div>
+      )}
+
+      {/* 新規予定登録モーダル */}
+      {scheduling && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={closeSchedule}>
+          <div className="bg-white rounded-lg shadow-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-dark mb-3">プリント予定を登録</h3>
+            <p className="text-sm text-dark/70 mb-3">
+              [{scheduling.unitSubject}] {scheduling.unitName} の <strong>No.{scheduling.nextNo}</strong> の予定を入力します。
+              <br />
+              <span className="text-xs text-dark/60">※ プリントは連番で登録されます。クリックしたセル位置に関わらず、次の登録可能な番号が選ばれます。</span>
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-dark/60 mb-1">予定日</label>
+                <input
+                  type="date"
+                  value={scheduleDate}
+                  min={role === "student" ? todayStr : undefined}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  className="border border-gray-300 rounded px-2 py-1.5 text-sm w-full"
+                />
+                {scheduleError && <p className="text-xs text-red-600 mt-1">{scheduleError}</p>}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={schedulePrint}
+                  disabled={scheduleSaving || !scheduleDate}
+                  className="bg-primary text-white px-3 py-1.5 rounded text-sm hover:bg-primary-dark disabled:opacity-50"
+                >
+                  {scheduleSaving ? "登録中..." : "登録"}
+                </button>
+                <button
+                  onClick={closeSchedule}
+                  className="ml-auto text-dark/60 px-3 py-1.5 rounded text-sm hover:bg-gray-100"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
