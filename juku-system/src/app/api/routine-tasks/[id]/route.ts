@@ -3,6 +3,19 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+async function ensureTeacherCanModify(
+  routineId: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const routine = await prisma.routineTask.findUnique({ where: { id: routineId } });
+  if (!routine) return { ok: false, status: 404, error: "Not found" };
+  const teacher = await prisma.teacher.findFirst({ where: { userId } });
+  if (!teacher || routine.teacherId !== teacher.id) {
+    return { ok: false, status: 403, error: "他の講師のルーティンタスクは操作できません" };
+  }
+  return { ok: true };
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,6 +26,14 @@ export async function PUT(
   }
 
   const { id } = await params;
+
+  if (session.user.role === "teacher") {
+    const check = await ensureTeacherCanModify(id, session.user.id);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: check.status });
+    }
+  }
+
   const body = await req.json();
   const { studentId, subject, title, description, type } = body;
 
@@ -40,6 +61,14 @@ export async function DELETE(
   }
 
   const { id } = await params;
+
+  if (session.user.role === "teacher") {
+    const check = await ensureTeacherCanModify(id, session.user.id);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error }, { status: check.status });
+    }
+  }
+
   await prisma.routineTask.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

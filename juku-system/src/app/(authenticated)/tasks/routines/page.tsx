@@ -1,13 +1,61 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import RoutineTaskManager from "@/components/RoutineTaskManager";
+
+export const dynamic = "force-dynamic";
 
 export default async function RoutinesPage({
   searchParams,
 }: {
   searchParams: Promise<{ teacherId?: string }>;
 }) {
-  await requireAuth(["admin", "teacher"]);
+  const session = await requireAuth(["admin", "teacher"]);
+
+  // 講師: 自身のルーティンを管理
+  if (session.user.role === "teacher") {
+    const teacher = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
+    if (!teacher) {
+      return (
+        <div>
+          <h1 className="text-2xl font-bold text-dark mb-6">ルーティンタスク管理</h1>
+          <p className="text-dark/70">講師レコードが見つかりません。運営にお問い合わせください。</p>
+        </div>
+      );
+    }
+    const myRoutines = await prisma.routineTask.findMany({
+      where: { teacherId: teacher.id },
+      include: { student: { include: { user: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return (
+      <div>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-dark">マイルーティンタスク</h1>
+          <Link href="/tasks" className="text-sm text-primary hover:underline">
+            ← タスク一覧に戻る
+          </Link>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <RoutineTaskManager
+            teacherId={teacher.id}
+            initialRoutines={myRoutines.map((r) => ({
+              id: r.id,
+              studentId: r.studentId,
+              subject: r.subject,
+              title: r.title,
+              description: r.description,
+              type: r.type,
+              student: r.student ? { user: { name: r.student.user.name } } : null,
+            }))}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // admin: 既存通り全講師のルーティンを閲覧
   const params = await searchParams;
   const teacherFilter = params.teacherId || "";
 
@@ -30,10 +78,10 @@ export default async function RoutinesPage({
   });
 
   // 講師ごとにグループ化
-  const grouped = new Map<string, { name: string; routines: typeof routines }>();
+  const grouped = new Map<string, { name: string; teacherIdRef: string; routines: typeof routines }>();
   for (const r of routines) {
     if (!grouped.has(r.teacherId)) {
-      grouped.set(r.teacherId, { name: r.teacher.user.name, routines: [] });
+      grouped.set(r.teacherId, { name: r.teacher.user.name, teacherIdRef: r.teacherId, routines: [] });
     }
     grouped.get(r.teacherId)!.routines.push(r);
   }

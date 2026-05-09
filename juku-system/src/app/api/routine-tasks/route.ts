@@ -33,7 +33,21 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { teacherId, studentId, subject, title, description, type } = body;
+  let { teacherId } = body;
+  const { studentId, subject, title, description, type } = body;
+
+  // 講師は自分の teacherId のみで作成可能。body の teacherId は無視
+  if (session.user.role === "teacher") {
+    const teacher = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
+    if (!teacher) {
+      return NextResponse.json({ error: "講師レコードが見つかりません" }, { status: 403 });
+    }
+    teacherId = teacher.id;
+  }
+
+  if (!teacherId) {
+    return NextResponse.json({ error: "teacherId が必要です" }, { status: 400 });
+  }
 
   const routine = await prisma.routineTask.create({
     data: {
