@@ -214,6 +214,7 @@ export async function POST() {
 
   // ====================================================
   // 5. 学習目標進捗の遅れ (2週間相当の遅延)
+  //    通知先: 対象生徒の担当講師 (StudentAssignment) + admin 全員
   // ====================================================
   const goals = await prisma.learningGoal.findMany({
     where: {
@@ -221,16 +222,22 @@ export async function POST() {
       paceAlerted: false,
     },
     include: {
-      student: { include: { user: true } },
+      student: {
+        include: {
+          user: true,
+          assignments: { include: { teacher: { select: { userId: true } } } },
+        },
+      },
       progressRecords: { select: { pagesCompleted: true } },
     },
   });
 
-  // 通知先: admin + teacher 全員
-  const goalRecipients = await prisma.user.findMany({
-    where: { role: { in: ["admin", "teacher"] } },
+  // admin の userId 一覧を事前取得
+  const adminUsers = await prisma.user.findMany({
+    where: { role: "admin" },
     select: { id: true },
   });
+  const adminUserIds = adminUsers.map((u) => u.id);
 
   for (const goal of goals) {
     const createdAt = new Date(goal.createdAt);
@@ -251,10 +258,13 @@ export async function POST() {
     if (completed < expectedAfterLag && expectedAfterLag <= goal.targetPages * 1.0) {
       // ペース遅れ
       const message = `${goal.student.user.name}さんの「${goal.materialName}」が想定より2週間以上遅れています（${completed}/${goal.targetPages}ページ）。`;
-      for (const u of goalRecipients) {
+      // 受信者: 対象生徒の担当講師 + admin 全員 (重複は除外)
+      const teacherUserIds = goal.student.assignments.map((a) => a.teacher.userId);
+      const recipientIds = Array.from(new Set([...adminUserIds, ...teacherUserIds]));
+      for (const userId of recipientIds) {
         await prisma.alert.create({
           data: {
-            userId: u.id,
+            userId,
             type: "progress_warning",
             title: "学習目標 進捗遅延",
             message,

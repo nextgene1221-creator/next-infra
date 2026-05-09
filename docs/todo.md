@@ -8,7 +8,7 @@
 
 ## 進行中
 
-1. アラートについて仕様を確認したい。講師は自身の担当生徒のアラートのみくる？
+（現在進行中の項目はありません）
 
 > 注: 「講師・生徒登録時のパスワード記入欄削除」は既に完了 4 (2026-05-09, commit `a684c52`) で対応済みです。
 ---
@@ -124,9 +124,17 @@
     - `components/StudentCheckOutButton.tsx` 新規 + ダッシュボードの生徒用「獲得ポイント」カード（入室中表示の下）に組み込み — confirm 付きで `POST /api/study-room/check-out`
     - 校舎間移動は退室 → 別校舎で再入室の経路で対応
 
-19. 講師が生徒詳細から自分を担当講師に登録できるように (2026-05-09)
+19. 講師が生徒詳細から自分を担当講師に登録できるように (2026-05-09, commit `6912a8c`)
     - `components/MyAssignmentToggle.tsx` 新規: 講師ロール用のトグルボタン
       - 担当でない場合: 「自分を担当に追加」(POST `/api/teachers/[id]/assignments`)
       - 担当の場合: 「自分の担当を解除」(DELETE) — 解除時は confirm
     - `students/[id]/page.tsx`: 講師ログイン時に teacher.id を取得し、現状の担当状態を判定してトグルを「担当講師」セクションに表示
     - 既存 API (`/api/teachers/[id]/assignments`) は `teacher.userId === session.user.id` の本人検証が既にあるため改修不要
+
+20. アラート仕様確認と「学習目標進捗遅延」の通知先を担当講師＋adminに絞る (2026-05-09)
+    - 仕様確認結果（5 種類のアラート）:
+      - 面談リマインダー: 出勤中の講師全員 (現状維持)
+      - タスク期限超過: タスクの担当講師本人のみ (現状維持)
+      - シフト未打刻 / 退勤忘れ: 該当講師本人 + admin 全員 (現状維持)
+      - **学習目標進捗遅延**: 旧「admin + teacher 全員」→ 新「対象生徒の担当講師 (StudentAssignment) + admin」に変更
+    - `/api/alerts/check-all/route.ts` Section 5: 取得 query に `student.assignments.teacher.userId` を含め、admin と担当講師の userId を Set でマージして送信先を決定
