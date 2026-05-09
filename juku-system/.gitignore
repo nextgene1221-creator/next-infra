@@ -48,3 +48,4 @@ next-env.d.ts
 # test data batch files (contain production record IDs)
 prisma/.test-batch-*.json
 prisma/.test-batch-content-*.json
+prisma/.intros-replaced-*.json
