@@ -180,11 +180,13 @@ export default async function DashboardPage() {
   }
 
   // 本日のゼミプリント一覧（講師/admin向け）
+  // 単元 × No 単位で集計。各行に必要枚数（生徒人数）と対象生徒名を持つ。
   let todayPrints: {
-    studentName: string;
     subject: string;
     unitName: string;
     printNo: number;
+    count: number;
+    studentNames: string[];
   }[] = [];
   if (role === "admin" || role === "teacher") {
     const now = new Date();
@@ -199,13 +201,32 @@ export default async function DashboardPage() {
         printUnit: true,
         student: { include: { user: { select: { name: true } } } },
       },
-      orderBy: [{ student: { user: { name: "asc" } } }, { printUnit: { subject: "asc" } }, { printNo: "asc" }],
+      orderBy: [{ printUnit: { subject: "asc" } }, { printUnit: { name: "asc" } }, { printNo: "asc" }],
     });
-    todayPrints = rawPrints.map((p) => ({
-      studentName: p.student.user.name,
-      subject: p.printUnit.subject,
-      unitName: p.printUnit.name,
-      printNo: p.printNo,
+    const grouped = new Map<
+      string,
+      { subject: string; unitName: string; printNo: number; studentNames: string[] }
+    >();
+    for (const p of rawPrints) {
+      const key = `${p.printUnitId}|${p.printNo}`;
+      const entry = grouped.get(key);
+      if (entry) {
+        entry.studentNames.push(p.student.user.name);
+      } else {
+        grouped.set(key, {
+          subject: p.printUnit.subject,
+          unitName: p.printUnit.name,
+          printNo: p.printNo,
+          studentNames: [p.student.user.name],
+        });
+      }
+    }
+    todayPrints = Array.from(grouped.values()).map((g) => ({
+      subject: g.subject,
+      unitName: g.unitName,
+      printNo: g.printNo,
+      count: g.studentNames.length,
+      studentNames: g.studentNames.sort((a, b) => a.localeCompare(b, "ja")),
     }));
   }
 
@@ -466,28 +487,32 @@ export default async function DashboardPage() {
 
       {(role === "admin" || role === "teacher") && todayPrints.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-dark mb-4">本日のゼミプリント（印刷対象）</h2>
+          <h2 className="text-lg font-semibold text-dark mb-4">本日使用するゼミプリント</h2>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-dark/60 border-b">
-                <th className="text-left py-1">生徒</th>
                 <th className="text-left py-1">科目</th>
                 <th className="text-left py-1">単元</th>
-                <th className="text-right py-1">No.</th>
+                <th className="text-right py-1 w-12">No.</th>
+                <th className="text-right py-1 w-16">必要枚数</th>
+                <th className="text-left py-1 pl-4">対象生徒</th>
               </tr>
             </thead>
             <tbody>
               {todayPrints.map((p, i) => (
                 <tr key={i} className="border-b border-gray-50">
-                  <td className="py-1">{p.studentName}</td>
                   <td className="py-1">{p.subject}</td>
                   <td className="py-1">{p.unitName}</td>
                   <td className="py-1 text-right">{p.printNo}</td>
+                  <td className="py-1 text-right font-bold text-primary">{p.count}</td>
+                  <td className="py-1 pl-4 text-xs text-dark/70">{p.studentNames.join("、")}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className="text-xs text-dark/50 mt-2">合計 {todayPrints.length} 枚</p>
+          <p className="text-xs text-dark/50 mt-2">
+            合計 {todayPrints.reduce((s, p) => s + p.count, 0)} 枚 ({todayPrints.length} 種類)
+          </p>
         </div>
       )}
 
