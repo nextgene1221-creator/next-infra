@@ -2,7 +2,6 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { SUBJECTS } from "@/lib/types";
 import FieldLabel from "@/components/FieldLabel";
 
 const TASK_TYPES = ["通常", "要引き継ぎ", "面談"] as const;
@@ -19,7 +18,6 @@ export default function TaskEditPage() {
   const [teachers, setTeachers] = useState<Option[]>([]);
   const [studentId, setStudentId] = useState("");
   const [teacherId, setTeacherId] = useState("");
-  const [subject, setSubject] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState(new Date().toISOString().split("T")[0]);
@@ -44,7 +42,6 @@ export default function TaskEditPage() {
         .then((data) => {
           setStudentId(data.studentId || "");
           setTeacherId(data.teacherId);
-          setSubject(data.subject);
           setTitle(data.title);
           setDescription(data.description || "");
           setDueDate(data.dueDate.split("T")[0]);
@@ -74,7 +71,6 @@ export default function TaskEditPage() {
       body: JSON.stringify({
         studentId: studentId || null,
         teacherId,
-        subject,
         title,
         description,
         dueDate,
@@ -141,22 +137,6 @@ export default function TaskEditPage() {
               {students.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <FieldLabel required className="block text-sm font-medium text-charcoal">科目</FieldLabel>
-            <select
-              required
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">選択してください</option>
-              {SUBJECTS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
                 </option>
               ))}
             </select>

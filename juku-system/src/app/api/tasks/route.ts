@@ -16,13 +16,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { studentId, subject, title, description, dueDate, type, meetingDateTime } = body;
+  const { studentId, title, description, dueDate, type, meetingDateTime } = body;
 
   const task = await prisma.task.create({
     data: {
       studentId: studentId || null,
       teacherId,
-      subject,
+      subject: "", // 科目は廃止
       title,
       description: description || "",
       dueDate: new Date(dueDate),

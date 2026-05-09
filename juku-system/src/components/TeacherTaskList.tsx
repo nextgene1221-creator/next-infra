@@ -9,7 +9,6 @@ type TaskLite = {
   title: string;
   studentId: string | null;
   teacherId: string;
-  subject: string;
   description: string;
   dueDate: string;
   type: string;

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   let { teacherId } = body;
-  const { studentId, subject, title, description, type } = body;
+  const { studentId, title, description, type } = body;
 
   // 講師は自分の teacherId のみで作成可能。body の teacherId は無視
   if (session.user.role === "teacher") {
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     data: {
       teacherId,
       studentId: studentId || null,
-      subject,
+      subject: "", // 科目は廃止
       title,
       description: description || "",
       type: type || "通常",

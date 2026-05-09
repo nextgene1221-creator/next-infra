@@ -9,7 +9,6 @@ type Props = {
   task?: {
     studentId?: string | null;
     teacherId: string;
-    subject: string;
     title: string;
     description: string;
     dueDate: string;

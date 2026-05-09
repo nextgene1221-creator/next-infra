@@ -35,13 +35,13 @@ export async function PUT(
   }
 
   const body = await req.json();
-  const { studentId, subject, title, description, type } = body;
+  const { studentId, title, description, type } = body;
 
   const routine = await prisma.routineTask.update({
     where: { id },
     data: {
       studentId: studentId || null,
-      subject,
+      // subject は廃止 (既存値はそのまま)
       title,
       description: description || "",
       type: type || "通常",

@@ -31,7 +31,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  const { studentId, teacherId, subject, title, description, dueDate, status, type, meetingDateTime } = body;
+  const { studentId, teacherId, title, description, dueDate, status, type, meetingDateTime } = body;
 
   // 面談日時が変わったらアラート再送可能にするためフラグリセット
   const existing = await prisma.task.findUnique({ where: { id } });
@@ -46,7 +46,7 @@ export async function PUT(
     data: {
       studentId: studentId || null,
       ...(teacherId ? { teacherId } : {}),
-      subject,
+      // subject は廃止 (既存値はそのまま)
       title,
       description: description || "",
       dueDate: new Date(dueDate),

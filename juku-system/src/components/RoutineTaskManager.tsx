@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SUBJECTS } from "@/lib/types";
 
 const TASK_TYPES = ["通常", "要引き継ぎ", "面談"] as const;
 
@@ -10,7 +9,6 @@ type StudentOption = { id: string; name: string };
 type Routine = {
   id: string;
   studentId: string | null;
-  subject: string;
   title: string;
   description: string;
   type: string;
@@ -30,7 +28,6 @@ export default function RoutineTaskManager({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [studentId, setStudentId] = useState("");
-  const [subject, setSubject] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("通常");
@@ -44,7 +41,6 @@ export default function RoutineTaskManager({
 
   const resetForm = () => {
     setStudentId("");
-    setSubject("");
     setTitle("");
     setDescription("");
     setType("通常");
@@ -54,7 +50,6 @@ export default function RoutineTaskManager({
 
   const openEdit = (r: Routine) => {
     setStudentId(r.studentId || "");
-    setSubject(r.subject);
     setTitle(r.title);
     setDescription(r.description);
     setType(r.type);
@@ -66,7 +61,7 @@ export default function RoutineTaskManager({
     e.preventDefault();
     setSaving(true);
 
-    const body = { teacherId, studentId: studentId || null, subject, title, description, type };
+    const body = { teacherId, studentId: studentId || null, title, description, type };
     const url = editingId ? `/api/routine-tasks/${editingId}` : "/api/routine-tasks";
     const method = editingId ? "PUT" : "POST";
 
@@ -138,22 +133,6 @@ export default function RoutineTaskManager({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-charcoal">科目</label>
-              <select
-                required
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
-              >
-                <option value="">選択してください</option>
-                {SUBJECTS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
               <label className="block text-sm font-medium text-charcoal">生徒（任意）</label>
               <select
                 value={studentId}
@@ -211,7 +190,6 @@ export default function RoutineTaskManager({
                   <span className="text-xs px-2 py-0.5 rounded-full bg-primary-light text-primary font-medium">
                     {r.type}
                   </span>
-                  <span className="text-xs text-dark/60">[{r.subject}]</span>
                   <span className="text-sm font-medium text-dark">{r.title}</span>
                 </div>
                 {r.student && (

@@ -8,18 +8,16 @@ import InlineTaskCreate from "./InlineTaskCreate";
 export default async function TasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; subject?: string; teacherId?: string; type?: string }>;
+  searchParams: Promise<{ status?: string; teacherId?: string; type?: string }>;
 }) {
   const session = await requireAuth(["admin", "teacher"]);
   const params = await searchParams;
   const statusFilter = params.status || "";
-  const subjectFilter = params.subject || "";
   const teacherFilter = params.teacherId || "";
   const typeFilter = params.type || "";
 
   const where: Record<string, unknown> = {};
   if (statusFilter) where.status = statusFilter;
-  if (subjectFilter) where.subject = subjectFilter;
   if (typeFilter) where.type = typeFilter;
 
   // 講師ロール: 自身のタスクのみ
@@ -120,22 +118,6 @@ export default async function TasksPage({
           <option value="completed">完了</option>
           <option value="overdue">期限超過</option>
         </select>
-        <select
-          name="subject"
-          defaultValue={subjectFilter}
-          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-        >
-          <option value="">全科目</option>
-          <option value="数学">数学</option>
-          <option value="英語">英語</option>
-          <option value="国語">国語</option>
-          <option value="物理">物理</option>
-          <option value="化学">化学</option>
-          <option value="生物">生物</option>
-          <option value="日本史">日本史</option>
-          <option value="世界史">世界史</option>
-          <option value="地理">地理</option>
-        </select>
         <button
           type="submit"
           className="bg-charcoal text-white px-4 py-2 rounded-md text-sm hover:bg-dark"
@@ -151,7 +133,6 @@ export default async function TasksPage({
               <th className="px-4 py-3 text-left text-xs font-medium text-dark/60 uppercase w-10">完了</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">種別</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">タスク名</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">科目</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">生徒</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">担当者</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">期限</th>
@@ -169,7 +150,6 @@ export default async function TasksPage({
                     task={{
                       studentId: task.studentId,
                       teacherId: task.teacherId,
-                      subject: task.subject,
                       title: task.title,
                       description: task.description,
                       dueDate: task.dueDate.toISOString(),
@@ -192,7 +172,6 @@ export default async function TasksPage({
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm font-medium text-primary">{task.title}</td>
-                <td className="px-6 py-4 text-sm text-dark">{task.subject}</td>
                 <td className="px-6 py-4 text-sm text-dark">{task.student?.user.name || "-"}</td>
                 <td className="px-6 py-4 text-sm text-dark">{task.teacher.user.name}</td>
                 <td className="px-6 py-4 text-sm text-dark">
@@ -208,7 +187,7 @@ export default async function TasksPage({
             ))}
             {tasks.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-6 py-8 text-center text-dark/60">
+                <td colSpan={8} className="px-6 py-8 text-center text-dark/60">
                   タスクがありません
                 </td>
               </tr>

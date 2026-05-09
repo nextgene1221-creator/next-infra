@@ -133,7 +133,6 @@ export default async function DashboardPage() {
     title: string;
     studentId: string | null;
     teacherId: string;
-    subject: string;
     description: string;
     dueDate: string;
     type: string;
@@ -166,7 +165,6 @@ export default async function DashboardPage() {
         title: t.title,
         studentId: t.studentId,
         teacherId: t.teacherId,
-        subject: t.subject,
         description: t.description,
         dueDate: t.dueDate.toISOString(),
         type: t.type,

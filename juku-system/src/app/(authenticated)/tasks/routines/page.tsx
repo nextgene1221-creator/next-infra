@@ -43,7 +43,6 @@ export default async function RoutinesPage({
             initialRoutines={myRoutines.map((r) => ({
               id: r.id,
               studentId: r.studentId,
-              subject: r.subject,
               title: r.title,
               description: r.description,
               type: r.type,
@@ -148,7 +147,6 @@ export default async function RoutinesPage({
                         <span className="text-xs px-2 py-0.5 rounded-full bg-primary-light text-primary font-medium">
                           {r.type}
                         </span>
-                        <span className="text-xs text-dark/60">[{r.subject}]</span>
                         <span className="text-sm font-medium text-dark">{r.title}</span>
                       </div>
                       {r.student && (
