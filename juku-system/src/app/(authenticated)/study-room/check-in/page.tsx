@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { campusByCode, getOrInitStudyRoomConfig } from "@/lib/studyRoom";
 import { notFound } from "next/navigation";
 import CheckInForm from "./CheckInForm";
+import InRoomActions from "./InRoomActions";
+
+export const dynamic = "force-dynamic";
 
 export default async function CheckInPage({
   searchParams,
@@ -22,7 +25,7 @@ export default async function CheckInPage({
     prisma.studyRoomSession.count({ where: { campus, seatType: "table", checkOutAt: null } }),
   ]);
 
-  let studentOpen: { campus: string; campusLabel: string } | null = null;
+  let studentOpen: { campus: string; campusLabel: string; seatType: "booth" | "table" } | null = null;
   if (session.user.role === "student") {
     const student = await prisma.student.findUnique({ where: { userId: session.user.id } });
     if (student) {
@@ -31,10 +34,17 @@ export default async function CheckInPage({
       });
       if (open) {
         const openCampus = await campusByCode(open.campus);
-        studentOpen = { campus: open.campus, campusLabel: openCampus?.label || open.campus };
+        studentOpen = {
+          campus: open.campus,
+          campusLabel: openCampus?.label || open.campus,
+          seatType: (open.seatType === "table" ? "table" : "booth") as "booth" | "table",
+        };
       }
     }
   }
+
+  // 入室中の校舎が「今表示している校舎」と一致するか
+  const inThisCampus = studentOpen && studentOpen.campus === campus;
 
   return (
     <div className="max-w-md mx-auto mt-8">
@@ -55,9 +65,17 @@ export default async function CheckInPage({
         </div>
 
         {session.user.role === "student" ? (
-          <div className="mt-6">
-            {studentOpen ? (
-              <p className="text-orange-600 text-sm">
+          <div className="mt-6 text-left">
+            {inThisCampus && studentOpen ? (
+              <InRoomActions
+                campus={campus}
+                campusLabel={campusRec.label}
+                currentSeatType={studentOpen.seatType}
+                boothAvailable={config.boothCapacity - boothUsed}
+                tableAvailable={config.tableCapacity - tableUsed}
+              />
+            ) : studentOpen ? (
+              <p className="text-orange-600 text-sm text-center">
                 すでに {studentOpen.campusLabel} に入室中です。先に退室してください。
               </p>
             ) : (

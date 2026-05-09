@@ -5,6 +5,7 @@ import EventCalendar from "@/components/EventCalendar";
 import DashboardAlertItem from "@/components/DashboardAlertItem";
 import TeacherTaskList from "@/components/TeacherTaskList";
 import AttendanceButton from "@/components/AttendanceButton";
+import StudentCheckOutButton from "@/components/StudentCheckOutButton";
 import { computeTodayPlan, type WeeklyGoalLite, type ScheduleSlots } from "@/lib/todayPlan";
 import { getAllCampuses, getAllStudyRoomConfigs } from "@/lib/studyRoom";
 
@@ -326,13 +327,19 @@ export default async function DashboardPage() {
               <span className="text-sm text-dark/60"> P</span>
             </p>
             {studentInRoom && (
-              <p className="text-xs text-green-600 mt-2">
-                {campusLabelMap[studentInRoom.campus] || studentInRoom.campus} に入室中
-                <br />
-                <span className="text-dark/60">
-                  {new Date(studentInRoom.checkInAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}〜
-                </span>
-              </p>
+              <>
+                <p className="text-xs text-green-600 mt-2">
+                  {campusLabelMap[studentInRoom.campus] || studentInRoom.campus} に入室中
+                  <br />
+                  <span className="text-dark/60">
+                    {new Date(studentInRoom.checkInAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}〜
+                  </span>
+                </p>
+                <StudentCheckOutButton
+                  campus={studentInRoom.campus}
+                  campusLabel={campusLabelMap[studentInRoom.campus] || studentInRoom.campus}
+                />
+              </>
             )}
           </div>
         )}
