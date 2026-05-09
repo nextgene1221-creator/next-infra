@@ -8,7 +8,7 @@
 
 ## 進行中
 
-（現在進行中の項目はありません）
+1. アラートについて仕様を確認したい。講師は自身の担当生徒のアラートのみくる？
 
 > 注: 「講師・生徒登録時のパスワード記入欄削除」は既に完了 4 (2026-05-09, commit `a684c52`) で対応済みです。
 ---
@@ -117,9 +117,16 @@
     - `prisma/seed-intros.ts`: dry-run / commit モード、トランザクションで全削除→新規作成、commit 時はバッチ JSON ログを保存（gitignore 済）
     - 本番 Neon に適用済み
 
-18. 自習室の退室・席移動導線を追加 (2026-05-09)
+18. 自習室の退室・席移動導線を追加 (2026-05-09, commit `cf17667`)
     - 新規 `POST /api/study-room/change-seat`: 入室中セッションの seatType を更新（同セッション継続）。容量チェックあり、生徒は自身のみ操作可
     - `study-room/check-in/InRoomActions.tsx` 新規: 入室中の場合に「もう一方の席種に移動」+「退室する」ボタン (どちらも confirm 付き)
     - `study-room/check-in/page.tsx`: 入室中の校舎が表示中校舎と一致したら `InRoomActions` を表示、別校舎入室中はそのまま注意書き
     - `components/StudentCheckOutButton.tsx` 新規 + ダッシュボードの生徒用「獲得ポイント」カード（入室中表示の下）に組み込み — confirm 付きで `POST /api/study-room/check-out`
     - 校舎間移動は退室 → 別校舎で再入室の経路で対応
+
+19. 講師が生徒詳細から自分を担当講師に登録できるように (2026-05-09)
+    - `components/MyAssignmentToggle.tsx` 新規: 講師ロール用のトグルボタン
+      - 担当でない場合: 「自分を担当に追加」(POST `/api/teachers/[id]/assignments`)
+      - 担当の場合: 「自分の担当を解除」(DELETE) — 解除時は confirm
+    - `students/[id]/page.tsx`: 講師ログイン時に teacher.id を取得し、現状の担当状態を判定してトグルを「担当講師」セクションに表示
+    - 既存 API (`/api/teachers/[id]/assignments`) は `teacher.userId === session.user.id` の本人検証が既にあるため改修不要

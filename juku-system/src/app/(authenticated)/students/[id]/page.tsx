@@ -7,6 +7,7 @@ import MockExamsPanel, { type ExamResult, type AnonymousResult } from "./MockExa
 import MeetingRecords from "@/components/MeetingRecords";
 import StudyScheduleEditor from "@/components/StudyScheduleEditor";
 import PasswordResetButton from "@/components/PasswordResetButton";
+import MyAssignmentToggle from "@/components/MyAssignmentToggle";
 
 export default async function StudentDetailPage({
   params,
@@ -49,6 +50,16 @@ export default async function StudentDetailPage({
   });
 
   if (!student) notFound();
+
+  // 講師ロールの場合、自身の teacher.id と現状の担当状態を取得
+  let teacherSelf: { id: string } | null = null;
+  if (session.user.role === "teacher") {
+    const t = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
+    if (t) teacherSelf = { id: t.id };
+  }
+  const isMyAssignment = teacherSelf
+    ? student.assignments.some((a) => a.teacherId === teacherSelf!.id)
+    : false;
 
   // 期日超過かつ達成済の週次目標を自動で完了扱い（進捗は保存したまま、一覧から消える）
   const now = new Date();
@@ -311,6 +322,14 @@ export default async function StudentDetailPage({
                 </li>
               ))}
             </ul>
+          )}
+          {teacherSelf && (
+            <MyAssignmentToggle
+              studentId={id}
+              teacherId={teacherSelf.id}
+              studentName={student.user.name}
+              initialAssigned={isMyAssignment}
+            />
           )}
         </div>
 
