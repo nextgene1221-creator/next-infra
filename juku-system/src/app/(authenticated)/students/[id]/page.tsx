@@ -156,7 +156,7 @@ export default async function StudentDetailPage({
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-dark">{student.user.name}</h1>
         <div className="flex gap-2 items-center">
-          {session.user.role === "admin" && (
+          {(session.user.role === "admin" || session.user.role === "teacher") && (
             <PasswordResetButton userId={student.user.id} userName={student.user.name} />
           )}
           <Link
