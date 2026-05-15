@@ -128,7 +128,7 @@ export default async function DashboardPage() {
     }
   }
 
-  // 講師: 未完了タスク一覧と今後1週間のシフト
+  // 講師（または講師レコードを持つadmin）: 未完了タスク一覧と今後1週間のシフト
   let teacherTasks: {
     id: string;
     title: string;
@@ -140,9 +140,11 @@ export default async function DashboardPage() {
     meetingDateTime: string | null;
   }[] = [];
   let teacherShifts: { id: string; date: Date; startTime: string; endTime: string }[] = [];
-  if (role === "teacher") {
+  let hasTeacherRecord = false;
+  if (role === "teacher" || role === "admin") {
     const teacher = await prisma.teacher.findFirst({ where: { userId } });
     if (teacher) {
+      hasTeacherRecord = true;
       const now = new Date();
       const weekLater = new Date(now);
       weekLater.setDate(weekLater.getDate() + 7);
@@ -454,13 +456,13 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {role === "teacher" && (
+      {hasTeacherRecord && (
         <div className="mb-4">
           <AttendanceButton />
         </div>
       )}
 
-      {role === "teacher" && (
+      {hasTeacherRecord && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-dark mb-4">未完了タスク</h2>

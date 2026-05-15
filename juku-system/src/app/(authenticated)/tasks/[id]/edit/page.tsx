@@ -2,6 +2,7 @@
 
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import FieldLabel from "@/components/FieldLabel";
 
 const TASK_TYPES = ["通常", "要引き継ぎ", "面談"] as const;
@@ -13,6 +14,8 @@ export default function TaskEditPage() {
   const params = useParams();
   const id = params.id as string;
   const isNew = id === "new";
+  const { data: session } = useSession();
+  const isAdmin = session?.user && (session.user as { role?: string }).role === "admin";
 
   const [students, setStudents] = useState<Option[]>([]);
   const [teachers, setTeachers] = useState<Option[]>([]);
@@ -70,7 +73,7 @@ export default function TaskEditPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         studentId: studentId || null,
-        teacherId,
+        teacherId: teacherId || undefined,
         title,
         description,
         dueDate,
@@ -151,16 +154,16 @@ export default function TaskEditPage() {
               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
           </div>
-          {!isNew && (
+          {(!isNew || isAdmin) && (
             <div>
-              <FieldLabel required className="block text-sm font-medium text-charcoal">担当者</FieldLabel>
+              <FieldLabel required={!isNew} className="block text-sm font-medium text-charcoal">担当者</FieldLabel>
               <select
-                required
+                required={!isNew}
                 value={teacherId}
                 onChange={(e) => setTeacherId(e.target.value)}
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
               >
-                <option value="">選択してください</option>
+                <option value="">{isNew ? "（未指定: 自分に割当）" : "選択してください"}</option>
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}

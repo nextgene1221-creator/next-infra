@@ -9,14 +9,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const teacher = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
-  const teacherId = teacher?.id || (await prisma.teacher.findFirst())?.id;
+  const body = await req.json();
+  const { studentId, title, description, dueDate, type, meetingDateTime, teacherId: bodyTeacherId } = body;
+
+  // admin が担当者を明示指定した場合はそれを使用、それ以外は自分の Teacher レコードに割当
+  let teacherId: string | undefined;
+  if (session.user.role === "admin" && bodyTeacherId) {
+    const t = await prisma.teacher.findUnique({ where: { id: bodyTeacherId } });
+    if (t) teacherId = t.id;
+  }
+  if (!teacherId) {
+    const self = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
+    teacherId = self?.id || (await prisma.teacher.findFirst())?.id;
+  }
   if (!teacherId) {
     return NextResponse.json({ error: "No teacher available" }, { status: 400 });
   }
-
-  const body = await req.json();
-  const { studentId, title, description, dueDate, type, meetingDateTime } = body;
 
   const task = await prisma.task.create({
     data: {

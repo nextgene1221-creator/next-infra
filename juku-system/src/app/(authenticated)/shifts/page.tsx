@@ -22,12 +22,12 @@ export default async function ShiftsPage({
     date: { gte: startDate, lte: endDate },
   };
   let currentTeacherId: string | undefined;
-  if (session.user.role === "teacher") {
-    const teacher = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
-    if (teacher) {
-      where.teacherId = teacher.id;
-      currentTeacherId = teacher.id;
-    }
+  const selfTeacher = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
+  if (selfTeacher) {
+    currentTeacherId = selfTeacher.id;
+  }
+  if (session.user.role === "teacher" && currentTeacherId) {
+    where.teacherId = currentTeacherId;
   }
 
   const shifts = await prisma.shift.findMany({
@@ -80,8 +80,8 @@ export default async function ShiftsPage({
   }));
   const clientTeachers = teachers.map((t) => ({ id: t.id, name: t.user.name }));
 
-  // 講師ロール用: 自身の出退勤履歴（同じ month を共有）
-  let attendanceRows: {
+  // 自身の出退勤履歴（講師レコードを持つユーザー: 講師 / 講師レコードを持つadmin）
+  const attendanceRows: {
     dateLabel: string;
     weekday: string;
     shiftLabel: string;
@@ -91,12 +91,14 @@ export default async function ShiftsPage({
     diffColor: string;
     workMinutes: number | null;
   }[] = [];
-  let attendanceSummary = { workDays: 0, totalMinutes: 0, diffDays: 0, noShowDays: 0 };
-  if (session.user.role === "teacher" && currentTeacherId) {
+  const attendanceSummary = { workDays: 0, totalMinutes: 0, diffDays: 0, noShowDays: 0 };
+  if (currentTeacherId) {
     const myAttendances = await prisma.attendance.findMany({
       where: { teacherId: currentTeacherId, clockIn: { gte: startDate, lte: endDate } },
       orderBy: { clockIn: "asc" },
     });
+    // admin の場合 `shifts` は全講師分を含むので、自分のシフトに絞り込む
+    const myShifts = shifts.filter((s) => s.teacherId === currentTeacherId);
     const weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"];
     const daysInMonth = endDate.getDate();
     for (let day = 1; day <= daysInMonth; day++) {
@@ -106,7 +108,7 @@ export default async function ShiftsPage({
       const dayEnd = new Date(dayDate);
       dayEnd.setHours(23, 59, 59, 999);
 
-      const dayShifts = shifts.filter((s) => {
+      const dayShifts = myShifts.filter((s) => {
         const sd = new Date(s.date);
         return sd >= dayStart && sd <= dayEnd;
       });
@@ -184,7 +186,7 @@ export default async function ShiftsPage({
         <h1 className="text-2xl font-bold text-dark">シフト管理</h1>
       </div>
 
-      {session.user.role === "teacher" && (
+      {currentTeacherId && (
         <div className="mb-4">
           <AttendanceButton />
         </div>
@@ -213,7 +215,7 @@ export default async function ShiftsPage({
         currentTeacherId={currentTeacherId}
       />
 
-      {session.user.role === "teacher" && currentTeacherId && (
+      {currentTeacherId && (
         <div className="bg-white rounded-lg shadow overflow-x-auto mt-6">
           <div className="bg-surface px-6 py-3 border-b">
             <h2 className="font-medium text-dark">{year}年{month}月の出退勤履歴</h2>
