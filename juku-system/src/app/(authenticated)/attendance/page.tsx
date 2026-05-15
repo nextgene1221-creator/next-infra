@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import AttendanceEditButton from "@/components/AttendanceEditButton";
 
 type DayRow = {
   dateLabel: string;
@@ -137,6 +138,7 @@ async function DayView({ dateParam }: { dateParam?: string }) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">退勤</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">シフト予定</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">差異</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">操作</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -169,6 +171,15 @@ async function DayView({ dateParam }: { dateParam?: string }) {
                       {shift ? `${shift.startTime} - ${shift.endTime}` : "-"}
                     </td>
                     <td className={`px-6 py-4 text-sm font-medium ${diffColor}`}>{diff}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <AttendanceEditButton
+                        attendanceId={a.id}
+                        teacherName={a.teacher.user.name}
+                        initialClockIn={a.clockIn.toISOString()}
+                        initialClockOut={a.clockOut ? a.clockOut.toISOString() : null}
+                        allowDelete
+                      />
+                    </td>
                   </tr>
                 );
               })}
@@ -231,9 +242,9 @@ async function MonthView({
   const prevMonth = month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, "0")}`;
   const nextMonth = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
 
-  let rows: DayRow[] = [];
+  const rows: DayRow[] = [];
   let teacherName = "";
-  let summary = { workDays: 0, totalMinutes: 0, diffDays: 0, noShowDays: 0 };
+  const summary = { workDays: 0, totalMinutes: 0, diffDays: 0, noShowDays: 0 };
 
   if (teacherId) {
     const teacher = teachers.find((t) => t.id === teacherId);

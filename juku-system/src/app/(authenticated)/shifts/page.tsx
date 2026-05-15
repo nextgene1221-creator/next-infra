@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import ShiftCalendar from "./ShiftCalendar";
 import AttendanceButton from "@/components/AttendanceButton";
+import AttendanceEditButton from "@/components/AttendanceEditButton";
 
 export default async function ShiftsPage({
   searchParams,
@@ -90,6 +91,9 @@ export default async function ShiftsPage({
     diffLabel: string;
     diffColor: string;
     workMinutes: number | null;
+    attendanceId: string | null;
+    clockInISO: string | null;
+    clockOutISO: string | null;
   }[] = [];
   const attendanceSummary = { workDays: 0, totalMinutes: 0, diffDays: 0, noShowDays: 0 };
   if (currentTeacherId) {
@@ -134,6 +138,9 @@ export default async function ShiftsPage({
           diffLabel: "未打刻",
           diffColor: "text-red-500",
           workMinutes: null,
+          attendanceId: null,
+          clockInISO: null,
+          clockOutISO: null,
         });
         continue;
       }
@@ -172,7 +179,19 @@ export default async function ShiftsPage({
           diffColor = "text-red-500";
         }
 
-        attendanceRows.push({ dateLabel, weekday, shiftLabel, inHM, outHM, diffLabel, diffColor, workMinutes });
+        attendanceRows.push({
+          dateLabel,
+          weekday,
+          shiftLabel,
+          inHM,
+          outHM,
+          diffLabel,
+          diffColor,
+          workMinutes,
+          attendanceId: a.id,
+          clockInISO: inDate.toISOString(),
+          clockOutISO: outDate ? outDate.toISOString() : null,
+        });
       }
       attendanceSummary.workDays++;
     }
@@ -252,6 +271,7 @@ export default async function ShiftsPage({
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">退勤</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">勤務時間</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">差異</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">操作</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -272,6 +292,18 @@ export default async function ShiftsPage({
                         : "-"}
                     </td>
                     <td className={`px-6 py-3 text-sm font-medium ${r.diffColor}`}>{r.diffLabel}</td>
+                    <td className="px-6 py-3 text-sm">
+                      {r.attendanceId && r.clockInISO ? (
+                        <AttendanceEditButton
+                          attendanceId={r.attendanceId}
+                          initialClockIn={r.clockInISO}
+                          initialClockOut={r.clockOutISO}
+                          allowDelete
+                        />
+                      ) : (
+                        <span className="text-dark/40">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

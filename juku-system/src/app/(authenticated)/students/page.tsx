@@ -3,30 +3,58 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import ClickableRow from "@/components/ClickableRow";
 import { computeStudentAlerts } from "@/lib/studentAlerts";
+import { SUBJECTS } from "@/lib/types";
 
 export default async function StudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; graduationYear?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    status?: string;
+    graduationYear?: string;
+    teacherId?: string;
+    subject?: string;
+    sort?: string;
+  }>;
 }) {
   const session = await requireAuth(["admin", "teacher"]);
   const params = await searchParams;
   const q = params.q || "";
   const statusFilter = params.status || "";
   const yearFilter = params.graduationYear || "";
+  const teacherFilter = params.teacherId || "";
+  const subjectFilter = params.subject || "";
+  const sortKey = params.sort || "";
 
   const where: Record<string, unknown> = {};
 
   if (statusFilter) where.status = statusFilter;
   if (yearFilter) where.graduationYear = parseInt(yearFilter);
+  if (teacherFilter) {
+    where.assignments = { some: { teacherId: teacherFilter } };
+  }
+  if (subjectFilter) {
+    where.examSubjects = { contains: `"${subjectFilter}"` };
+  }
 
   const students = await prisma.student.findMany({
     where: {
       ...where,
       ...(q ? { user: { name: { contains: q } } } : {}),
     },
-    include: { user: true },
+    include: {
+      user: true,
+      assignments: {
+        include: { teacher: { include: { user: { select: { name: true } } } } },
+      },
+    },
     orderBy: { createdAt: "desc" },
+  });
+
+  const teachers = await prisma.teacher.findMany({
+    where: { status: "active" },
+    include: { user: { select: { name: true } } },
+    orderBy: { user: { name: "asc" } },
   });
 
   const alerts = await computeStudentAlerts(students.map((s) => s.id));
@@ -39,12 +67,44 @@ export default async function StudentsPage({
     const paceAlert = !!(isActive && a?.paceAlert);
     const both = meetingGap && paceAlert;
     const priority = both ? 3 : meetingGap || paceAlert ? 2 : 0;
-    return { student: s, meetingGap, paceAlert, both, priority };
+    const teacherNames = s.assignments
+      .map((x) => x.teacher.user.name)
+      .sort((x, y) => x.localeCompare(y, "ja"));
+    return { student: s, meetingGap, paceAlert, both, priority, teacherNames };
   });
-  ranked.sort((a, b) => {
-    if (b.priority !== a.priority) return b.priority - a.priority;
-    return new Date(b.student.createdAt).getTime() - new Date(a.student.createdAt).getTime();
-  });
+
+  const sortByName = (a: { student: { user: { name: string } } }, b: { student: { user: { name: string } } }) =>
+    a.student.user.name.localeCompare(b.student.user.name, "ja");
+  const sortByTeacher = (
+    a: { teacherNames: string[] },
+    b: { teacherNames: string[] },
+  ) => {
+    const ax = a.teacherNames[0] || "￿";
+    const bx = b.teacherNames[0] || "￿";
+    return ax.localeCompare(bx, "ja");
+  };
+
+  if (sortKey === "name") {
+    ranked.sort(sortByName);
+  } else if (sortKey === "teacher") {
+    ranked.sort((a, b) => {
+      const tcmp = sortByTeacher(a, b);
+      if (tcmp !== 0) return tcmp;
+      return sortByName(a, b);
+    });
+  } else if (sortKey === "enrollment") {
+    ranked.sort(
+      (a, b) =>
+        new Date(b.student.enrollmentDate).getTime() -
+        new Date(a.student.enrollmentDate).getTime(),
+    );
+  } else {
+    // デフォルト: アラート優先度順
+    ranked.sort((a, b) => {
+      if (b.priority !== a.priority) return b.priority - a.priority;
+      return new Date(b.student.createdAt).getTime() - new Date(a.student.createdAt).getTime();
+    });
+  }
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear + i);
@@ -105,6 +165,40 @@ export default async function StudentsPage({
             </option>
           ))}
         </select>
+        <select
+          name="teacherId"
+          defaultValue={teacherFilter}
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="">全担当講師</option>
+          {teachers.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.user.name}
+            </option>
+          ))}
+        </select>
+        <select
+          name="subject"
+          defaultValue={subjectFilter}
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="">全科目</option>
+          {SUBJECTS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          name="sort"
+          defaultValue={sortKey}
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="">アラート優先順</option>
+          <option value="teacher">担当講師順</option>
+          <option value="name">名前順</option>
+          <option value="enrollment">入塾日順</option>
+        </select>
         <button
           type="submit"
           className="bg-charcoal text-white px-4 py-2 rounded-md text-sm hover:bg-dark"
@@ -119,6 +213,7 @@ export default async function StudentsPage({
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">状態</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">名前</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">担当講師</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">卒業年度</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">高校名</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">ステータス</th>
@@ -126,7 +221,7 @@ export default async function StudentsPage({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {ranked.map(({ student, meetingGap, paceAlert, both }) => (
+            {ranked.map(({ student, meetingGap, paceAlert, both, teacherNames }) => (
               <ClickableRow
                 key={student.id}
                 href={`/students/${student.id}`}
@@ -142,6 +237,9 @@ export default async function StudentsPage({
                 </td>
                 <td className={`px-6 py-4 text-sm font-medium ${both ? "text-red-700" : meetingGap ? "text-yellow-800" : paceAlert ? "text-orange-800" : "text-primary"}`}>
                   {student.user.name}
+                </td>
+                <td className="px-6 py-4 text-sm text-dark/70">
+                  {teacherNames.length === 0 ? <span className="text-dark/40">-</span> : teacherNames.join("、")}
                 </td>
                 <td className="px-6 py-4 text-sm text-dark">{student.graduationYear}年度卒</td>
                 <td className="px-6 py-4 text-sm text-dark">{student.schoolName}</td>
@@ -165,7 +263,7 @@ export default async function StudentsPage({
             ))}
             {ranked.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-dark/60">
+                <td colSpan={7} className="px-6 py-8 text-center text-dark/60">
                   生徒が見つかりません
                 </td>
               </tr>
