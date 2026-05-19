@@ -139,7 +139,7 @@ export default async function DashboardPage() {
     type: string;
     meetingDateTime: string | null;
   }[] = [];
-  let teacherShifts: { id: string; date: Date; startTime: string; endTime: string }[] = [];
+  let teacherShifts: { id: string; date: Date; startTime: string; endTime: string; campus: string }[] = [];
   let hasTeacherRecord = false;
   if (role === "teacher" || role === "admin") {
     const teacher = await prisma.teacher.findFirst({ where: { userId } });
@@ -178,6 +178,7 @@ export default async function DashboardPage() {
         date: s.date,
         startTime: s.startTime,
         endTime: s.endTime,
+        campus: s.campus,
       }));
     }
   }
@@ -482,6 +483,11 @@ export default async function DashboardPage() {
                         day: "numeric",
                         weekday: "short",
                       })}
+                      {s.campus && (
+                        <span className="ml-2 text-xs text-dark/60">
+                          ({campusLabelMap[s.campus] || s.campus})
+                        </span>
+                      )}
                     </span>
                     <span className="text-dark/70">
                       {s.startTime} 〜 {s.endTime}

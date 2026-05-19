@@ -25,7 +25,7 @@ export async function PUT(
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
   const body = await req.json();
-  const { teacherId, date, startTime, endTime, status, notes } = body;
+  const { teacherId, date, startTime, endTime, status, notes, campus } = body;
 
   // 講師は自分の講師ID変更と削除以外の変更のみ可
   const before = await prisma.shift.findUnique({
@@ -47,6 +47,7 @@ export async function PUT(
       ...(endTime ? { endTime } : {}),
       ...(status ? { status } : {}),
       ...(notes !== undefined ? { notes } : {}),
+      ...(campus !== undefined ? { campus } : {}),
     },
   });
 

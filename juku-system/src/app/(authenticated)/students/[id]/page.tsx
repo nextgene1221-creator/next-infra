@@ -7,7 +7,7 @@ import MockExamsPanel, { type ExamResult, type AnonymousResult } from "./MockExa
 import MeetingRecords from "@/components/MeetingRecords";
 import StudyScheduleEditor from "@/components/StudyScheduleEditor";
 import PasswordResetButton from "@/components/PasswordResetButton";
-import MyAssignmentToggle from "@/components/MyAssignmentToggle";
+import TeacherAssignmentManager from "@/components/TeacherAssignmentManager";
 
 export default async function StudentDetailPage({
   params,
@@ -51,15 +51,8 @@ export default async function StudentDetailPage({
 
   if (!student) notFound();
 
-  // 講師ロールの場合、自身の teacher.id と現状の担当状態を取得
-  let teacherSelf: { id: string } | null = null;
-  if (session.user.role === "teacher") {
-    const t = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
-    if (t) teacherSelf = { id: t.id };
-  }
-  const isMyAssignment = teacherSelf
-    ? student.assignments.some((a) => a.teacherId === teacherSelf!.id)
-    : false;
+  const canEditAssignments =
+    session.user.role === "admin" || session.user.role === "teacher";
 
   // 期日超過かつ達成済の週次目標を自動で完了扱い（進捗は保存したまま、一覧から消える）
   const now = new Date();
@@ -309,28 +302,17 @@ export default async function StudentDetailPage({
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">担当講師</h2>
-          {student.assignments.length === 0 ? (
-            <p className="text-dark/60 text-sm">担当講師がいません</p>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {student.assignments.map((a) => (
-                <li key={a.id} className="py-2">
-                  <Link href={`/teachers/${a.teacher.id}`} className="text-sm hover:underline">
-                    {a.teacher.user.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-          {teacherSelf && (
-            <MyAssignmentToggle
-              studentId={id}
-              teacherId={teacherSelf.id}
-              studentName={student.user.name}
-              initialAssigned={isMyAssignment}
-            />
-          )}
+          <TeacherAssignmentManager
+            studentId={id}
+            initialAssignments={student.assignments.map((a) => ({
+              id: a.id,
+              teacher: {
+                id: a.teacher.id,
+                user: { id: a.teacher.user.id, name: a.teacher.user.name },
+              },
+            }))}
+            canEdit={canEditAssignments}
+          />
         </div>
 
         {/* Recent Progress */}

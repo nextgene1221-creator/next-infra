@@ -16,6 +16,6 @@ export async function GET() {
   });
 
   return NextResponse.json(
-    students.map((s) => ({ id: s.id, name: s.user.name }))
+    students.map((s) => ({ id: s.id, name: s.user.name, schoolName: s.schoolName }))
   );
 }

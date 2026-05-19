@@ -27,14 +27,14 @@ export async function POST(req: NextRequest) {
 
   const perTeacherSchedule = new Map<
     string,
-    { userId: string; byWeekday: Map<number, { startTime: string; endTime: string }> }
+    { userId: string; byWeekday: Map<number, { startTime: string; endTime: string; campus: string }> }
   >();
   for (const td of templateDays) {
     const entry = perTeacherSchedule.get(td.teacherId) || {
       userId: td.teacher.userId,
-      byWeekday: new Map<number, { startTime: string; endTime: string }>(),
+      byWeekday: new Map<number, { startTime: string; endTime: string; campus: string }>(),
     };
-    entry.byWeekday.set(td.weekday, { startTime: td.startTime, endTime: td.endTime });
+    entry.byWeekday.set(td.weekday, { startTime: td.startTime, endTime: td.endTime, campus: td.campus });
     perTeacherSchedule.set(td.teacherId, entry);
   }
 
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
           date,
           startTime: slot.startTime,
           endTime: slot.endTime,
+          campus: slot.campus,
           status: "scheduled",
           notes: "",
         },

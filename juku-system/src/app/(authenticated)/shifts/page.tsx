@@ -60,11 +60,14 @@ export default async function ShiftsPage({
         weekday: d.weekday,
         startTime: d.startTime,
         endTime: d.endTime,
+        campus: d.campus,
       })),
     }));
 
-  const defaultCampus = await prisma.campus.findFirst({ orderBy: { sortOrder: "asc" } });
+  const campusesAll = await prisma.campus.findMany({ orderBy: { sortOrder: "asc" } });
+  const defaultCampus = campusesAll[0];
   const defaultEndTime = defaultCampus?.closeTime || "21:00";
+  const clientCampuses = campusesAll.map((c) => ({ code: c.code, label: c.label }));
 
   const prevMonth = month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, "0")}`;
   const nextMonth = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -75,6 +78,7 @@ export default async function ShiftsPage({
     date: s.date.toISOString(),
     startTime: s.startTime,
     endTime: s.endTime,
+    campus: s.campus,
     status: s.status,
     notes: s.notes,
     teacher: { id: s.teacherId, user: { name: s.teacher.user.name } },
@@ -96,6 +100,61 @@ export default async function ShiftsPage({
     clockOutISO: string | null;
   }[] = [];
   const attendanceSummary = { workDays: 0, totalMinutes: 0, diffDays: 0, noShowDays: 0 };
+
+  // admin 用: 全講師の当月出退勤を取得（修正導線つき）
+  type AdminAttRow = {
+    attendanceId: string;
+    teacherName: string;
+    date: Date;
+    clockInISO: string;
+    clockOutISO: string | null;
+    inHM: string;
+    outHM: string;
+    workMinutes: number | null;
+    matchedShift: string;
+  };
+  let adminAttendanceRows: AdminAttRow[] = [];
+  if (session.user.role === "admin") {
+    const allAttendances = await prisma.attendance.findMany({
+      where: { clockIn: { gte: startDate, lte: endDate } },
+      include: { teacher: { include: { user: { select: { name: true } } } } },
+      orderBy: { clockIn: "desc" },
+    });
+    adminAttendanceRows = allAttendances.map((a) => {
+      const inDate = new Date(a.clockIn);
+      const outDate = a.clockOut ? new Date(a.clockOut) : null;
+      const inHM = inDate.toTimeString().slice(0, 5);
+      const outHM = outDate ? outDate.toTimeString().slice(0, 5) : "勤務中";
+      const workMinutes = outDate
+        ? Math.round((outDate.getTime() - inDate.getTime()) / 60000)
+        : null;
+      const dayStart = new Date(inDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(inDate);
+      dayEnd.setHours(23, 59, 59, 999);
+      const sameDayShift = shifts.find(
+        (s) =>
+          s.teacherId === a.teacherId &&
+          new Date(s.date) >= dayStart &&
+          new Date(s.date) <= dayEnd,
+      );
+      const matchedShift = sameDayShift
+        ? `${sameDayShift.startTime}-${sameDayShift.endTime}`
+        : "-";
+      return {
+        attendanceId: a.id,
+        teacherName: a.teacher.user.name,
+        date: inDate,
+        clockInISO: inDate.toISOString(),
+        clockOutISO: outDate ? outDate.toISOString() : null,
+        inHM,
+        outHM,
+        workMinutes,
+        matchedShift,
+      };
+    });
+  }
+
   if (currentTeacherId) {
     const myAttendances = await prisma.attendance.findMany({
       where: { teacherId: currentTeacherId, clockIn: { gte: startDate, lte: endDate } },
@@ -232,6 +291,7 @@ export default async function ShiftsPage({
         defaultEndTime={defaultEndTime}
         isAdmin={session.user.role === "admin"}
         currentTeacherId={currentTeacherId}
+        campuses={clientCampuses}
       />
 
       {currentTeacherId && (
@@ -303,6 +363,61 @@ export default async function ShiftsPage({
                       ) : (
                         <span className="text-dark/40">-</span>
                       )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {session.user.role === "admin" && (
+        <div className="bg-white rounded-lg shadow overflow-x-auto mt-6">
+          <div className="bg-surface px-6 py-3 border-b flex items-center justify-between">
+            <h2 className="font-medium text-dark">{year}年{month}月の全講師打刻履歴</h2>
+            <Link href={`/attendance?view=month`} className="text-xs text-primary hover:underline">
+              出退勤管理を開く →
+            </Link>
+          </div>
+          {adminAttendanceRows.length === 0 ? (
+            <p className="text-dark/60 text-sm p-6">この月の打刻記録はありません</p>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-surface">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">日付</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">講師</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">出勤</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">退勤</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">勤務時間</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">シフト予定</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">操作</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {adminAttendanceRows.map((r) => (
+                  <tr key={r.attendanceId}>
+                    <td className="px-6 py-3 text-sm text-dark whitespace-nowrap">
+                      {r.date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" })}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-dark">{r.teacherName}</td>
+                    <td className="px-6 py-3 text-sm font-medium">{r.inHM}</td>
+                    <td className="px-6 py-3 text-sm font-medium">{r.outHM}</td>
+                    <td className="px-6 py-3 text-sm text-dark/60">
+                      {r.workMinutes !== null
+                        ? `${Math.floor(r.workMinutes / 60)}h${r.workMinutes % 60 > 0 ? ` ${r.workMinutes % 60}m` : ""}`
+                        : "-"}
+                    </td>
+                    <td className="px-6 py-3 text-sm text-dark/60">{r.matchedShift}</td>
+                    <td className="px-6 py-3 text-sm">
+                      <AttendanceEditButton
+                        attendanceId={r.attendanceId}
+                        teacherName={r.teacherName}
+                        initialClockIn={r.clockInISO}
+                        initialClockOut={r.clockOutISO}
+                        allowDelete
+                      />
                     </td>
                   </tr>
                 ))}

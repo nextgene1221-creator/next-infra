@@ -8,24 +8,31 @@ export type TemplateDay = {
   weekday: number;
   startTime: string;
   endTime: string;
+  campus?: string;
 };
+
+export type CampusOption = { code: string; label: string };
 
 export default function ShiftTemplateForm({
   teacherId,
   initialDays,
   defaultEndTime = "21:00",
   onSaved,
+  campuses = [],
 }: {
   teacherId: string;
   initialDays: TemplateDay[];
   /** 新しい曜日を有効化したときの終了時刻の初期値（校舎の閉校時間など） */
   defaultEndTime?: string;
   onSaved?: () => void;
+  campuses?: CampusOption[];
 }) {
   const DEFAULT_START = "14:00";
 
-  const [days, setDays] = useState<Record<number, { startTime: string; endTime: string }>>(
-    () => Object.fromEntries(initialDays.map((d) => [d.weekday, { startTime: d.startTime, endTime: d.endTime }]))
+  const [days, setDays] = useState<Record<number, { startTime: string; endTime: string; campus: string }>>(
+    () => Object.fromEntries(
+      initialDays.map((d) => [d.weekday, { startTime: d.startTime, endTime: d.endTime, campus: d.campus || "" }]),
+    ),
   );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -39,9 +46,9 @@ export default function ShiftTemplateForm({
     setDays((prev) => {
       const next = { ...prev };
       if (d in next) {
-        delete next[d]; // 無効化 → 値は破棄
+        delete next[d];
       } else {
-        next[d] = { startTime: DEFAULT_START, endTime: defaultEndTime };
+        next[d] = { startTime: DEFAULT_START, endTime: defaultEndTime, campus: "" };
       }
       return next;
     });
@@ -49,6 +56,10 @@ export default function ShiftTemplateForm({
 
   const updateTime = (d: number, key: "startTime" | "endTime", value: string) => {
     setDays((prev) => ({ ...prev, [d]: { ...prev[d], [key]: value } }));
+  };
+
+  const updateCampus = (d: number, value: string) => {
+    setDays((prev) => ({ ...prev, [d]: { ...prev[d], campus: value } }));
   };
 
   const validate = (): string | null => {
@@ -80,6 +91,7 @@ export default function ShiftTemplateForm({
         weekday: w,
         startTime: days[w].startTime,
         endTime: days[w].endTime,
+        campus: days[w].campus,
       })),
     };
 
@@ -138,10 +150,10 @@ export default function ShiftTemplateForm({
 
       {enabledWeekdays.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-charcoal mb-2">曜日ごとの勤務時間</label>
+          <label className="block text-sm font-medium text-charcoal mb-2">曜日ごとの勤務時間 / 校舎</label>
           <div className="space-y-2">
             {enabledWeekdays.map((w) => (
-              <div key={w} className="flex items-center gap-3">
+              <div key={w} className="flex items-center gap-2 flex-wrap">
                 <span className="w-8 text-sm font-medium text-charcoal">{WEEKDAY_LABELS[w]}</span>
                 <input
                   type="time"
@@ -156,6 +168,18 @@ export default function ShiftTemplateForm({
                   onChange={(e) => updateTime(w, "endTime", e.target.value)}
                   className="border border-gray-300 rounded-md px-3 py-2 text-sm"
                 />
+                {campuses.length > 0 && (
+                  <select
+                    value={days[w].campus}
+                    onChange={(e) => updateCampus(w, e.target.value)}
+                    className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+                  >
+                    <option value="">校舎: 未指定</option>
+                    {campuses.map((c) => (
+                      <option key={c.code} value={c.code}>{c.label}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             ))}
           </div>

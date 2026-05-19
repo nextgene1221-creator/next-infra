@@ -13,6 +13,7 @@ type Shift = {
   date: string | Date;
   startTime: string;
   endTime: string;
+  campus: string;
   status: string;
   notes: string;
   teacher: { id: string; user: { name: string } };
@@ -20,7 +21,9 @@ type Shift = {
 
 type Teacher = { id: string; name: string };
 
-type TemplateDay = { weekday: number; startTime: string; endTime: string };
+type Campus = { code: string; label: string };
+
+type TemplateDay = { weekday: number; startTime: string; endTime: string; campus?: string };
 type Template = {
   teacherId: string;
   teacherName: string;
@@ -36,6 +39,7 @@ export default function ShiftCalendar({
   defaultEndTime,
   isAdmin,
   currentTeacherId,
+  campuses,
 }: {
   year: number;
   month: number;
@@ -45,6 +49,7 @@ export default function ShiftCalendar({
   defaultEndTime: string;
   isAdmin: boolean;
   currentTeacherId?: string;
+  campuses: Campus[];
 }) {
   const router = useRouter();
   const [shifts, setShifts] = useState<Shift[]>(initialShifts);
@@ -208,7 +213,14 @@ export default function ShiftCalendar({
                       }`}
                     >
                       <div className="font-medium">{s.startTime}-{s.endTime}</div>
-                      <div className="truncate">{s.teacher.user.name}</div>
+                      <div className="truncate">
+                        {s.teacher.user.name}
+                        {s.campus && (
+                          <span className="ml-1 text-[10px] opacity-80">
+                            ({campuses.find((c) => c.code === s.campus)?.label || s.campus})
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -225,6 +237,7 @@ export default function ShiftCalendar({
           dateKey={selectedDate}
           initialShifts={shiftsByDate[selectedDate] || []}
           teachers={teachers}
+          campuses={campuses}
           isAdmin={isAdmin}
           currentTeacherId={currentTeacherId}
           onClose={() => setSelectedDate(null)}
@@ -241,6 +254,7 @@ export default function ShiftCalendar({
           teachers={teachers}
           templates={templates}
           defaultEndTime={defaultEndTime}
+          campuses={campuses}
           onClose={() => setShowTemplatesModal(false)}
           onChanged={() => router.refresh()}
         />
@@ -256,6 +270,7 @@ function DayDetailModal({
   dateKey,
   initialShifts,
   teachers,
+  campuses,
   isAdmin,
   currentTeacherId,
   onClose,
@@ -264,17 +279,20 @@ function DayDetailModal({
   dateKey: string;
   initialShifts: Shift[];
   teachers: Teacher[];
+  campuses: Campus[];
   isAdmin: boolean;
   currentTeacherId?: string;
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const campusLabel = (code: string) => campuses.find((c) => c.code === code)?.label || "";
   const [shifts, setShifts] = useState(initialShifts);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [teacherId, setTeacherId] = useState("");
   const [startTime, setStartTime] = useState("14:00");
   const [endTime, setEndTime] = useState("20:00");
+  const [campus, setCampus] = useState("");
   const [status, setStatus] = useState("scheduled");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -292,6 +310,7 @@ function DayDetailModal({
     setTeacherId("");
     setStartTime("14:00");
     setEndTime("20:00");
+    setCampus("");
     setStatus("scheduled");
     setNotes("");
   };
@@ -306,6 +325,7 @@ function DayDetailModal({
     setTeacherId(s.teacherId);
     setStartTime(s.startTime);
     setEndTime(s.endTime);
+    setCampus(s.campus || "");
     setStatus(s.status);
     setNotes(s.notes);
     setShowAddForm(true);
@@ -319,7 +339,7 @@ function DayDetailModal({
       const res = await fetch(`/api/shifts/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherId, date: dateKey, startTime, endTime, status, notes }),
+        body: JSON.stringify({ teacherId, date: dateKey, startTime, endTime, campus, status, notes }),
       });
       if (res.ok) {
         const updated = await res.json();
@@ -336,7 +356,7 @@ function DayDetailModal({
       const res = await fetch("/api/shifts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherId, date: dateKey, startTime, endTime, status, notes }),
+        body: JSON.stringify({ teacherId, date: dateKey, startTime, endTime, campus, status, notes }),
       });
       if (res.ok) {
         const created = await res.json();
@@ -386,6 +406,11 @@ function DayDetailModal({
                   </div>
                   <div className="text-xs text-dark/60">
                     {s.teacher.user.name}
+                    {s.campus && (
+                      <span className="ml-2 px-1.5 py-0.5 bg-primary-light text-primary rounded">
+                        {campusLabel(s.campus)}
+                      </span>
+                    )}
                     <span className="ml-2">
                       [{s.status === "scheduled" ? "予定" : s.status === "confirmed" ? "確定" : "キャンセル"}]
                     </span>
@@ -464,6 +489,19 @@ function DayDetailModal({
               </div>
             </div>
             <div>
+              <label className="block text-sm font-medium text-charcoal">校舎</label>
+              <select
+                value={campus}
+                onChange={(e) => setCampus(e.target.value)}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+              >
+                <option value="">未指定</option>
+                {campuses.map((c) => (
+                  <option key={c.code} value={c.code}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-charcoal">ステータス</label>
               <select
                 value={status}
@@ -513,12 +551,14 @@ function TemplatesModal({
   teachers,
   templates,
   defaultEndTime,
+  campuses,
   onClose,
   onChanged,
 }: {
   teachers: Teacher[];
   templates: Template[];
   defaultEndTime: string;
+  campuses: Campus[];
   onClose: () => void;
   onChanged: () => void;
 }) {
@@ -546,6 +586,7 @@ function TemplatesModal({
                   teacherId={t.id}
                   initialDays={tpl?.days ?? []}
                   defaultEndTime={defaultEndTime}
+                  campuses={campuses}
                   onSaved={onChanged}
                 />
               </div>

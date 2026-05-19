@@ -253,6 +253,7 @@ model ShiftTemplateDay {
   weekday   Int      // 0=日, 1=月, ..., 6=土
   startTime String   @map("start_time") // HH:mm
   endTime   String   @map("end_time")   // HH:mm
+  campus    String   @default("") // 校舎コード（一括生成時に Shift.campus へ反映）
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -299,6 +300,7 @@ model Shift {
   date                  DateTime
   startTime             String   @map("start_time") // HH:mm format
   endTime               String   @map("end_time")   // HH:mm format
+  campus                String   @default("") // 校舎コード（Campus.code を参照）。空 = 未指定
   status                String   @default("scheduled") // scheduled / confirmed / cancelled
   notes                 String   @default("")
   noShowAlerted         Boolean  @default(false) @map("no_show_alerted")

@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-type DayInput = { weekday: number; startTime: string; endTime: string };
+type DayInput = { weekday: number; startTime: string; endTime: string; campus?: string };
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -12,13 +12,14 @@ function validDays(days: unknown): days is DayInput[] {
   const seen = new Set<number>();
   for (const d of days) {
     if (!d || typeof d !== "object") return false;
-    const { weekday, startTime, endTime } = d as DayInput;
+    const { weekday, startTime, endTime, campus } = d as DayInput;
     if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) return false;
     if (seen.has(weekday)) return false;
     seen.add(weekday);
     if (typeof startTime !== "string" || !HHMM.test(startTime)) return false;
     if (typeof endTime !== "string" || !HHMM.test(endTime)) return false;
     if (startTime >= endTime) return false;
+    if (campus !== undefined && typeof campus !== "string") return false;
   }
   return true;
 }
@@ -58,6 +59,7 @@ export async function GET(req: NextRequest) {
         weekday: d.weekday,
         startTime: d.startTime,
         endTime: d.endTime,
+        campus: d.campus,
       })),
     }));
 
@@ -96,6 +98,7 @@ export async function POST(req: NextRequest) {
               weekday: d.weekday,
               startTime: d.startTime,
               endTime: d.endTime,
+              campus: d.campus || "",
             })),
           }),
         ]

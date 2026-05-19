@@ -39,13 +39,16 @@ export default async function TeacherDetailPage({
   if (!teacher) notFound();
 
   // 新規曜日の終了時刻デフォルトには、最優先校舎の閉校時間を利用
-  const defaultCampus = await prisma.campus.findFirst({ orderBy: { sortOrder: "asc" } });
+  const campusList = await prisma.campus.findMany({ orderBy: { sortOrder: "asc" } });
+  const defaultCampus = campusList[0];
   const defaultEndTime = defaultCampus?.closeTime || "21:00";
+  const campusesForForm = campusList.map((c) => ({ code: c.code, label: c.label }));
 
   const templateDays = teacher.shiftTemplateDays.map((d) => ({
     weekday: d.weekday,
     startTime: d.startTime,
     endTime: d.endTime,
+    campus: d.campus,
   }));
 
   const subjects = JSON.parse(teacher.subjects) as string[];
@@ -191,6 +194,11 @@ export default async function TeacherDetailPage({
                       </td>
                       <td className="px-4 py-2 text-sm">
                         {shift.startTime} - {shift.endTime}
+                        {shift.campus && (
+                          <span className="ml-2 text-xs text-dark/60">
+                            ({campusList.find((c) => c.code === shift.campus)?.label || shift.campus})
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-2 text-sm">
                         <span
@@ -288,6 +296,7 @@ export default async function TeacherDetailPage({
             teacherId={id}
             initialDays={templateDays}
             defaultEndTime={defaultEndTime}
+            campuses={campusesForForm}
           />
         </div>
 

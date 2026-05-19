@@ -4,6 +4,7 @@ import Link from "next/link";
 import ClickableRow from "@/components/ClickableRow";
 import { computeStudentAlerts } from "@/lib/studentAlerts";
 import { SUBJECTS } from "@/lib/types";
+import StudentQuickSearch from "@/components/StudentQuickSearch";
 
 export default async function StudentsPage({
   searchParams,
@@ -136,11 +137,16 @@ export default async function StudentsPage({
         <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-200 inline-block" />🚨 両方該当</span>
       </div>
 
+      <div className="bg-white p-4 rounded-lg shadow mb-4">
+        <p className="text-xs text-dark/60 mb-1">クイック検索（候補から選んで詳細へ）</p>
+        <StudentQuickSearch />
+      </div>
+
       <form className="bg-white p-4 rounded-lg shadow mb-6 flex gap-4 flex-wrap">
         <input
           name="q"
           defaultValue={q}
-          placeholder="名前で検索"
+          placeholder="名前で絞り込み（一覧表示用）"
           className="border border-gray-300 rounded-md px-3 py-2 text-sm"
         />
         <select

@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { teacherId, date, startTime, endTime, status, notes } = body;
+  const { teacherId, date, startTime, endTime, status, notes, campus } = body;
 
   const shift = await prisma.shift.create({
     data: {
@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
       endTime,
       status: status || "scheduled",
       notes: notes || "",
+      campus: campus || "",
     },
   });
 
