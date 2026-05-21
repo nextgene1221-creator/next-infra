@@ -11,6 +11,9 @@ type DayRow = {
   diffLabel: string;
   diffColor: string;
   workMinutes: number | null;
+  attendanceId: string | null;
+  clockInISO: string | null;
+  clockOutISO: string | null;
 };
 
 export default async function AttendancePage({
@@ -306,6 +309,9 @@ async function MonthView({
           diffLabel: "未打刻",
           diffColor: "text-red-500",
           workMinutes: null,
+          attendanceId: null,
+          clockInISO: null,
+          clockOutISO: null,
         });
         continue;
       }
@@ -354,6 +360,9 @@ async function MonthView({
           diffLabel,
           diffColor,
           workMinutes,
+          attendanceId: a.id,
+          clockInISO: inDate.toISOString(),
+          clockOutISO: outDate ? outDate.toISOString() : null,
         });
       }
       summary.workDays++;
@@ -454,6 +463,7 @@ async function MonthView({
                     <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">退勤</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">勤務時間</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">差異</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">操作</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -485,6 +495,19 @@ async function MonthView({
                       </td>
                       <td className={`px-6 py-3 text-sm font-medium ${r.diffColor}`}>
                         {r.diffLabel}
+                      </td>
+                      <td className="px-6 py-3 text-sm">
+                        {r.attendanceId && r.clockInISO ? (
+                          <AttendanceEditButton
+                            attendanceId={r.attendanceId}
+                            teacherName={teacherName}
+                            initialClockIn={r.clockInISO}
+                            initialClockOut={r.clockOutISO}
+                            allowDelete
+                          />
+                        ) : (
+                          <span className="text-dark/40">-</span>
+                        )}
                       </td>
                     </tr>
                   ))}
