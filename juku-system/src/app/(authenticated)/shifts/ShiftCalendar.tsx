@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ShiftTemplateForm from "@/components/ShiftTemplateForm";
 import FieldLabel from "@/components/FieldLabel";
+import { buildCampusColorMap, EMPTY_CAMPUS_COLOR } from "@/lib/campusColor";
 
 const WEEKDAY_HEADERS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -56,15 +57,22 @@ export default function ShiftCalendar({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [campusFilter, setCampusFilter] = useState<string>(""); // ""=全校舎
 
   // サーバーリフレッシュで initialShifts が更新された際に state を同期
   useEffect(() => {
     setShifts(initialShifts);
   }, [initialShifts]);
 
+  const campusColorMap = useMemo(() => buildCampusColorMap(campuses), [campuses]);
+  const getCampusColor = (code: string) => campusColorMap[code] ?? EMPTY_CAMPUS_COLOR;
+
+  // 校舎フィルタ
+  const filteredShifts = campusFilter ? shifts.filter((s) => s.campus === campusFilter) : shifts;
+
   // Group shifts by date (YYYY-MM-DD key)
   const shiftsByDate: Record<string, Shift[]> = {};
-  for (const s of shifts) {
+  for (const s of filteredShifts) {
     const d = new Date(s.date);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     if (!shiftsByDate[key]) shiftsByDate[key] = [];
@@ -152,6 +160,49 @@ export default function ShiftCalendar({
         </div>
       )}
 
+      {/* フィルタ＋凡例 */}
+      <div className="bg-white rounded-lg shadow p-3 mb-3 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-2 text-sm">
+          <label className="text-charcoal">校舎で絞り込み:</label>
+          <select
+            value={campusFilter}
+            onChange={(e) => setCampusFilter(e.target.value)}
+            className="border border-gray-300 rounded px-2 py-1 text-sm"
+          >
+            <option value="">全校舎</option>
+            {campuses.map((c) => (
+              <option key={c.code} value={c.code}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-4 text-xs text-dark/70 flex-wrap">
+          <span className="font-medium text-dark/60">状態（塗り）:</span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded bg-primary-light border border-primary/30" />未確定
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded bg-green-50 border border-green-300" />確定
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded bg-red-50 border border-red-300" />キャンセル
+          </span>
+          {campuses.length > 0 && (
+            <>
+              <span className="font-medium text-dark/60 ml-2">校舎（左帯）:</span>
+              {campuses.map((c) => {
+                const cc = getCampusColor(c.code);
+                return (
+                  <span key={c.code} className="flex items-center gap-1">
+                    <span className={`inline-block w-1 h-3 ${cc.dot}`} />
+                    <span className={cc.label}>{c.label}</span>
+                  </span>
+                );
+              })}
+            </>
+          )}
+        </div>
+      </div>
+
       {/* カレンダー */}
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         <div className="min-w-[640px]">
@@ -201,28 +252,32 @@ export default function ShiftCalendar({
                   {isToday && <span className="ml-1 text-xs">(今日)</span>}
                 </div>
                 <div className="space-y-1">
-                  {dayShifts.map((s) => (
-                    <div
-                      key={s.id}
-                      className={`text-xs px-1.5 py-0.5 rounded ${
-                        s.status === "cancelled"
-                          ? "bg-red-50 text-red-700 line-through"
-                          : s.status === "confirmed"
-                          ? "bg-green-50 text-green-800"
-                          : "bg-primary-light text-primary"
-                      }`}
-                    >
-                      <div className="font-medium">{s.startTime}-{s.endTime}</div>
-                      <div className="truncate">
-                        {s.teacher.user.name}
-                        {s.campus && (
-                          <span className="ml-1 text-[10px] opacity-80">
-                            ({campuses.find((c) => c.code === s.campus)?.label || s.campus})
-                          </span>
-                        )}
+                  {dayShifts.map((s) => {
+                    const c = getCampusColor(s.campus);
+                    const borderClass = s.campus ? `border-l-4 ${c.border}` : "border-l-4 border-l-transparent";
+                    return (
+                      <div
+                        key={s.id}
+                        className={`text-xs px-1.5 py-0.5 rounded ${borderClass} ${
+                          s.status === "cancelled"
+                            ? "bg-red-50 text-red-700 line-through"
+                            : s.status === "confirmed"
+                            ? "bg-green-50 text-green-800"
+                            : "bg-primary-light text-primary"
+                        }`}
+                      >
+                        <div className="font-medium">{s.startTime}-{s.endTime}</div>
+                        <div className="truncate">
+                          {s.teacher.user.name}
+                          {s.campus && (
+                            <span className="ml-1 text-[10px] opacity-80">
+                              ({campuses.find((c) => c.code === s.campus)?.label || s.campus})
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );

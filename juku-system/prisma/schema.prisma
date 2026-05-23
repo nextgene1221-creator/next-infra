@@ -238,6 +238,7 @@ model Attendance {
   teacherId String    @map("teacher_id")
   clockIn   DateTime  @map("clock_in")
   clockOut  DateTime? @map("clock_out")
+  campus    String    @default("") // 校舎コード（出勤時にシフトから自動コピー、後から修正可）
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
 
@@ -457,6 +458,7 @@ model PrintUnit {
   subject    String
   name       String
   printCount Int      @map("print_count")
+  level      String   @default("textbook") // textbook=教科書レベル / chart=チャートレベル
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

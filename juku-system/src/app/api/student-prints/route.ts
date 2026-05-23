@@ -48,30 +48,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 連番チェック: 同じ studentId × printUnitId の中で最小空き No しか登録できない
+  // 連番強制は廃止: 1..printCount の範囲なら任意のNoを登録/再登録可能
   const printUnit = await prisma.printUnit.findUnique({ where: { id: printUnitId } });
   if (!printUnit) {
     return NextResponse.json({ error: "単元が見つかりません" }, { status: 404 });
   }
-  const existing = await prisma.studentPrint.findMany({
-    where: { studentId, printUnitId },
-    select: { printNo: true },
-  });
-  // 既に同じ No が存在する（再登録 = 予定日更新扱い）の場合は通す
   const targetNo = Number(printNo);
-  const existingSet = new Set(existing.map((e) => e.printNo));
-  if (!existingSet.has(targetNo)) {
-    let minMissing = 1;
-    while (existingSet.has(minMissing)) minMissing++;
-    if (minMissing > printUnit.printCount) {
-      return NextResponse.json({ error: "この単元は全プリントが登録済みです" }, { status: 400 });
-    }
-    if (targetNo !== minMissing) {
-      return NextResponse.json(
-        { error: `次に登録可能なプリント No は ${minMissing} です（連番のみ登録可）` },
-        { status: 400 },
-      );
-    }
+  if (!Number.isInteger(targetNo) || targetNo < 1 || targetNo > printUnit.printCount) {
+    return NextResponse.json(
+      { error: `プリントNoは 1〜${printUnit.printCount} の範囲で指定してください` },
+      { status: 400 },
+    );
   }
 
   const print = await prisma.studentPrint.upsert({

@@ -8,6 +8,8 @@ type Props = {
   teacherName?: string;
   initialClockIn: string; // ISO
   initialClockOut: string | null; // ISO or null
+  initialCampus?: string;
+  campuses?: { code: string; label: string }[];
   onClose: () => void;
   allowDelete?: boolean;
 };
@@ -29,6 +31,8 @@ export default function AttendanceEditModal({
   teacherName,
   initialClockIn,
   initialClockOut,
+  initialCampus = "",
+  campuses = [],
   onClose,
   allowDelete = false,
 }: Props) {
@@ -37,6 +41,7 @@ export default function AttendanceEditModal({
   const [clockOut, setClockOut] = useState(
     initialClockOut ? toLocalInput(initialClockOut) : "",
   );
+  const [campus, setCampus] = useState(initialCampus);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -50,6 +55,7 @@ export default function AttendanceEditModal({
       body: JSON.stringify({
         clockIn: fromLocalInput(clockIn),
         clockOut: clockOut ? fromLocalInput(clockOut) : null,
+        campus,
       }),
     });
     if (res.ok) {
@@ -111,6 +117,23 @@ export default function AttendanceEditModal({
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
           </div>
+          {campuses.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-charcoal mb-1">
+                校舎 <span className="text-xs text-dark/60">（シフトの校舎が自動セット。違う場合のみ修正）</span>
+              </label>
+              <select
+                value={campus}
+                onChange={(e) => setCampus(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">未指定</option>
+                {campuses.map((c) => (
+                  <option key={c.code} value={c.code}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
               {error}

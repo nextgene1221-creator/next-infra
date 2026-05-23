@@ -14,6 +14,7 @@ type DayRow = {
   attendanceId: string | null;
   clockInISO: string | null;
   clockOutISO: string | null;
+  campus: string;
 };
 
 export default async function AttendancePage({
@@ -30,6 +31,9 @@ export default async function AttendancePage({
     include: { user: true },
     orderBy: { user: { name: "asc" } },
   });
+
+  const campusesRaw = await prisma.campus.findMany({ orderBy: { sortOrder: "asc" } });
+  const campuses = campusesRaw.map((c) => ({ code: c.code, label: c.label }));
 
   return (
     <div>
@@ -60,12 +64,13 @@ export default async function AttendancePage({
       </div>
 
       {view === "day" ? (
-        <DayView dateParam={params.date} />
+        <DayView dateParam={params.date} campuses={campuses} />
       ) : (
         <MonthView
           monthParam={params.month}
           teacherIdParam={params.teacherId}
           teachers={teachers}
+          campuses={campuses}
         />
       )}
     </div>
@@ -75,7 +80,7 @@ export default async function AttendancePage({
 // ====================
 // 日単位ビュー
 // ====================
-async function DayView({ dateParam }: { dateParam?: string }) {
+async function DayView({ dateParam, campuses }: { dateParam?: string; campuses: { code: string; label: string }[] }) {
   const todayStr = new Date().toISOString().split("T")[0];
   const dateStr = dateParam || todayStr;
   const date = new Date(dateStr);
@@ -139,6 +144,7 @@ async function DayView({ dateParam }: { dateParam?: string }) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">講師</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">出勤</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">退勤</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">校舎</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">シフト予定</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">差異</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">操作</th>
@@ -171,6 +177,9 @@ async function DayView({ dateParam }: { dateParam?: string }) {
                     <td className="px-6 py-4 text-sm font-medium">{inHM}</td>
                     <td className="px-6 py-4 text-sm font-medium">{outHM || "勤務中"}</td>
                     <td className="px-6 py-4 text-sm text-dark/60">
+                      {a.campus ? campuses.find((c) => c.code === a.campus)?.label || a.campus : "-"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-dark/60">
                       {shift ? `${shift.startTime} - ${shift.endTime}` : "-"}
                     </td>
                     <td className={`px-6 py-4 text-sm font-medium ${diffColor}`}>{diff}</td>
@@ -180,6 +189,8 @@ async function DayView({ dateParam }: { dateParam?: string }) {
                         teacherName={a.teacher.user.name}
                         initialClockIn={a.clockIn.toISOString()}
                         initialClockOut={a.clockOut ? a.clockOut.toISOString() : null}
+                        initialCampus={a.campus}
+                        campuses={campuses}
                         allowDelete
                       />
                     </td>
@@ -227,10 +238,12 @@ async function MonthView({
   monthParam,
   teacherIdParam,
   teachers,
+  campuses,
 }: {
   monthParam?: string;
   teacherIdParam?: string;
   teachers: { id: string; user: { name: string } }[];
+  campuses: { code: string; label: string }[];
 }) {
   const now = new Date();
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -312,6 +325,7 @@ async function MonthView({
           attendanceId: null,
           clockInISO: null,
           clockOutISO: null,
+          campus: "",
         });
         continue;
       }
@@ -363,6 +377,7 @@ async function MonthView({
           attendanceId: a.id,
           clockInISO: inDate.toISOString(),
           clockOutISO: outDate ? outDate.toISOString() : null,
+          campus: a.campus,
         });
       }
       summary.workDays++;
@@ -462,6 +477,7 @@ async function MonthView({
                     <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">出勤</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">退勤</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">勤務時間</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">校舎</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">差異</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">操作</th>
                   </tr>
@@ -493,6 +509,9 @@ async function MonthView({
                             }`
                           : "-"}
                       </td>
+                      <td className="px-6 py-3 text-sm text-dark/60">
+                        {r.campus ? campuses.find((c) => c.code === r.campus)?.label || r.campus : "-"}
+                      </td>
                       <td className={`px-6 py-3 text-sm font-medium ${r.diffColor}`}>
                         {r.diffLabel}
                       </td>
@@ -503,6 +522,8 @@ async function MonthView({
                             teacherName={teacherName}
                             initialClockIn={r.clockInISO}
                             initialClockOut={r.clockOutISO}
+                            initialCampus={r.campus}
+                            campuses={campuses}
                             allowDelete
                           />
                         ) : (

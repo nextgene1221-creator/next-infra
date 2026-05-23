@@ -26,9 +26,9 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { clockIn, clockOut } = body as { clockIn?: string; clockOut?: string | null };
+  const { clockIn, clockOut, campus } = body as { clockIn?: string; clockOut?: string | null; campus?: string };
 
-  const data: { clockIn?: Date; clockOut?: Date | null } = {};
+  const data: { clockIn?: Date; clockOut?: Date | null; campus?: string } = {};
   if (clockIn) {
     const inDate = new Date(clockIn);
     if (Number.isNaN(inDate.getTime())) {
@@ -44,6 +44,9 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid clockOut" }, { status: 400 });
     }
     data.clockOut = outDate;
+  }
+  if (campus !== undefined && typeof campus === "string") {
+    data.campus = campus;
   }
 
   const finalIn = data.clockIn ?? attendance.clockIn;

@@ -98,6 +98,7 @@ export default async function ShiftsPage({
     attendanceId: string | null;
     clockInISO: string | null;
     clockOutISO: string | null;
+    campus: string;
   }[] = [];
   const attendanceSummary = { workDays: 0, totalMinutes: 0, diffDays: 0, noShowDays: 0 };
 
@@ -112,6 +113,7 @@ export default async function ShiftsPage({
     outHM: string;
     workMinutes: number | null;
     matchedShift: string;
+    campus: string;
   };
   let adminAttendanceRows: AdminAttRow[] = [];
   if (session.user.role === "admin") {
@@ -145,6 +147,7 @@ export default async function ShiftsPage({
         attendanceId: a.id,
         teacherName: a.teacher.user.name,
         date: inDate,
+        campus: a.campus,
         clockInISO: inDate.toISOString(),
         clockOutISO: outDate ? outDate.toISOString() : null,
         inHM,
@@ -200,6 +203,7 @@ export default async function ShiftsPage({
           attendanceId: null,
           clockInISO: null,
           clockOutISO: null,
+          campus: "",
         });
         continue;
       }
@@ -250,6 +254,7 @@ export default async function ShiftsPage({
           attendanceId: a.id,
           clockInISO: inDate.toISOString(),
           clockOutISO: outDate ? outDate.toISOString() : null,
+          campus: a.campus,
         });
       }
       attendanceSummary.workDays++;
@@ -266,7 +271,7 @@ export default async function ShiftsPage({
 
       {currentTeacherId && (
         <div className="mb-4">
-          <AttendanceButton />
+          <AttendanceButton campuses={clientCampuses} />
         </div>
       )}
 
@@ -330,6 +335,7 @@ export default async function ShiftsPage({
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">出勤</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">退勤</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">勤務時間</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">校舎</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">差異</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">操作</th>
                 </tr>
@@ -351,6 +357,9 @@ export default async function ShiftsPage({
                         ? `${Math.floor(r.workMinutes / 60)}h${r.workMinutes % 60 > 0 ? ` ${r.workMinutes % 60}m` : ""}`
                         : "-"}
                     </td>
+                    <td className="px-6 py-3 text-sm text-dark/60">
+                      {r.campus ? clientCampuses.find((c) => c.code === r.campus)?.label || r.campus : "-"}
+                    </td>
                     <td className={`px-6 py-3 text-sm font-medium ${r.diffColor}`}>{r.diffLabel}</td>
                     <td className="px-6 py-3 text-sm">
                       {r.attendanceId && r.clockInISO ? (
@@ -358,6 +367,8 @@ export default async function ShiftsPage({
                           attendanceId={r.attendanceId}
                           initialClockIn={r.clockInISO}
                           initialClockOut={r.clockOutISO}
+                          initialCampus={r.campus}
+                          campuses={clientCampuses}
                           allowDelete
                         />
                       ) : (
@@ -391,6 +402,7 @@ export default async function ShiftsPage({
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">出勤</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">退勤</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">勤務時間</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">校舎</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">シフト予定</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">操作</th>
                 </tr>
@@ -409,6 +421,9 @@ export default async function ShiftsPage({
                         ? `${Math.floor(r.workMinutes / 60)}h${r.workMinutes % 60 > 0 ? ` ${r.workMinutes % 60}m` : ""}`
                         : "-"}
                     </td>
+                    <td className="px-6 py-3 text-sm text-dark/60">
+                      {r.campus ? clientCampuses.find((c) => c.code === r.campus)?.label || r.campus : "-"}
+                    </td>
                     <td className="px-6 py-3 text-sm text-dark/60">{r.matchedShift}</td>
                     <td className="px-6 py-3 text-sm">
                       <AttendanceEditButton
@@ -416,6 +431,8 @@ export default async function ShiftsPage({
                         teacherName={r.teacherName}
                         initialClockIn={r.clockInISO}
                         initialClockOut={r.clockOutISO}
+                        initialCampus={r.campus}
+                        campuses={clientCampuses}
                         allowDelete
                       />
                     </td>

@@ -12,13 +12,15 @@ export async function PUT(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
-  const { subject, name, printCount } = await req.json();
+  const { subject, name, printCount, level } = await req.json();
+  const safeLevel = level === "chart" || level === "textbook" ? level : undefined;
   const unit = await prisma.printUnit.update({
     where: { id },
     data: {
       ...(subject ? { subject } : {}),
       ...(name ? { name } : {}),
       ...(printCount !== undefined ? { printCount: Number(printCount) } : {}),
+      ...(safeLevel ? { level: safeLevel } : {}),
     },
   });
   return NextResponse.json(unit);

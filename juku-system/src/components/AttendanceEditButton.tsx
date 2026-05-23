@@ -8,6 +8,8 @@ export default function AttendanceEditButton({
   teacherName,
   initialClockIn,
   initialClockOut,
+  initialCampus = "",
+  campuses = [],
   allowDelete = false,
   label = "修正",
   className,
@@ -16,6 +18,8 @@ export default function AttendanceEditButton({
   teacherName?: string;
   initialClockIn: string;
   initialClockOut: string | null;
+  initialCampus?: string;
+  campuses?: { code: string; label: string }[];
   allowDelete?: boolean;
   label?: string;
   className?: string;
@@ -39,6 +43,8 @@ export default function AttendanceEditButton({
           teacherName={teacherName}
           initialClockIn={initialClockIn}
           initialClockOut={initialClockOut}
+          initialCampus={initialCampus}
+          campuses={campuses}
           allowDelete={allowDelete}
           onClose={() => setOpen(false)}
         />

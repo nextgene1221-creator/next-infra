@@ -15,12 +15,13 @@ export async function POST(req: NextRequest) {
   if (!session || session.user.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const { subject, name, printCount } = await req.json();
+  const { subject, name, printCount, level } = await req.json();
   if (!subject || !name || !printCount) {
     return NextResponse.json({ error: "subject, name, printCount are required" }, { status: 400 });
   }
+  const safeLevel = level === "chart" ? "chart" : "textbook";
   const unit = await prisma.printUnit.create({
-    data: { subject, name, printCount: Number(printCount) },
+    data: { subject, name, printCount: Number(printCount), level: safeLevel },
   });
   return NextResponse.json(unit, { status: 201 });
 }

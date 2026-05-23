@@ -459,7 +459,7 @@ export default async function DashboardPage() {
 
       {hasTeacherRecord && (
         <div className="mb-4">
-          <AttendanceButton />
+          <AttendanceButton campuses={campuses.map((c) => ({ code: c.code, label: c.label }))} />
         </div>
       )}
 

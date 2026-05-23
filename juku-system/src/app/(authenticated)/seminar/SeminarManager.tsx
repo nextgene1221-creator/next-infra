@@ -4,7 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { SUBJECTS, STANDARD_UNITS } from "@/lib/types";
 
-type Unit = { id: string; subject: string; name: string; printCount: number };
+type Unit = { id: string; subject: string; name: string; printCount: number; level: string };
+
+const LEVEL_OPTIONS: { value: string; label: string }[] = [
+  { value: "textbook", label: "教科書レベル" },
+  { value: "chart", label: "チャートレベル" },
+];
 type StudentPrint = {
   id: string;
   printUnitId: string;
@@ -36,6 +41,7 @@ export default function SeminarManager({
   const [newSubject, setNewSubject] = useState<string>(SUBJECTS[0] || "");
   const [newName, setNewName] = useState("");
   const [newCount, setNewCount] = useState(10);
+  const [newLevel, setNewLevel] = useState<string>("textbook");
   const [addingSaving, setAddingSaving] = useState(false);
 
   const addUnit = async () => {
@@ -44,7 +50,7 @@ export default function SeminarManager({
     const res = await fetch("/api/print-units", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject: newSubject, name: newName.trim(), printCount: newCount }),
+      body: JSON.stringify({ subject: newSubject, name: newName.trim(), printCount: newCount, level: newLevel }),
     });
     if (res.ok) {
       const unit = await res.json();
@@ -66,6 +72,17 @@ export default function SeminarManager({
     }
   };
 
+  const updateLevel = async (id: string, level: string) => {
+    const res = await fetch(`/api/print-units/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ level }),
+    });
+    if (res.ok) {
+      setUnits((prev) => prev.map((u) => u.id === id ? { ...u, level } : u));
+    }
+  };
+
   const deleteUnit = async (id: string) => {
     if (!confirm("この単元と関連するプリント予定をすべて削除しますか？")) return;
     const res = await fetch(`/api/print-units/${id}`, { method: "DELETE" });
@@ -73,32 +90,45 @@ export default function SeminarManager({
   };
 
   // --- 新規プリント予定登録モーダル（マトリクス空欄クリック起点） ---
+  // 連番強制は廃止。ポップ内でNoを自由に変更できる。
   const [scheduling, setScheduling] = useState<{
     unitId: string;
     unitName: string;
     unitSubject: string;
-    nextNo: number;
+    printCount: number;
+    clickedNo: number;
   } | null>(null);
+  const [scheduleNo, setScheduleNo] = useState<number>(1);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split("T")[0]);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleError, setScheduleError] = useState("");
 
-  // 単元の最小空き No を返す（全 No 埋まりなら null）
-  const getNextPrintNo = (unitId: string, printCount: number): number | null => {
+  // 単元の空きNo一覧（プルダウンの選択肢用）
+  const getAvailableNos = (unitId: string, printCount: number, includeNo?: number): number[] => {
     const taken = new Set(
       prints.filter((p) => p.printUnitId === unitId).map((p) => p.printNo),
     );
+    const out: number[] = [];
     for (let n = 1; n <= printCount; n++) {
-      if (!taken.has(n)) return n;
+      if (!taken.has(n) || n === includeNo) out.push(n);
     }
-    return null;
+    return out;
   };
 
-  const openSchedule = (unit: Unit) => {
+  const openSchedule = (unit: Unit, clickedNo: number) => {
     if (!selectedStudentId) return;
-    const next = getNextPrintNo(unit.id, unit.printCount);
-    if (next === null) return;
-    setScheduling({ unitId: unit.id, unitName: unit.name, unitSubject: unit.subject, nextNo: next });
+    const taken = new Set(
+      prints.filter((p) => p.printUnitId === unit.id).map((p) => p.printNo),
+    );
+    // クリックしたNoが空いていればそれ、埋まっていれば最初の空きNo
+    let initial = clickedNo;
+    if (taken.has(clickedNo)) {
+      const firstFree = getAvailableNos(unit.id, unit.printCount)[0];
+      if (firstFree === undefined) return; // 全て埋まり
+      initial = firstFree;
+    }
+    setScheduling({ unitId: unit.id, unitName: unit.name, unitSubject: unit.subject, printCount: unit.printCount, clickedNo });
+    setScheduleNo(initial);
     setScheduleDate(new Date().toISOString().split("T")[0]);
     setScheduleError("");
   };
@@ -118,7 +148,7 @@ export default function SeminarManager({
       body: JSON.stringify({
         studentId: selectedStudentId,
         printUnitId: scheduling.unitId,
-        printNo: scheduling.nextNo,
+        printNo: scheduleNo,
         scheduledDate: scheduleDate,
       }),
     });
@@ -228,13 +258,20 @@ export default function SeminarManager({
     ? units.filter((u) => examSubjects.includes(u.subject))
     : units;
 
-  // 科目でグループ化
-  const unitsBySubject = new Map<string, Unit[]>();
-  for (const u of visibleUnits) {
-    const arr = unitsBySubject.get(u.subject) || [];
-    arr.push(u);
-    unitsBySubject.set(u.subject, arr);
-  }
+  // レベル → 科目 でグループ化
+  const groupByLevelAndSubject = (us: Unit[]): Map<string, Map<string, Unit[]>> => {
+    const byLevel = new Map<string, Map<string, Unit[]>>();
+    for (const u of us) {
+      const lvl = u.level || "textbook";
+      const subjMap = byLevel.get(lvl) || new Map<string, Unit[]>();
+      const arr = subjMap.get(u.subject) || [];
+      arr.push(u);
+      subjMap.set(u.subject, arr);
+      byLevel.set(lvl, subjMap);
+    }
+    return byLevel;
+  };
+  const unitsByLevelSubject = groupByLevelAndSubject(visibleUnits);
 
   // マトリクスデータ
   const printMap = new Map<string, StudentPrint>();
@@ -276,6 +313,12 @@ export default function SeminarManager({
               <label className="block text-xs text-dark/60">プリント枚数</label>
               <input type="number" min={1} value={newCount} onChange={(e) => setNewCount(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1.5 text-sm w-20" />
             </div>
+            <div>
+              <label className="block text-xs text-dark/60">レベル</label>
+              <select value={newLevel} onChange={(e) => setNewLevel(e.target.value)} className="border border-gray-300 rounded px-2 py-1.5 text-sm">
+                {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
             <button onClick={addUnit} disabled={addingSaving} className="bg-primary text-white px-3 py-1.5 rounded text-sm hover:bg-primary-dark disabled:opacity-50">
               追加
             </button>
@@ -284,12 +327,21 @@ export default function SeminarManager({
           {units.length > 0 && (
             <div className="mt-3 max-h-48 overflow-y-auto">
               <table className="w-full text-xs">
-                <thead><tr className="text-dark/60 border-b"><th className="text-left py-1">科目</th><th className="text-left py-1">単元</th><th className="text-right py-1">枚数</th><th className="py-1"></th></tr></thead>
+                <thead><tr className="text-dark/60 border-b"><th className="text-left py-1">科目</th><th className="text-left py-1">単元</th><th className="text-left py-1">レベル</th><th className="text-right py-1">枚数</th><th className="py-1"></th></tr></thead>
                 <tbody>
                   {units.map((u) => (
                     <tr key={u.id} className="border-b border-gray-50">
                       <td className="py-1">{u.subject}</td>
                       <td className="py-1">{u.name}</td>
+                      <td className="py-1">
+                        <select
+                          value={u.level || "textbook"}
+                          onChange={(e) => updateLevel(u.id, e.target.value)}
+                          className="border border-gray-300 rounded px-1 py-0.5 text-xs"
+                        >
+                          {LEVEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </td>
                       <td className="py-1 text-right">
                         <input
                           type="number"
@@ -329,82 +381,93 @@ export default function SeminarManager({
 
       {selectedStudentId && visibleUnits.length > 0 && (
         <p className="text-xs text-dark/60">
-          ※ プリント予定はマトリクスの空欄セルをクリックして登録します。プリントは必ず連番で登録される仕様です（途中の番号を飛ばせません）。
+          ※ プリント予定はマトリクスの空欄セルをクリックして登録します。クリックしたNoが初期値になりますが、ポップアップ内でNoを変更できます。
         </p>
       )}
 
-      {/* マトリクス表 */}
+      {/* マトリクス表（レベル別） */}
       {selectedStudentId && (
-        <div className="bg-white rounded-lg shadow p-4 overflow-x-auto">
-          <h2 className="text-sm font-semibold text-dark mb-3">プリント進捗マトリクス</h2>
-          {Array.from(unitsBySubject.entries()).map(([subject, subjectUnits]) => (
-            <div key={subject} className="mb-4">
-              <h3 className="text-xs font-semibold text-primary mb-1">{subject}</h3>
-              <table className="text-xs border-collapse w-full">
-                <thead>
-                  <tr>
-                    <th className="text-left py-1 px-1 border border-gray-200 bg-surface sticky left-0 z-10 min-w-[120px]">単元</th>
-                    {subjectUnits.length > 0 && Array.from({ length: Math.max(...subjectUnits.map((u) => u.printCount)) }, (_, i) => (
-                      <th key={i} className="text-center py-1 px-1 border border-gray-200 bg-surface min-w-[32px]">{i + 1}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {subjectUnits.map((u) => (
-                    <tr key={u.id}>
-                      <td className="py-1 px-1 border border-gray-200 bg-white sticky left-0 z-10 whitespace-nowrap">{u.name}</td>
-                      {Array.from({ length: Math.max(...subjectUnits.map((x) => x.printCount)) }, (_, i) => {
-                        const no = i + 1;
-                        if (no > u.printCount) return <td key={i} className="border border-gray-100 bg-gray-50" />;
-                        const p = printMap.get(`${u.id}-${no}`);
-                        let bg = "bg-white";
-                        let content = "";
-                        let title = `No.${no}`;
-                        const nextNo = !p ? getNextPrintNo(u.id, u.printCount) : null;
-                        const emptyClickable = !p && nextNo !== null;
-                        if (p?.completedDate) {
-                          bg = "bg-green-100";
-                          const d = new Date(p.completedDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
-                          content = d;
-                          title += ` 完了: ${d}`;
-                        } else if (p) {
-                          bg = "bg-yellow-50";
-                          const d = new Date(p.scheduledDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
-                          content = d;
-                          title += ` 予定: ${d}`;
-                        } else if (emptyClickable) {
-                          title += `（クリックで予定登録 → 次は No.${nextNo}）`;
-                        }
-                        const isClickable = (p && !p.completedDate) || emptyClickable;
-                        return (
-                          <td
-                            key={i}
-                            className={`text-center py-0.5 px-0.5 border border-gray-200 ${bg} ${isClickable ? "cursor-pointer hover:opacity-80" : ""}`}
-                            title={title}
-                            onClick={() => {
-                              if (p?.completedDate) return;
-                              if (p) {
-                                openEdit(p);
-                                return;
-                              }
-                              if (emptyClickable) openSchedule(u);
-                            }}
-                          >
-                            <span className="text-[10px]">{content}</span>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-          <div className="flex gap-4 mt-2 text-xs text-dark/60 flex-wrap">
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-green-100 border border-gray-200 rounded-sm" /> 完了</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-yellow-50 border border-gray-200 rounded-sm" /> 予定あり（クリックで編集）</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-white border border-gray-200 rounded-sm" /> 未登録（クリックで次の連番を予定登録）</span>
-          </div>
+        <div className="space-y-4">
+          {LEVEL_OPTIONS.map((lvl) => {
+            const subjMap = unitsByLevelSubject.get(lvl.value);
+            return (
+              <div key={lvl.value} className="bg-white rounded-lg shadow p-4 overflow-x-auto">
+                <h2 className="text-sm font-semibold text-dark mb-3">
+                  プリント進捗マトリクス <span className="text-primary">[{lvl.label}]</span>
+                </h2>
+                {!subjMap || subjMap.size === 0 ? (
+                  <p className="text-xs text-dark/60">この生徒が対象の{lvl.label}の単元は登録されていません</p>
+                ) : (
+                  Array.from(subjMap.entries()).map(([subject, subjectUnits]) => (
+                    <div key={subject} className="mb-4">
+                      <h3 className="text-xs font-semibold text-primary mb-1">{subject}</h3>
+                      <table className="text-xs border-collapse w-full">
+                        <thead>
+                          <tr>
+                            <th className="text-left py-1 px-1 border border-gray-200 bg-surface sticky left-0 z-10 min-w-[120px]">単元</th>
+                            {subjectUnits.length > 0 && Array.from({ length: Math.max(...subjectUnits.map((u) => u.printCount)) }, (_, i) => (
+                              <th key={i} className="text-center py-1 px-1 border border-gray-200 bg-surface min-w-[32px]">{i + 1}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {subjectUnits.map((u) => (
+                            <tr key={u.id}>
+                              <td className="py-1 px-1 border border-gray-200 bg-white sticky left-0 z-10 whitespace-nowrap">{u.name}</td>
+                              {Array.from({ length: Math.max(...subjectUnits.map((x) => x.printCount)) }, (_, i) => {
+                                const no = i + 1;
+                                if (no > u.printCount) return <td key={i} className="border border-gray-100 bg-gray-50" />;
+                                const p = printMap.get(`${u.id}-${no}`);
+                                let bg = "bg-white";
+                                let content = "";
+                                let title = `No.${no}`;
+                                if (p?.completedDate) {
+                                  bg = "bg-green-100";
+                                  const d = new Date(p.completedDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+                                  content = d;
+                                  title += ` 完了: ${d}`;
+                                } else if (p) {
+                                  bg = "bg-yellow-50";
+                                  const d = new Date(p.scheduledDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+                                  content = d;
+                                  title += ` 予定: ${d}`;
+                                } else {
+                                  title += "（クリックで予定登録）";
+                                }
+                                const isClickable = !p?.completedDate;
+                                return (
+                                  <td
+                                    key={i}
+                                    className={`text-center py-0.5 px-0.5 border border-gray-200 ${bg} ${isClickable ? "cursor-pointer hover:opacity-80" : ""}`}
+                                    title={title}
+                                    onClick={() => {
+                                      if (p?.completedDate) return;
+                                      if (p) {
+                                        openEdit(p);
+                                        return;
+                                      }
+                                      openSchedule(u, no);
+                                    }}
+                                  >
+                                    <span className="text-[10px]">{content}</span>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))
+                )}
+                <div className="flex gap-4 mt-2 text-xs text-dark/60 flex-wrap">
+                  <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-green-100 border border-gray-200 rounded-sm" /> 完了</span>
+                  <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-yellow-50 border border-gray-200 rounded-sm" /> 予定あり（クリックで編集）</span>
+                  <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 bg-white border border-gray-200 rounded-sm" /> 未登録（クリックで予定登録）</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -414,11 +477,23 @@ export default function SeminarManager({
           <div className="bg-white rounded-lg shadow-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-dark mb-3">プリント予定を登録</h3>
             <p className="text-sm text-dark/70 mb-3">
-              [{scheduling.unitSubject}] {scheduling.unitName} の <strong>No.{scheduling.nextNo}</strong> の予定を入力します。
+              [{scheduling.unitSubject}] {scheduling.unitName}
               <br />
-              <span className="text-xs text-dark/60">※ プリントは連番で登録されます。クリックしたセル位置に関わらず、次の登録可能な番号が選ばれます。</span>
+              <span className="text-xs text-dark/60">※ クリックミスがあっても下のNoを変更して登録できます。</span>
             </p>
             <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-dark/60 mb-1">プリントNo</label>
+                <select
+                  value={scheduleNo}
+                  onChange={(e) => setScheduleNo(Number(e.target.value))}
+                  className="border border-gray-300 rounded px-2 py-1.5 text-sm w-full"
+                >
+                  {getAvailableNos(scheduling.unitId, scheduling.printCount).map((n) => (
+                    <option key={n} value={n}>No.{n}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs text-dark/60 mb-1">予定日</label>
                 <input

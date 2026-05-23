@@ -76,7 +76,7 @@ export default async function SeminarPage({
       <h1 className="text-2xl font-bold text-dark mb-6">ゼミ管理</h1>
       <SeminarManager
         role={role}
-        units={units.map((u) => ({ id: u.id, subject: u.subject, name: u.name, printCount: u.printCount }))}
+        units={units.map((u) => ({ id: u.id, subject: u.subject, name: u.name, printCount: u.printCount, level: u.level }))}
         students={students}
         selectedStudentId={selectedStudentId}
         studentPrints={studentPrints}

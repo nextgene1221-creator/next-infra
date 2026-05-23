@@ -25,6 +25,7 @@ export async function GET() {
       attendanceId: active.id,
       clockInAt: active.clockIn,
       clockOutAt: null,
+      campus: active.campus,
     });
   }
 
@@ -43,5 +44,6 @@ export async function GET() {
     attendanceId: todayLast?.id || null,
     clockInAt: todayLast?.clockIn || null,
     clockOutAt: todayLast?.clockOut || null,
+    campus: todayLast?.campus || "",
   });
 }

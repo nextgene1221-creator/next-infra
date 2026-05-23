@@ -22,8 +22,24 @@ export async function POST() {
   }
 
   const now = new Date();
+
+  // その日のシフトから校舎を自動取得（最も開始時刻が早い1件）。なければ空。
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(now);
+  dayEnd.setHours(23, 59, 59, 999);
+  const todayShift = await prisma.shift.findFirst({
+    where: {
+      teacherId: teacher.id,
+      date: { gte: dayStart, lte: dayEnd },
+      status: { not: "cancelled" },
+    },
+    orderBy: { startTime: "asc" },
+  });
+  const inferredCampus = todayShift?.campus || "";
+
   const attendance = await prisma.attendance.create({
-    data: { teacherId: teacher.id, clockIn: now },
+    data: { teacherId: teacher.id, clockIn: now, campus: inferredCampus },
   });
 
   // ルーティンタスクからタスクを生成（dueDate = 当日23:59）

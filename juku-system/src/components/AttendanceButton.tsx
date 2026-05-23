@@ -3,13 +3,18 @@
 import { useState, useEffect } from "react";
 import AttendanceEditModal from "./AttendanceEditModal";
 
-export default function AttendanceButton() {
+export default function AttendanceButton({
+  campuses = [],
+}: {
+  campuses?: { code: string; label: string }[];
+}) {
   const [clockedIn, setClockedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [attendanceId, setAttendanceId] = useState<string | null>(null);
   const [clockInAt, setClockInAt] = useState<string | null>(null);
   const [clockOutAt, setClockOutAt] = useState<string | null>(null);
+  const [campus, setCampus] = useState<string>("");
   const [editing, setEditing] = useState(false);
 
   const reloadStatus = async () => {
@@ -22,6 +27,7 @@ export default function AttendanceButton() {
       setAttendanceId(data.attendanceId || null);
       setClockInAt(data.clockInAt || null);
       setClockOutAt(data.clockOutAt || null);
+      setCampus(data.campus || "");
     } finally {
       setLoading(false);
     }
@@ -72,6 +78,11 @@ export default function AttendanceButton() {
                     ({new Date(clockInAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}〜)
                   </span>
                 )}
+                {campus && (
+                  <span className="text-dark/60 ml-1 font-normal text-xs">
+                    [{campuses.find((c) => c.code === campus)?.label || campus}]
+                  </span>
+                )}
               </p>
             ) : clockInAt && clockOutAt ? (
               <p className="text-sm text-dark/70">
@@ -81,6 +92,11 @@ export default function AttendanceButton() {
                   〜
                   {new Date(clockOutAt).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}
                 </span>
+                {campus && (
+                  <span className="text-dark/60 ml-1 text-xs">
+                    [{campuses.find((c) => c.code === campus)?.label || campus}]
+                  </span>
+                )}
               </p>
             ) : (
               <p className="text-sm text-dark/50">未出勤</p>
@@ -119,6 +135,8 @@ export default function AttendanceButton() {
           attendanceId={attendanceId}
           initialClockIn={clockInAt}
           initialClockOut={clockOutAt}
+          initialCampus={campus}
+          campuses={campuses}
           onClose={() => {
             setEditing(false);
             reloadStatus();
