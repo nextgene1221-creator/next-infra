@@ -138,3 +138,12 @@
       - シフト未打刻 / 退勤忘れ: 該当講師本人 + admin 全員 (現状維持)
       - **学習目標進捗遅延**: 旧「admin + teacher 全員」→ 新「対象生徒の担当講師 (StudentAssignment) + admin」に変更
     - `/api/alerts/check-all/route.ts` Section 5: 取得 query に `student.assignments.teacher.userId` を含め、admin と担当講師の userId を Set でマージして送信先を決定
+
+21. ルーティンタスクに曜日の概念を追加 (2026-06-04)
+    - スキーマ: `RoutineTask.weekdays`（`String @default("[]")`、JSON 配列 `[0..6]`、0=日〜6=土）を追加。マイグレーション `20260604000000_add_weekdays_to_routine_task` を Neon に適用済み
+    - 出勤打刻 `clock-in`: 打刻日を **JST(UTC+9)** に変換して曜日を算出し、`weekdays` に当日曜日を含むルーティンのみ当日タスク化。`weekdays` 空配列は「毎日」生成（後方互換）。`generatedTasks` も実生成数に変更
+    - API `POST/PUT /api/routine-tasks(/[id])`: `weekdays` を受け付け、`normalizeWeekdays`（0〜6・整数・重複除去・昇順）で JSON 文字列に正規化して保存
+    - UI `RoutineTaskManager`: 月〜日の曜日トグル（複数選択）を追加、未選択は「毎日」と注記。一覧に曜日（または「毎日」）バッジ表示
+    - `/tasks/routines`（admin 閲覧）: 各ルーティン行に曜日バッジを表示。teacher 用 `initialRoutines` マッピングに `weekdays` を追加
+    - 仕様反映: `spec.md` 5.6 の実装追記ブロックに曜日指定を追記
+    - 既知の未対応（スコープ外）: 同日に「退勤→再出勤」した場合の当日タスク二重生成防止は今回対象外（既存挙動のまま）

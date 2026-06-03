@@ -4,6 +4,26 @@ import { useEffect, useState } from "react";
 
 const TASK_TYPES = ["通常", "要引き継ぎ", "面談"] as const;
 
+// 0=日 .. 6=土
+const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"] as const;
+
+// weekdays（JSON文字列 or 配列）を number[] に正規化
+function parseWeekdays(input: unknown): number[] {
+  let arr: unknown = input;
+  if (typeof input === "string") {
+    try {
+      arr = JSON.parse(input);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((n) => Number(n))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6)
+    .sort((a, b) => a - b);
+}
+
 type StudentOption = { id: string; name: string };
 
 type Routine = {
@@ -12,6 +32,7 @@ type Routine = {
   title: string;
   description: string;
   type: string;
+  weekdays: string;
   student?: { user: { name: string } } | null;
 };
 
@@ -31,7 +52,14 @@ export default function RoutineTaskManager({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState("通常");
+  const [weekdays, setWeekdays] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+
+  const toggleWeekday = (d: number) => {
+    setWeekdays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort((a, b) => a - b),
+    );
+  };
 
   useEffect(() => {
     fetch("/api/students-list")
@@ -44,6 +72,7 @@ export default function RoutineTaskManager({
     setTitle("");
     setDescription("");
     setType("通常");
+    setWeekdays([]);
     setEditingId(null);
     setShowForm(false);
   };
@@ -53,6 +82,7 @@ export default function RoutineTaskManager({
     setTitle(r.title);
     setDescription(r.description);
     setType(r.type);
+    setWeekdays(parseWeekdays(r.weekdays));
     setEditingId(r.id);
     setShowForm(true);
   };
@@ -61,7 +91,7 @@ export default function RoutineTaskManager({
     e.preventDefault();
     setSaving(true);
 
-    const body = { teacherId, studentId: studentId || null, title, description, type };
+    const body = { teacherId, studentId: studentId || null, title, description, type, weekdays };
     const url = editingId ? `/api/routine-tasks/${editingId}` : "/api/routine-tasks";
     const method = editingId ? "PUT" : "POST";
 
@@ -157,6 +187,28 @@ export default function RoutineTaskManager({
               className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">生成する曜日</label>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {WEEKDAY_LABELS.map((label, d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => toggleWeekday(d)}
+                  className={`px-3 py-1 rounded-full text-sm border ${
+                    weekdays.includes(d)
+                      ? "bg-primary text-white border-primary"
+                      : "bg-white text-charcoal border-gray-300 hover:bg-gray-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-dark/50 mt-1">
+              未選択の場合は毎日（出勤打刻した日）生成されます。
+            </p>
+          </div>
           <div className="flex gap-2">
             <button
               type="submit"
@@ -191,6 +243,14 @@ export default function RoutineTaskManager({
                     {r.type}
                   </span>
                   <span className="text-sm font-medium text-dark">{r.title}</span>
+                  {(() => {
+                    const wd = parseWeekdays(r.weekdays);
+                    return (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-dark/70">
+                        {wd.length === 0 ? "毎日" : wd.map((d) => WEEKDAY_LABELS[d]).join("・")}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {r.student && (
                   <p className="text-xs text-dark/60 mt-1">対象生徒: {r.student.user.name}</p>

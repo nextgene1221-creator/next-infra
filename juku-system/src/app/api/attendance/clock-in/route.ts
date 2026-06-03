@@ -43,13 +43,27 @@ export async function POST() {
   });
 
   // ルーティンタスクからタスクを生成（dueDate = 当日23:59）
+  // 曜日(JST)が一致するルーティンのみ生成。weekdays が空配列 [] のものは「毎日」扱い。
+  const jstWeekday = new Date(now.getTime() + 9 * 60 * 60 * 1000).getUTCDay(); // 0=日..6=土 (JST基準)
   const routines = await prisma.routineTask.findMany({
     where: { teacherId: teacher.id },
   });
   const endOfToday = new Date(now);
   endOfToday.setHours(23, 59, 59, 999);
 
-  for (const r of routines) {
+  const dueRoutines = routines.filter((r) => {
+    let weekdays: number[] = [];
+    try {
+      const parsed = JSON.parse(r.weekdays);
+      if (Array.isArray(parsed)) weekdays = parsed.filter((n) => typeof n === "number");
+    } catch {
+      weekdays = [];
+    }
+    // 空配列 = 毎日生成。それ以外は当日(JST)の曜日を含む場合のみ生成。
+    return weekdays.length === 0 || weekdays.includes(jstWeekday);
+  });
+
+  for (const r of dueRoutines) {
     await prisma.task.create({
       data: {
         teacherId: teacher.id,
@@ -64,5 +78,5 @@ export async function POST() {
     });
   }
 
-  return NextResponse.json({ ok: true, attendance, generatedTasks: routines.length });
+  return NextResponse.json({ ok: true, attendance, generatedTasks: dueRoutines.length });
 }

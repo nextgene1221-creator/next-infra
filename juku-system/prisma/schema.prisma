@@ -272,6 +272,7 @@ model RoutineTask {
   title       String
   description String   @default("")
   type        String   @default("通常") // 通常 / 要引き継ぎ / 面談
+  weekdays    String   @default("[]") // JSON 配列 [0..6] (0=日..6=土)。空配列 [] は「毎日」扱い
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

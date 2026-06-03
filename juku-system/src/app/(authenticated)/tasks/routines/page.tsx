@@ -5,6 +5,23 @@ import RoutineTaskManager from "@/components/RoutineTaskManager";
 
 export const dynamic = "force-dynamic";
 
+const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"] as const;
+
+function formatWeekdays(input: string): string {
+  let arr: unknown;
+  try {
+    arr = JSON.parse(input);
+  } catch {
+    return "毎日";
+  }
+  if (!Array.isArray(arr)) return "毎日";
+  const days = arr
+    .map((n) => Number(n))
+    .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6)
+    .sort((a, b) => a - b);
+  return days.length === 0 ? "毎日" : days.map((d) => WEEKDAY_LABELS[d]).join("・");
+}
+
 export default async function RoutinesPage({
   searchParams,
 }: {
@@ -46,6 +63,7 @@ export default async function RoutinesPage({
               title: r.title,
               description: r.description,
               type: r.type,
+              weekdays: r.weekdays,
               student: r.student ? { user: { name: r.student.user.name } } : null,
             }))}
           />
@@ -148,6 +166,9 @@ export default async function RoutinesPage({
                           {r.type}
                         </span>
                         <span className="text-sm font-medium text-dark">{r.title}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-dark/70">
+                          {formatWeekdays(r.weekdays)}
+                        </span>
                       </div>
                       {r.student && (
                         <p className="text-xs text-dark/60 mt-1">

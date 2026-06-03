@@ -3,6 +3,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// weekdays を JSON 文字列 "[0..6]" に正規化（0=日..6=土、重複除去・昇順、不正値は除外）
+function normalizeWeekdays(input: unknown): string {
+  if (!Array.isArray(input)) return "[]";
+  const set = new Set<number>();
+  for (const v of input) {
+    const n = Number(v);
+    if (Number.isInteger(n) && n >= 0 && n <= 6) set.add(n);
+  }
+  return JSON.stringify([...set].sort((a, b) => a - b));
+}
+
 async function ensureTeacherCanModify(
   routineId: string,
   userId: string,
@@ -35,7 +46,7 @@ export async function PUT(
   }
 
   const body = await req.json();
-  const { studentId, title, description, type } = body;
+  const { studentId, title, description, type, weekdays } = body;
 
   const routine = await prisma.routineTask.update({
     where: { id },
@@ -45,6 +56,7 @@ export async function PUT(
       title,
       description: description || "",
       type: type || "通常",
+      weekdays: normalizeWeekdays(weekdays),
     },
   });
 
