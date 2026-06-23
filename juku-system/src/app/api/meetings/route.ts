@@ -80,5 +80,27 @@ export async function POST(req: NextRequest) {
     include: { teacher: { include: { user: true } } },
   });
 
+  // 次回面談予定があれば面談タスク(type=面談)を自動生成
+  if (nextMeetingDate) {
+    const dt = new Date(nextMeetingDate);
+    const stu = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: { user: { select: { name: true } } },
+    });
+    await prisma.task.create({
+      data: {
+        studentId,
+        teacherId,
+        subject: "",
+        title: `面談: ${stu?.user.name ?? ""}`.trim(),
+        description: "",
+        dueDate: dt,
+        type: "面談",
+        meetingDateTime: dt,
+        status: "pending",
+      },
+    });
+  }
+
   return NextResponse.json(meeting, { status: 201 });
 }

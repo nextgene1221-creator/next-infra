@@ -8,6 +8,7 @@ import MeetingRecords from "@/components/MeetingRecords";
 import StudyScheduleEditor from "@/components/StudyScheduleEditor";
 import PasswordResetButton from "@/components/PasswordResetButton";
 import TeacherAssignmentManager from "@/components/TeacherAssignmentManager";
+import { parseAnswers } from "@/lib/meetingSheet";
 
 export default async function StudentDetailPage({
   params,
@@ -143,6 +144,107 @@ export default async function StudentDetailPage({
       });
     }
   }
+
+  // ---- 面談モーダル用データ（ゼミ予定・授業日・次週学習予定・進捗表・週次シート） ----
+  const [teachersRaw, printUnits, studentPrintsRaw, classDaysRaw, latestSheetRaw] = await Promise.all([
+    prisma.teacher.findMany({
+      where: { status: "active" },
+      include: { user: { select: { name: true } } },
+      orderBy: { user: { name: "asc" } },
+    }),
+    prisma.printUnit.findMany({ orderBy: [{ subject: "asc" }, { name: "asc" }] }),
+    prisma.studentPrint.findMany({
+      where: { studentId: id },
+      orderBy: [
+        { printUnit: { subject: "asc" } },
+        { printUnit: { name: "asc" } },
+        { printNo: "asc" },
+      ],
+    }),
+    prisma.classDay.findMany({
+      where: { studentId: id },
+      include: { teacher: { include: { user: { select: { name: true } } } } },
+      orderBy: { date: "asc" },
+    }),
+    prisma.meetingSheet.findFirst({
+      where: { studentId: id },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const meetingPlanData = {
+    role: session.user.role,
+    examSubjects,
+    studySchedule: student.studySchedule.map((s) => ({
+      weekday: s.weekday,
+      hours: s.hours,
+      slots: JSON.parse(s.slots || "[]") as { subject: string; minutes: number }[],
+    })),
+    classDays: classDaysRaw.map((d) => ({
+      id: d.id,
+      date: d.date.toISOString(),
+      subject: d.subject,
+      teacherId: d.teacherId,
+      teacherName: d.teacher?.user.name ?? null,
+      startTime: d.startTime,
+      endTime: d.endTime,
+      note: d.note,
+    })),
+    teachers: teachersRaw.map((t) => ({ id: t.id, name: t.user.name })),
+    goals: student.bigGoals.map((b) => ({
+      subject: b.subject,
+      materialName: b.materialName,
+      targetPages: b.targetPages,
+      done: b.weeklyGoals.reduce(
+        (sum, w) => sum + w.progressRecords.reduce((s, r) => s + r.pagesCompleted, 0),
+        0
+      ),
+      dueDate: b.dueDate.toISOString(),
+      status: b.status,
+    })),
+    recentProgress: student.progressRecords.slice(0, 20).map((p) => ({
+      date: p.date.toISOString(),
+      subject: p.subject,
+      material: p.material,
+      topic: p.topic,
+      pagesCompleted: p.pagesCompleted,
+      teacherName: p.teacher.user.name,
+    })),
+    seminarUnits: printUnits.map((u) => ({
+      id: u.id,
+      subject: u.subject,
+      name: u.name,
+      printCount: u.printCount,
+      level: u.level,
+    })),
+    seminarPrints: studentPrintsRaw.map((p) => ({
+      id: p.id,
+      printUnitId: p.printUnitId,
+      printNo: p.printNo,
+      scheduledDate: p.scheduledDate.toISOString(),
+      completedDate: p.completedDate?.toISOString() ?? null,
+    })),
+    latestSheet: latestSheetRaw
+      ? {
+          id: latestSheetRaw.id,
+          status: latestSheetRaw.status,
+          answers: parseAnswers(latestSheetRaw.answers),
+          studentName: student.user.name,
+          meetingDateLabel: latestSheetRaw.forMeetingDate
+            ? new Date(latestSheetRaw.forMeetingDate).toLocaleDateString("ja-JP", {
+                month: "numeric",
+                day: "numeric",
+              })
+            : "",
+          submittedAtLabel: latestSheetRaw.submittedAt
+            ? new Date(latestSheetRaw.submittedAt).toLocaleDateString("ja-JP", {
+                month: "numeric",
+                day: "numeric",
+              })
+            : "",
+        }
+      : null,
+  };
 
   return (
     <div>
@@ -378,6 +480,7 @@ export default async function StudentDetailPage({
             studentId={id}
             initialMeetings={student.meetings}
             currentUserName={session.user.name}
+            planData={meetingPlanData}
           />
         </div>
       </div>

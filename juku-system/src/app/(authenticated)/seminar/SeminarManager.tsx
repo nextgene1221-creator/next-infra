@@ -25,6 +25,7 @@ export default function SeminarManager({
   selectedStudentId,
   studentPrints,
   examSubjects,
+  embedded = false,
 }: {
   role: string;
   units: Unit[];
@@ -32,6 +33,8 @@ export default function SeminarManager({
   selectedStudentId?: string;
   studentPrints: StudentPrint[];
   examSubjects: string[];
+  // 面談モーダル等に埋め込む場合は単元管理・生徒選択を隠す
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [units, setUnits] = useState(initialUnits);
@@ -282,7 +285,7 @@ export default function SeminarManager({
   return (
     <div className="space-y-6">
       {/* 管理者: 単元追加フォーム */}
-      {role === "admin" && (
+      {role === "admin" && !embedded && (
         <div className="bg-white rounded-lg shadow p-4">
           <h2 className="text-sm font-semibold text-dark mb-3">単元登録</h2>
           <div className="flex gap-2 flex-wrap items-end">
@@ -365,7 +368,7 @@ export default function SeminarManager({
       )}
 
       {/* 生徒選択（管理者/講師） */}
-      {role !== "student" && (
+      {role !== "student" && !embedded && (
         <div className="bg-white rounded-lg shadow p-4">
           <h2 className="text-sm font-semibold text-dark mb-2">生徒を選択</h2>
           <select

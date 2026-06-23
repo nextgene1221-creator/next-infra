@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import FieldLabel from "@/components/FieldLabel";
+import MeetingPlanModal, { type MeetingPlanData } from "@/components/MeetingPlanModal";
 
 export const MEETING_TYPES = [
   "定期面談",
@@ -48,15 +49,18 @@ export default function MeetingRecords({
   studentId,
   initialMeetings,
   currentUserName,
+  planData,
 }: {
   studentId: string;
   initialMeetings: Meeting[];
   currentUserName: string;
+  planData?: MeetingPlanData;
 }) {
   const router = useRouter();
   const [meetings, setMeetings] = useState(initialMeetings);
 
   const [showForm, setShowForm] = useState(false);
+  const [showPlan, setShowPlan] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [date, setDate] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number | "">("");
@@ -149,6 +153,13 @@ export default function MeetingRecords({
 
   return (
     <div>
+      {showPlan && planData && (
+        <MeetingPlanModal
+          studentId={studentId}
+          data={planData}
+          onClose={() => setShowPlan(false)}
+        />
+      )}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">面談記録</h2>
         {!showForm && (
@@ -163,9 +174,20 @@ export default function MeetingRecords({
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-surface rounded-lg p-4 mb-4 space-y-3">
-          <div className="bg-primary-light border border-primary/20 rounded-md px-3 py-2 text-sm">
-            <span className="text-dark/60">記録者: </span>
-            <span className="text-dark font-medium">{currentUserName}</span>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="bg-primary-light border border-primary/20 rounded-md px-3 py-2 text-sm">
+              <span className="text-dark/60">記録者: </span>
+              <span className="text-dark font-medium">{currentUserName}</span>
+            </div>
+            {planData && (
+              <button
+                type="button"
+                onClick={() => setShowPlan(true)}
+                className="bg-white border border-primary text-primary px-3 py-2 rounded-md text-sm hover:bg-primary-light"
+              >
+                📋 ゼミ・授業日・次週学習予定を設定
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>

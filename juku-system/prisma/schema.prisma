@@ -68,6 +68,8 @@ model Student {
   studyRoomSessions   StudyRoomSession[]
   pointTransactions   PointTransaction[]
   studentPrints       StudentPrint[]
+  classDays           ClassDay[]
+  meetingSheets       MeetingSheet[]
 
   @@map("students")
 }
@@ -172,6 +174,7 @@ model Teacher {
   routineTasks        RoutineTask[]
   shiftTemplateDays   ShiftTemplateDay[]
   assignments         StudentAssignment[]
+  classDays           ClassDay[]
 
   @@map("teachers")
 }
@@ -526,4 +529,43 @@ model StudyScheduleDay {
 
   @@unique([studentId, weekday])
   @@map("study_schedule_days")
+}
+
+// 授業日（特定の日付ベース）。自習(study_schedule_days)とは別概念。
+// 面談時に次週ぶんを設定し、朝のLINE通知でも参照する。
+model ClassDay {
+  id        String   @id @default(uuid())
+  studentId String   @map("student_id")
+  date      DateTime // 授業日（特定の日付）
+  subject   String   @default("")
+  teacherId String?  @map("teacher_id") // 担当講師（任意）
+  startTime String   @default("") @map("start_time") // HH:mm（任意）
+  endTime   String   @default("") @map("end_time")   // HH:mm（任意）
+  note      String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  student Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher Teacher? @relation(fields: [teacherId], references: [id])
+
+  @@index([studentId, date])
+  @@map("class_days")
+}
+
+// 週次面談シート（生徒が面談前に記入。週区切りは設けない）
+model MeetingSheet {
+  id             String    @id @default(uuid())
+  studentId      String    @map("student_id")
+  status         String    @default("draft") // draft / submitted
+  forMeetingDate DateTime? @map("for_meeting_date") // 生成時の次回面談予定スナップショット（表示用）
+  submittedAt    DateTime? @map("submitted_at")
+  answers        String    @default("{}") // 構造化JSON
+  meetingId      String?   @map("meeting_id") // 任意: 紐づく面談記録ID
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
+  @@map("meeting_sheets")
 }
