@@ -103,11 +103,18 @@ Newmonic
      
      
 上記の内容をもとに面談し、迷わず進められる来週の計画を一緒に考えます。
-- **フェーズ3: LINE連携（未着手 / チャネル・認証情報の準備待ち）**
-  - LINEログイン/連携（全ロール）
-  - 朝通知(9:00 JST): 面談予定・授業（ある場合）
-  - 夜通知(22:00 JST): 学習予定があり未記録ならリマインド／宛先は生徒のみ
-  - 要: Messaging API チャネル + LINE Login チャネル + 各ユーザーの LINE userId
+- **フェーズ3: LINE連携（実装完了・push待ち / クライアント側Webhook登録＋本番env設定待ち）**
+  - **スコープ変更（2026-07-02）**: クライアントが用意可能なのが Messaging API の **Channel ID / Channel secret のみ**（LINE Loginチャネル不可）と確定 → **LINEログインは廃止**、通知＋友だち連携のみに縮小。ログインは従来のメール＋パスワードのまま。
+  - 認証情報: Channel ID / secret から **ステートレス チャネルアクセストークンを都度発行**（`oauth2/v3/token`, client_credentials）。事前発行トークン不要。env: `LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET` / `LINE_FRIEND_URL`
+  - スキーマ: `User.lineUserId / lineLinkCode / lineLinkExpires` 追加。マイグレーション `20260702000000_add_line_fields` を **Neon本番に適用済み**
+  - 実装: `lib/line.ts`（トークン発行・push・reply・署名検証）/ `lib/lineNotify.ts`（朝夜ロジック）/ `api/line/webhook`（6桁コード連携）/ `api/line/link`（POST発行・DELETE解除）/ `api/line/notify/{morning,evening}` / `/account/profile` に連携UI
+  - 朝通知(9:00 JST): 面談予定・授業（ある場合） = `api/line/notify/morning`（Cron）
+  - 夜通知(22:00 JST): 学習予定あり＆進捗未記録ならリマインド／宛先は生徒のみ。**auto-checkout(22:00) に相乗り実行**（Hobbyプラン Cron 2本制限内）
+  - 検証: `tsc --noEmit` / eslint / `next build` すべてクリア
+  - **残作業（クライアント/運営側）**:
+    1. 本番Vercelの環境変数に `LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET`（＋受領後 `LINE_FRIEND_URL`）を設定
+    2. デプロイ後、LINE Developersコンソールで Webhook URL = `https://<本番>/api/line/webhook` を登録＋Webhook利用ON、応答メッセージOFF
+    3. クライアントから友だち追加URL/QRを受領 → `LINE_FRIEND_URL` に設定
 
 > 注: 「講師・生徒登録時のパスワード記入欄削除」は既に完了 4 (2026-05-09, commit `a684c52`) で対応済みです。
 ---

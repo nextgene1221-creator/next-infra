@@ -3,6 +3,10 @@
     {
       "path": "/api/study-room/auto-checkout",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/line/notify/morning",
+      "schedule": "0 0 * * *"
     }
   ]
 }

@@ -92,6 +92,11 @@
 | created_at | datetime | 作成日時 |
 | updated_at | datetime | 更新日時 |
 
+> **【実装追記 2026-07-02】LINE連携カラム** — マイグレーション `20260702000000_add_line_fields` を Neon 本番に適用済み。
+> - `line_user_id` string?（連携済みLINE userId。unique・nullable）
+> - `line_link_code` string?（連携用ワンタイム6桁コード）
+> - `line_link_expires` datetime?（コード有効期限）
+
 ### 4.2 students（生徒）
 
 | カラム | 型 | 説明 |
@@ -308,6 +313,24 @@
 > - 提出後も**生徒が修正可**（ロックなし）。状態は `draft / submitted`。
 > - 講師/管理者は **面談モーダル内の「週次シート」タブ**で当該生徒の最新シートを閲覧（読み取り）。
 > - データ構造案: 新モデル `MeetingSheet`（studentId / status / submittedAt? / forMeetingDate?（生成時の次回面談予定スナップショット） / answers[構造化JSON] / meetingId?（任意）/ timestamps）。
+
+### 5.10 LINE通知連携（Messaging APIのみ）
+
+> **【実装追記 2026-07-02】** 当初計画は「LINEログイン＋通知」だったが、クライアント側で用意可能なのが **Messaging APIチャネルの Channel ID / Channel secret のみ**（LINE Loginチャネルは用意不可）と確定したため、**スコープを「通知＋友だち連携」のみに縮小**。ログインは従来のメール＋パスワードのまま。
+>
+> **認証情報**: Channel ID / Channel secret から `POST https://api.line.me/oauth2/v3/token`（`grant_type=client_credentials`）で **ステートレス チャネルアクセストークン（~15分）を都度発行**。事前発行トークン不要・期限切れ運用リスクなし。環境変数 `LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET`（＋友だち追加URL `LINE_FRIEND_URL`）。共通処理は `src/lib/line.ts`。
+>
+> **アカウント連携（友だち追加＋6桁コード）**:
+> - `/account/profile` の「LINE通知連携」から `POST /api/line/link` で6桁コード発行（`line_link_code` に保存・有効期限10分）。
+> - 生徒が公式LINEを友だち追加し、コードをトークに送信 → `POST /api/line/webhook`（`X-Line-Signature` を channel secret で HMAC-SHA256 検証）がコード照合し `line_user_id` を保存、確認リプライ。
+> - 解除は `DELETE /api/line/link`。友だち追加(follow)時は連携手順を自動返信。
+>
+> **通知（生徒のみ・連携済みのみ送信、`src/lib/lineNotify.ts`）**:
+> - **朝（9:00 JST）**: 当日に **授業（ClassDay）または面談（Meeting.nextMeetingDate）** がある生徒へ予定を通知。`GET /api/line/notify/morning`（Cron・`CRON_SECRET` Bearer認証）。
+> - **夜（22:00 JST）**: **今日の学習予定あり（StudyScheduleDay の当日曜日 slots が非空）＆進捗未記録（ProgressRecord に当日レコードなし）** の生徒へリマインド。記録済み・予定なしは送らない。
+> - 判定は全て **JST基準**（`ProgressRecord.date` は UTC真夜中保存のため、JSTカレンダー日付から UTC境界を生成して照合）。
+>
+> **Cron構成（Hobbyプラン Cron 2本制限内）**: `vercel.json` は ①`/api/study-room/auto-checkout`（`0 13 * * *`）②`/api/line/notify/morning`（`0 0 * * *`）の2本。**夜通知は auto-checkout(22:00 JST) に相乗り実行**（同ルートから `sendEveningNotifications()` を呼ぶ）。手動/テスト用に `GET /api/line/notify/evening` も存置。
 
 ---
 

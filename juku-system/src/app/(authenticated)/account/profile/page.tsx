@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { TRACKS, GENDERS } from "@/lib/types";
+import LineLinkSection from "./LineLinkSection";
 
 export default async function ProfilePage() {
   const session = await requireAuth();
@@ -50,6 +51,8 @@ export default async function ProfilePage() {
           <Row label="ロール" value={roleLabel} />
           <Row label="登録日" value={fmtDate(user.createdAt)} />
         </div>
+
+        <LineLinkSection initialLinked={!!user.lineUserId} />
 
         {user.teacher && (
           <div className="bg-white rounded-lg shadow p-6">

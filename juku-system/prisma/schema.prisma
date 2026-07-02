@@ -15,6 +15,10 @@ model User {
   name          String
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+  // LINE Messaging API 連携
+  lineUserId      String?   @unique @map("line_user_id")   // 連携済みLINE userId
+  lineLinkCode    String?   @map("line_link_code")         // 連携用ワンタイムコード
+  lineLinkExpires DateTime? @map("line_link_expires")      // コード有効期限
 
   student      Student?
   teacher      Teacher?

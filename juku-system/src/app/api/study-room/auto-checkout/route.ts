@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAllCampuses } from "@/lib/studyRoom";
+import { sendEveningNotifications } from "@/lib/lineNotify";
 import type { Prisma } from "@/generated/prisma/client";
 
 // JST (UTC+9) の現在 HH:mm を返す
@@ -19,6 +20,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // 夜通知(22:00 JST)を相乗り実行（Hobbyプランの Cron 2本制限内に収めるため）
+  const line = await sendEveningNotifications().catch((e) => ({
+    error: (e as Error).message,
+  }));
+
   const campuses = await getAllCampuses();
   const nowHm = nowJstHm();
   const now = new Date();
@@ -28,7 +34,7 @@ export async function GET(req: NextRequest) {
     .map((c) => c.code);
 
   if (dueCampusCodes.length === 0) {
-    return NextResponse.json({ ok: true, closed: 0, nowHm });
+    return NextResponse.json({ ok: true, closed: 0, nowHm, line });
   }
 
   const open = await prisma.studyRoomSession.findMany({
@@ -36,7 +42,7 @@ export async function GET(req: NextRequest) {
     include: { student: true },
   });
   if (open.length === 0) {
-    return NextResponse.json({ ok: true, closed: 0, nowHm });
+    return NextResponse.json({ ok: true, closed: 0, nowHm, line });
   }
 
   const ops: Prisma.PrismaPromise<unknown>[] = [];
@@ -54,5 +60,5 @@ export async function GET(req: NextRequest) {
     );
   }
   await prisma.$transaction(ops);
-  return NextResponse.json({ ok: true, closed: open.length, nowHm, campuses: dueCampusCodes });
+  return NextResponse.json({ ok: true, closed: open.length, nowHm, campuses: dueCampusCodes, line });
 }
