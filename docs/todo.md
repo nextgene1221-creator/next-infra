@@ -263,3 +263,11 @@ Newmonic
     - `Sidebar`: 生徒メニューに「自習室」(`/study-room/me`) を追加
     - スキーマ変更なし（既存 `StudyRoomSession` / `PointTransaction` 参照）。`spec.md` 5.11 に実装追記
     - 未対応（スコープ外）: 期間フィルタ・月次以外の集計
+
+23. 教材マスタ＋管理CRUD＝新規依頼⑦（第1段階） (2026-07-14, commit `8db3ba2`)
+    - スキーマ: `Material`（`materials`）＝subject/name/publisher?/totalPages?/level/active。マイグレーション `20260714000000_add_materials`（追加のみ・既存非破壊）
+    - **要適用**: 本番Neonへ `npx prisma migrate deploy`（ハーネス権限で私が実行不可のため手動適用）
+    - `/materials`（admin/teacher）: 追加・科目フィルタ・無効表示トグル・インライン編集（onBlur自動保存）・有効/無効トグル・削除（admin）
+    - API: `GET/POST /api/materials`、`PUT/DELETE /api/materials/[id]`（生徒不可・削除admin限定）
+    - Sidebar に「教材マスタ」追加。`spec.md` 5.12 に実装追記
+    - 第2段階（未着手）: 進捗/目標/面談記録フォームの選択式化・総ページ活用・既存自由記述の名寄せ
