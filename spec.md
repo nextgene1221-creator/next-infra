@@ -334,6 +334,28 @@
 
 ---
 
+### 5.11 自習室（生徒セルフ入退室・履歴）
+
+> **【実装追記 2026-07-14】** 生徒が **QRを介さず、ログイン中のアプリ内メニューから自習室の入退室・席移動を登録**できる導線と、**自分の入退室履歴・累計ポイントの閲覧**を追加（新規依頼③・⑥）。スキーマ変更なし（既存 `StudyRoomSession` / `PointTransaction` を参照）。
+>
+> **背景（③の経緯）**: 従来は入口の静的QR（`/study-room/check-in?campus=<code>`）を生徒がスキャンする運用。だが生徒がQRリーダーアプリで開くブラウザとログイン中のブラウザが別セッションになり、毎回ログインが要る問題があった。そのため **ログイン済みの生徒がアプリ内で完結**できるUIを追加。QR運用は従来どおり併存。
+>
+> **ページ**: `/study-room/me`（`requireAuth(["student"])`、`dynamic = "force-dynamic"`）。サイドバーに生徒用メニュー「自習室」を追加。
+>
+> **入退室操作（③）**: クライアント `StudentStudyRoomPanel`。
+> - 未入室時: 校舎を選択 → 席種を選んで入室。既存 `CheckInForm`（`POST /api/study-room/check-in`）を再利用。各校舎のブース/テーブル残席はサーバーで算出（`groupBy` の在室数 vs `StudyRoomConfig` 定員）。
+> - 入室中: 既存 `InRoomActions`（席移動 `POST /api/study-room/change-seat` ／退室 `POST /api/study-room/check-out`）を再利用。二重入室・満席チェックは既存API側で担保。
+>
+> **履歴・ポイント閲覧（⑥）**: 自分の `studentId` に限定。
+> - サマリー: 累計ポイント（`PointTransaction.delta` 合計）／今月の合計滞在時間（JST基準で当月分を集計）／直近来室回数。
+> - 入退室履歴（直近200件）: 日付・校舎・席種・滞在時間（`checkOutAt - checkInAt`）・入室中/自動退室バッジ。
+> - ポイント内訳（直近20件）。
+> - 日時は全て **JST表示**（DBはUTC保存、`Intl` の `timeZone: "Asia/Tokyo"` で整形）。
+>
+> **未対応（今回スコープ外）**: 期間フィルタ／月次以外の集計、置き場所の変更（現状は自習室配下 `/study-room/me` に集約）。
+
+---
+
 ## 6. 技術スタック（追記用）
 
 > 使用する技術スタックをここに記入してください。（例: Next.js, Supabase, Prisma 等）

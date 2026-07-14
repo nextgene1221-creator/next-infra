@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { label: "講師管理", href: "/teachers", roles: ["admin"] },
   { label: "学習進捗", href: "/progress", roles: ["admin", "teacher", "student"] },
   { label: "学習スケジュール", href: "/study-schedule", roles: ["student"] },
+  { label: "自習室", href: "/study-room/me", roles: ["student"] },
   { label: "目標管理", href: "/my-goals", roles: ["student"] },
   { label: "面談シート", href: "/meeting-sheets", roles: ["student"] },
   { label: "ゼミ管理", href: "/seminar", roles: ["admin", "teacher", "student"] },
