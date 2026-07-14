@@ -356,6 +356,23 @@
 
 ---
 
+### 5.12 教材マスタ（新規依頼⑦・第1段階）
+
+> **【実装追記 2026-07-14】** 現在バラバラに自由記述されている「教材」をマスタ化する。**第1段階として教材マスタ本体＋管理CRUDを実装**（各フォームの選択式化は第2段階）。
+>
+> **データ構造**: 新モデル `Material`（`materials` テーブル・マイグレーション `20260714000000_add_materials`、追加のみ）。
+> - `subject`（科目）/ `name`（教材名）/ `publisher?`（出版社）/ `totalPages?`（総ページ）/ `level`（レベル・種別、任意）/ `active`（有効フラグ）。
+> - 無効化（`active=false`）＝新規選択肢から除外するが、既存の自由記述記録は非破壊で保持。
+>
+> **管理画面**: `/materials`（admin/teacher。サイドバー「教材マスタ」）。
+> - 追加: 科目（`SUBJECTS` から選択）・教材名・出版社・総ページ・レベル。作成は admin/teacher。
+> - 一覧: 科目フィルタ／無効表示トグル。各項目はインライン編集（onBlurで自動保存 `PUT /api/materials/[id]`）。有効/無効トグル。削除は admin のみ（`DELETE`）。
+> - API: `GET/POST /api/materials`、`PUT/DELETE /api/materials/[id]`（生徒は不可、削除は admin 限定）。
+>
+> **第2段階（未実装・予定）**: 進捗入力（`ProgressRecord.material`）・学習目標（`BigGoal`/`LearningGoal.materialName`）・**面談記録**フォームで、マスタからの選択式に変更（オーナー要望）。`totalPages` を使った残量/ペース算出の精緻化。既存自由記述の名寄せ方針は別途。
+
+---
+
 ## 6. 技術スタック（追記用）
 
 > 使用する技術スタックをここに記入してください。（例: Next.js, Supabase, Prisma 等）

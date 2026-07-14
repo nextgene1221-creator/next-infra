@@ -218,6 +218,22 @@ model ProgressRecord {
   @@map("progress_records")
 }
 
+model Material {
+  id         String   @id @default(uuid())
+  subject    String   // 科目
+  name       String   // 教材名
+  publisher  String?  // 出版社（任意）
+  totalPages Int?     @map("total_pages") // 総ページ数（任意）
+  level      String   @default("") // レベル/種別（例: 参考書 / チャート 等・任意）
+  active     Boolean  @default(true) // 有効フラグ（無効化しても既存参照は残す）
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([subject])
+  @@index([active])
+  @@map("materials")
+}
+
 model Task {
   id              String    @id @default(uuid())
   studentId       String?   @map("student_id")
