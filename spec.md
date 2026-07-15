@@ -369,7 +369,9 @@
 > - 一覧: 科目フィルタ／無効表示トグル。各項目はインライン編集（onBlurで自動保存 `PUT /api/materials/[id]`）。有効/無効トグル。削除は admin のみ（`DELETE`）。
 > - API: `GET/POST /api/materials`、`PUT/DELETE /api/materials/[id]`（生徒は不可、削除は admin 限定）。
 >
-> **第2段階（未実装・予定）**: 進捗入力（`ProgressRecord.material`）・学習目標（`BigGoal`/`LearningGoal.materialName`）・**面談記録**フォームで、マスタからの選択式に変更（オーナー要望）。`totalPages` を使った残量/ペース算出の精緻化。既存自由記述の名寄せ方針は別途。
+> **第2段階（進行中）**: 各フォームでマスタから選択できるように変更（オーナー要望）。自由入力は維持（非破壊・併存）。
+> - **【2026-07-15 実装】** 進捗入力 `/progress/new`: 教材マスタ（有効なもの）を取得し、選択中の科目でフィルタして候補 `datalist` に統合（`GET /api/materials`、取得失敗時は従来の目標由来候補のみにフォールバック）。
+> - **残り（未実装）**: 学習目標（`BigGoal`/`LearningGoal.materialName`）・**面談記録**フォームのマスタ選択化、`totalPages` を使った残量/ペース算出の精緻化、既存自由記述の名寄せ方針。
 
 ---
 

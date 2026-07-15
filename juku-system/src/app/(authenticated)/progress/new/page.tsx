@@ -15,6 +15,7 @@ type WeeklyGoalOption = {
   startDate: string | null;
   dueDate: string;
 };
+type MaterialOption = { subject: string; name: string; active: boolean };
 
 export default function ProgressNewPage() {
   const router = useRouter();
@@ -41,6 +42,7 @@ export default function ProgressNewPage() {
   const [goalKey, setGoalKey] = useState<string>(initialGoalKey);
   const [bigGoals, setBigGoals] = useState<BigGoalOption[]>([]);
   const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoalOption[]>([]);
+  const [materials, setMaterials] = useState<MaterialOption[]>([]);
 
   useEffect(() => {
     if (isStudent) return;
@@ -48,6 +50,16 @@ export default function ProgressNewPage() {
       .then((r) => r.json())
       .then(setStudents);
   }, [isStudent]);
+
+  // 教材マスタ（有効なもの）を候補として取得。取得失敗時は従来どおり目標由来の候補のみ。
+  useEffect(() => {
+    fetch("/api/materials")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: MaterialOption[]) =>
+        setMaterials(Array.isArray(data) ? data.filter((m) => m.active) : [])
+      )
+      .catch(() => setMaterials([]));
+  }, []);
 
   useEffect(() => {
     if (!isStudent && !studentId) {
@@ -74,8 +86,12 @@ export default function ProgressNewPage() {
     const set = new Set<string>();
     for (const g of bigGoals) set.add(g.materialName);
     for (const g of weeklyGoals) set.add(g.materialName);
-    return Array.from(set);
-  }, [bigGoals, weeklyGoals]);
+    // 教材マスタ：科目未選択なら全有効教材、科目選択済みならその科目のみを候補に。
+    for (const m of materials) {
+      if (!subject || m.subject === subject) set.add(m.name);
+    }
+    return Array.from(set).filter(Boolean).sort();
+  }, [bigGoals, weeklyGoals, materials, subject]);
 
   const onGoalChange = (key: string) => {
     setGoalKey(key);
@@ -200,6 +216,7 @@ export default function ProgressNewPage() {
             <datalist id="progress-material-options">
               {datalistMaterials.map((m) => <option key={m} value={m} />)}
             </datalist>
+            <p className="text-xs text-dark/50 mt-1">教材マスタの候補から選択できます（自由入力も可）。</p>
           </div>
           <div>
             <FieldLabel required className="block text-sm font-medium text-charcoal">進めたページ数</FieldLabel>
