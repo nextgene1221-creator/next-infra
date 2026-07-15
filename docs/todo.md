@@ -270,4 +270,6 @@ Newmonic
     - `/materials`（admin/teacher）: 追加・科目フィルタ・無効表示トグル・インライン編集（onBlur自動保存）・有効/無効トグル・削除（admin）
     - API: `GET/POST /api/materials`、`PUT/DELETE /api/materials/[id]`（生徒不可・削除admin限定）
     - Sidebar に「教材マスタ」追加。`spec.md` 5.12 に実装追記
-    - 第2段階（未着手）: 進捗/目標/面談記録フォームの選択式化・総ページ活用・既存自由記述の名寄せ
+    - 第2段階（進行中）:
+      - 進捗入力 `/progress/new` のマスタ統合＝完了 (2026-07-15, commit `1de7d9b`)。有効教材を科目フィルタで候補datalistに統合、自由入力維持・非破壊
+      - 残り（未着手）: 学習目標（`BigGoal`/`LearningGoal`）・面談記録フォームの選択式化、`totalPages` を使った残量/ペース算出、既存自由記述の名寄せ
