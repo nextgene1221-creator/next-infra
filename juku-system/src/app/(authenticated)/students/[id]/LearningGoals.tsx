@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SUBJECTS } from "@/lib/types";
@@ -27,11 +27,27 @@ export default function LearningGoals({
   const router = useRouter();
   const [goals, setGoals] = useState(initialGoals);
 
+  // 教材マスタ（有効なもの）を候補として取得。失敗時は自由入力のみ。
+  const [materials, setMaterials] = useState<{ subject: string; name: string; active: boolean }[]>([]);
+  useEffect(() => {
+    fetch("/api/materials")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setMaterials(Array.isArray(d) ? d.filter((m) => m.active) : []))
+      .catch(() => setMaterials([]));
+  }, []);
+
   // 目標フォーム
   const [showGoalForm, setShowGoalForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [subject, setSubject] = useState("");
   const [materialName, setMaterialName] = useState("");
+  const materialOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(materials.filter((m) => !subject || m.subject === subject).map((m) => m.name))
+      ).sort(),
+    [materials, subject]
+  );
   const [targetPages, setTargetPages] = useState(0);
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
@@ -207,8 +223,15 @@ export default function LearningGoals({
                 value={materialName}
                 onChange={(e) => setMaterialName(e.target.value)}
                 placeholder="例: 青チャート数学IA"
+                list="learning-goal-material-options"
                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
               />
+              <datalist id="learning-goal-material-options">
+                {materialOptions.map((m) => (
+                  <option key={m} value={m} />
+                ))}
+              </datalist>
+              <p className="text-xs text-dark/50 mt-1">教材マスタの候補から選択できます（自由入力も可）。</p>
             </div>
             <div>
               <FieldLabel required className="block text-sm font-medium text-charcoal">目標ページ数</FieldLabel>

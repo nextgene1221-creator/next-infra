@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { SUBJECTS } from "@/lib/types";
 import FieldLabel from "@/components/FieldLabel";
@@ -68,6 +68,15 @@ export default function MyGoalsClient({
 }) {
   const router = useRouter();
   const [bigGoals, setBigGoals] = useState(initialBigGoals);
+
+  // 教材マスタ（有効なもの）を候補として取得。失敗時は自由入力のみ。
+  const [materials, setMaterials] = useState<{ subject: string; name: string; active: boolean }[]>([]);
+  useEffect(() => {
+    fetch("/api/materials")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setMaterials(Array.isArray(d) ? d.filter((m) => m.active) : []))
+      .catch(() => setMaterials([]));
+  }, []);
 
   // 大目標フォーム
   const [showBigForm, setShowBigForm] = useState(false);
@@ -346,6 +355,8 @@ export default function MyGoalsClient({
         <GoalFormView
           form={bigForm}
           setForm={setBigForm}
+          materials={materials}
+          datalistId="big-goal-material-options"
           onSubmit={submitBig}
           onCancel={closeBigForm}
           saving={saving}
@@ -419,6 +430,8 @@ export default function MyGoalsClient({
                 <GoalFormView
                   form={weeklyForm}
                   setForm={setWeeklyForm}
+                  materials={materials}
+                  datalistId="weekly-goal-material-options"
                   onSubmit={submitWeekly}
                   onCancel={closeWeeklyForm}
                   saving={saving}
@@ -498,6 +511,8 @@ export default function MyGoalsClient({
 function GoalFormView({
   form,
   setForm,
+  materials,
+  datalistId,
   onSubmit,
   onCancel,
   saving,
@@ -507,6 +522,8 @@ function GoalFormView({
 }: {
   form: GoalForm;
   setForm: (f: GoalForm) => void;
+  materials: { subject: string; name: string; active: boolean }[];
+  datalistId: string;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
   saving: boolean;
@@ -514,6 +531,13 @@ function GoalFormView({
   startDateRequired: boolean;
   title: string;
 }) {
+  const materialOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(materials.filter((m) => !form.subject || m.subject === form.subject).map((m) => m.name))
+      ).sort(),
+    [materials, form.subject]
+  );
   return (
     <form onSubmit={onSubmit} className="bg-surface rounded-lg p-4 space-y-3">
       <h3 className="text-sm font-semibold text-dark">{title}</h3>
@@ -539,8 +563,14 @@ function GoalFormView({
             value={form.materialName}
             onChange={(e) => setForm({ ...form, materialName: e.target.value })}
             placeholder="例: 青チャート数学IIB"
+            list={datalistId}
             className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
           />
+          <datalist id={datalistId}>
+            {materialOptions.map((m) => (
+              <option key={m} value={m} />
+            ))}
+          </datalist>
         </div>
         <div>
           <FieldLabel required className="block text-xs text-dark/60 mb-1">目標ページ数</FieldLabel>
