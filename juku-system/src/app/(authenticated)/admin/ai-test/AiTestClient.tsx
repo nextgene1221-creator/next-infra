@@ -96,6 +96,26 @@ function diagnosisToText(d: DiagnosisResult): string {
   ].join("\n");
 }
 
+// 出願戦略を会話コンテキスト用テキストに変換
+function strategyToText(s: StrategyResult): string {
+  const plan = s.result.plan.map((p) => `- [${p.tier}] ${p.name} ${p.faculty}（${p.method}${p.examDate ? `・${p.examDate}` : ""}）`).join("\n");
+  const c = s.result.costEstimate;
+  return [
+    `【出願戦略（初回提案）】`,
+    s.result.summary,
+    ``,
+    `▼ 出願プラン`,
+    plan,
+    ``,
+    `▼ 費用試算（沖縄からの受験・参考）`,
+    `受験料合計 ${c.examFeesTotalYen ?? "?"}円 / 遠征 ${c.tripsAssumed ?? "?"}回・${c.nightsAssumed ?? "?"}泊 / 移動 ${c.travelTotalYen ?? "?"}円 / 宿泊 ${c.lodgingTotalYen ?? "?"}円 / 総額 ${c.grandTotalYen ?? "?"}円`,
+    ``,
+    s.result.advice,
+    ``,
+    `この案について、気になる点や希望（予算を抑えたい／この大学は外したい・加えたい／推薦は使いたくない／日程が厳しい 等）を教えてください。フィードバックを反映してより良い出願戦略に調整します。`,
+  ].join("\n");
+}
+
 export default function AiTestClient({ students }: { students: StudentOption[] }) {
   const [tab, setTab] = useState<"consult" | "strategy">("consult");
   const [studentId, setStudentId] = useState("");
@@ -116,6 +136,10 @@ export default function AiTestClient({ students }: { students: StudentOption[] }
   const [airfareYen, setAirfareYen] = useState("");
   const [lodgingYen, setLodgingYen] = useState("");
   const [strategy, setStrategy] = useState<StrategyResult | null>(null);
+  const [sChat, setSChat] = useState<ChatMessage[]>([]);
+  const [sChatInput, setSChatInput] = useState("");
+  const [sChatLoading, setSChatLoading] = useState(false);
+  const sScrollRef = useRef<HTMLDivElement>(null);
 
   const startConsult = async () => {
     if (!studentId || starting) return;
@@ -167,7 +191,7 @@ export default function AiTestClient({ students }: { students: StudentOption[] }
 
   const runStrategy = async () => {
     if (!studentId || loading) return;
-    setLoading(true); setError(""); setStrategy(null);
+    setLoading(true); setError(""); setStrategy(null); setSChat([]);
     try {
       const res = await fetch("/api/admin/ai-test/strategy", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -179,6 +203,33 @@ export default function AiTestClient({ students }: { students: StudentOption[] }
     } catch (e) {
       setError("通信に失敗しました: " + (e instanceof Error ? e.message : String(e)));
     } finally { setLoading(false); }
+  };
+
+  const sendStrategyChat = async () => {
+    const text = sChatInput.trim();
+    if (!text || !strategy || sChatLoading) return;
+    setError("");
+    const userMsg: ChatMessage = { role: "user", content: text };
+    const nextChat = [...sChat, userMsg];
+    setSChat(nextChat);
+    setSChatInput("");
+    setSChatLoading(true);
+    const seed: ChatMessage = { role: "assistant", content: strategyToText(strategy) };
+    try {
+      const res = await fetch("/api/admin/ai-test/strategy/consult", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId, model, budgetYen, airfareYen, lodgingYen, messages: [seed, ...nextChat] }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error || `エラー (${res.status})`); setSChat(sChat); }
+      else setSChat([...nextChat, { role: "assistant", content: json.reply }]);
+    } catch (e) {
+      setError("通信に失敗しました: " + (e instanceof Error ? e.message : String(e)));
+      setSChat(sChat);
+    } finally {
+      setSChatLoading(false);
+      setTimeout(() => sScrollRef.current?.scrollTo({ top: sScrollRef.current.scrollHeight, behavior: "smooth" }), 50);
+    }
   };
 
   const tabBtn = (key: "consult" | "strategy", label: string) => (
@@ -399,6 +450,47 @@ export default function AiTestClient({ students }: { students: StudentOption[] }
                 </section>
               )}
               <section><h2 className="text-sm font-bold text-dark mb-1">総合アドバイス</h2><p className="text-sm text-dark/80 whitespace-pre-wrap">{strategy.result.advice}</p></section>
+            </div>
+          )}
+
+          {/* ② 会話でブラッシュアップ */}
+          {strategy && (
+            <div className="bg-white rounded-lg shadow-sm p-4 space-y-3">
+              <h2 className="text-sm font-bold text-dark">この戦略について相談する</h2>
+              <p className="text-xs text-dark/50">
+                気になる点や希望（予算を抑えたい／この大学は外したい・加えたい／推薦は使いたくない／日程が厳しい など）を伝えると、反映してより良い出願戦略に調整します。
+              </p>
+              <div ref={sScrollRef} className="max-h-[28rem] overflow-y-auto space-y-3 py-1">
+                {sChat.length === 0 && (
+                  <p className="text-xs text-dark/40 text-center py-4">まだ会話はありません。下の入力欄からフィードバックを伝えてください。</p>
+                )}
+                {sChat.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-primary text-white" : "bg-surface text-dark"}`}>
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+                {sChatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-surface text-dark/50 rounded-lg px-3 py-2 text-sm">考え中…</div>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 items-end">
+                <textarea
+                  value={sChatInput}
+                  onChange={(e) => setSChatInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendStrategyChat(); } }}
+                  rows={2}
+                  placeholder="例: 予算を20万円くらいに抑えたいです。あと私立は1校までにしたい。"
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm resize-none"
+                />
+                <button onClick={sendStrategyChat} disabled={!sChatInput.trim() || sChatLoading} className="px-4 py-2 rounded-md bg-primary text-white text-sm font-medium disabled:opacity-50 whitespace-nowrap">
+                  送信
+                </button>
+              </div>
+              <p className="text-[11px] text-dark/40">Enterで送信 / Shift+Enterで改行</p>
             </div>
           )}
         </div>
