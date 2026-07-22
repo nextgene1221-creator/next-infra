@@ -377,9 +377,32 @@
 
 ---
 
+### 5.13 AI診断テスト（新規依頼①・AI基盤 第1段階／管理者テスト）
+
+> **【実装追記 2026-07-22】** 依頼①「志望校診断AI」の**AI基盤を新設**。まずは本番リスクなく疎通・構造化出力・生徒データ接続を検証するための**管理者専用テスト機能**として実装（オーナー方針：①②⑤を一括視野に入れつつ、いきなり生徒公開せず管理者テストから）。
+>
+> **AI基盤**: **Vercel AI Gateway**（`ai` パッケージ、OIDC認証）。プロバイダ個別のAPIキーは不要で、`VERCEL_OIDC_TOKEN`（`vercel env pull` で取得・ローカルは約24hで失効、本番は自動更新）で認証。詳細は「6. 技術スタック」参照。
+>
+> **画面**: `/admin/ai-test`（**admin 限定**・サイドバー「AI診断テスト」）。生徒を選択しモデルを選んで「診断する」→ 構造化された診断を表示。**結果は保存せず、生徒には表示しない**（使い捨て）。
+>
+> **API**: `POST /api/admin/ai-test`（admin限定）。入力＝`studentId`＋`model`。処理＝対象生徒のプロフィール（学年/文理/志望校/志望学部/受験科目/推薦検討/英検予定）＋直近模試最大5件（`MockExamResult`）を組み立て、`generateObject`（`ai`）で**構造化出力**を取得。志望校・模試いずれも未登録なら 422。
+> - **出力スキーマ**: `summary`（総評）/ `schools[]`（大学ごとに `positioning`＝挑戦・実力相応・安全 ＋ 所見・根拠）/ `weakSubjects[]`（弱点科目・推奨アクション）/ `overallAdvice`。⑤の大学マスタ未整備のため**AI推論のみ**（大学の偏差値/判定テーブルは未併用）で、断定を避けた参考所見として生成する方針。
+> - **モデル**: 既定 `anthropic/claude-sonnet-4.6`。切替可 `openai/gpt-4o-mini`（低コスト）。`anthropic/claude-opus-4.8`（最高品質）は**有料クレジットのトップアップ後に解放**（無料$5/月枠では 403）。
+> - コスト帰属タグ `feature:admin-ai-test` / `feature:aspiration-diagnosis`、`user`＝実行管理者IDを付与。
+>
+> **未確定（本番①へ向けて）**: 生徒向けAI相談チャットとしての公開形態、結果の保存/履歴（`AspirationDiagnosis` モデル）、⑤大学マスタ併用による半定量化、②出願戦略（予算・沖縄からの移動/宿泊費）との統合。本テスト機能で基盤検証後に着手。
+
+---
+
 ## 6. 技術スタック（追記用）
 
 > 使用する技術スタックをここに記入してください。（例: Next.js, Supabase, Prisma 等）
+
+> **【実装追記 2026-07-22】 AI基盤**
+> - **Vercel AI Gateway** ＋ `ai` パッケージ（v7系）。`"provider/model"` 文字列指定で自動ルーティング。
+> - **認証は OIDC**（`VERCEL_OIDC_TOKEN`）。プロバイダ個別APIキー不要。ローカルはトークンが約24hで失効するため `vercel env pull .env.local` で再取得、本番デプロイでは自動更新。
+> - **課金**: 各Vercelチームに月$5の無料クレジット（**カード登録が前提**）。無料枠で使えるモデルは限定的（`anthropic/claude-sonnet-4.6` / `openai/gpt-4o-mini` は可、`claude-haiku-4.5` / `claude-opus-4.8` は有料トップアップで解放）。
+> - 疎通確認用スクリプト: `juku-system/scripts/ai-gateway-smoke.mjs`。
 
 
 ---

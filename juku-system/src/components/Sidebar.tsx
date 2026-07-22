@@ -27,6 +27,7 @@ const navItems: NavItem[] = [
   { label: "自習室管理", href: "/study-room", roles: ["admin", "teacher"] },
   { label: "校舎管理", href: "/campuses", roles: ["admin", "teacher"] },
   { label: "教材マスタ", href: "/materials", roles: ["admin", "teacher"] },
+  { label: "AI診断テスト", href: "/admin/ai-test", roles: ["admin"] },
   { label: "イントロダクション", href: "/articles", roles: ["admin", "teacher", "student"] },
   { label: "ブログ", href: "/blog", roles: ["admin", "teacher", "student"] },
   { label: "出退勤管理", href: "/attendance", roles: ["admin"] },

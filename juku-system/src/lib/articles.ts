@@ -9,4 +9,5 @@ export const AUDIENCE_LABELS: Record<string, string> = {
   student: "生徒向け",
   teacher: "講師向け",
   both: "全員向け",
+  admin: "管理者向け",
 };

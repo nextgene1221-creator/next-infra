@@ -107,6 +107,7 @@ export default function ArticleEditor({
             <option value="both">全員向け</option>
             <option value="student">生徒向け</option>
             <option value="teacher">講師向け</option>
+            <option value="admin">管理者向け</option>
           </select>
         </div>
         <div>
