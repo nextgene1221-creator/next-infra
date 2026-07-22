@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateObject, jsonSchema } from "ai";
 
+export const maxDuration = 60; // AI生成に時間がかかるため延長（Hobby上限60s）
+
 // 管理者テスト機能（①志望校診断AI の検証用）。
 // AI基盤の疎通・構造化出力・生徒データ接続を本番リスクなく確認するための使い捨てエンドポイント。
 // 結果は保存しない。生徒公開もしない（admin限定）。

@@ -390,7 +390,33 @@
 > - **モデル**: 既定 `anthropic/claude-sonnet-4.6`。切替可 `openai/gpt-4o-mini`（低コスト）。`anthropic/claude-opus-4.8`（最高品質）は**有料クレジットのトップアップ後に解放**（無料$5/月枠では 403）。
 > - コスト帰属タグ `feature:admin-ai-test` / `feature:aspiration-diagnosis`、`user`＝実行管理者IDを付与。
 >
-> **未確定（本番①へ向けて）**: 生徒向けAI相談チャットとしての公開形態、結果の保存/履歴（`AspirationDiagnosis` モデル）、⑤大学マスタ併用による半定量化、②出願戦略（予算・沖縄からの移動/宿泊費）との統合。本テスト機能で基盤検証後に着手。
+> **未確定（本番①へ向けて）**: 生徒向けAI相談チャットとしての公開形態、結果の保存/履歴（`AspirationDiagnosis` モデル）。
+
+---
+
+### 5.14 大学データ（受験情報の収集・追跡）＝新規依頼⑤
+
+> **【実装追記 2026-07-22】** 大学の入試情報（学部/方式/日程/科目/定員/偏差値目安/受験料）を保持し、**クローリングで収集**して差分を追跡する（②出願戦略の基盤データ）。
+>
+> **データ構造**（マイグレーション `20260722000000_add_universities`・追加のみ）:
+> - `University`（`universities`）: name(unique) / prefecture / category(国公私) / website。
+> - `UniversityAdmission`（`university_admissions`）: universityId / faculty / department / method / targetYear / examDate / applicationPeriod / subjects / capacity / deviationTarget / examFee / sourceUrl / contentHash(差分検知) / lastCrawledAt。
+> - `AdmissionRevision`（`admission_revisions`）: 入試情報の**変更履歴**（summary / diff JSON / changedAt）。"追跡"＝改定の差分記録。
+>
+> **クロール**: `POST /api/admin/universities/crawl`（admin限定・`maxDuration=60`）。対象ページURLを `fetch` → HTMLをテキスト化（`lib/universityCrawl.ts`）→ Gateway（`generateObject`）で入試情報を構造化抽出 → 大学マスタと入試情報を upsert。再クロール時は `contentHash` を比較し、変化があれば更新＋`AdmissionRevision` に差分を記録。
+> - 収集方針は**管理者がページURLを指定して都度クロール**（オンデマンド）。抽出は「ページに明記された事実のみ、推測しない」方針。
+> - 検索: `GET /api/admin/universities?q=&subject=&method=`（大学名・受験科目・方式）。UI `/admin/universities`（サイドバー「大学データ」）でクロール実行＋検索＋変更履歴表示。
+> - **制約/未対応**: 自律的な定期監視（Cron）は Hobby プランの Cron 2本上限（`auto-checkout`/`morning`で消費済み）のため未接続。Proプラン化 or Cron統合で有効化予定。JavaScript描画主体のSPAページは本文が取れず抽出が薄くなる（将来ヘッドレス化で対応可）。重要変更の担当講師アラート連携も次段階。
+
+### 5.15 出願戦略ジェネレータ（管理者テスト）＝新規依頼②
+
+> **【実装追記 2026-07-22】** ①と同じAI基盤で、併願パターン・入試方式・日程・費用を踏まえた出願プランを生成する管理者テスト機能。`/admin/ai-test` の**②タブ**として実装（①診断と同居）。
+>
+> **API**: `POST /api/admin/ai-test/strategy`（admin限定・`maxDuration=60`・結果非保存）。入力＝生徒プロフィール＋直近模試＋予算感＋⑤で収集済みの大学入試データ（最大120件）＋費用前提。
+> - **沖縄在住前提**の費用試算: 往復航空券（既定¥40,000/遠征）・宿泊（既定¥8,000/泊、いずれも管理者が上書き可）。**日程が近い受験はまとめて1回の遠征**にして遠征回数・宿泊数を最小化。
+> - **出力**（構造化）: 総評 / 出願プラン（本命・併願・滑り止め＋方式・試験日・受験料・根拠）/ 日程衝突 / 費用試算（受験料＋移動＋宿泊の総額）/ 想定リスク / 総合アドバイス。
+> - ⑤データがあれば根拠に使い、無い項目は一般知識で参考値として補完（断定回避）。
+> - E2E検証済み（2026-07-22）: 実生徒でプラン5件・遠征2回・総額概算を生成。
 
 ---
 

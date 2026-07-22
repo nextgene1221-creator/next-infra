@@ -291,3 +291,12 @@ Newmonic
     - articles に **audience="admin"** を追加＝管理者のみ閲覧（非管理者は `{role,"both"}` フィルタに非該当で自動非表示）。`AUDIENCE_LABELS` に「管理者向け」、`ArticleEditor` の対象選択に「管理者向け」を追加
     - 記事「【管理者用】新規ユーザーのサインアップURL」を投入（`prisma/seed-admin-intro.ts`・冪等）。生徒 `/signup/student`・講師 `/signup/teacher`、初期PW `password123`、招待制復帰の手順を記載
     - 検証: 可視性（admin=表示/生徒・講師=非表示）実DBで確認、`tsc --noEmit` PASS
+
+26. 大学データ⑤（クロール収集・追跡）＋出願戦略②（管理者テスト）＝受験支援クラスタ全実装 (2026-07-22, commit `未`)
+    - オーナー方針: 「A（②実装）」＋「大学データもクローリングで集める形ですべて実装」
+    - スキーマ: `University`/`UniversityAdmission`/`AdmissionRevision` 追加。マイグレーション `20260722000000_add_universities`（追加のみ）を**本番Neonへ適用済み**（`migrate deploy`）
+    - ⑤クロール: `POST /api/admin/universities/crawl`（admin・maxDuration60）。URL fetch→HTMLテキスト化(`lib/universityCrawl.ts`)→Gateway `generateObject` で入試情報抽出→upsert。`contentHash` 差分検知で `AdmissionRevision` に変更履歴。検索 `GET /api/admin/universities`。UI `/admin/universities`（サイドバー「大学データ」）
+    - ②戦略: `POST /api/admin/ai-test/strategy`（admin・結果非保存）。生徒＋模試＋予算＋⑤データ→本命/併願/滑り止め・日程衝突・**沖縄からの遠征費（往復航空¥40k・宿泊¥8k既定、まとめ遠征で最小化）**・リスク。`/admin/ai-test` に②タブ追加
+    - 既存①診断ルートにも `maxDuration=60` 追加（Vercelタイムアウト対策）
+    - 検証: 抽出品質フィクスチャPASS（琉球大学を正確抽出）、実サイトfetch OK、**認証付きE2E**（ログイン→クロール→検索→②戦略200/プラン5件・遠征2回・総額¥229k→①診断200）、`tsc --noEmit` PASS
+    - 未対応（productionize）: ⑤の**自律定期監視Cron**（Hobby Cron2本上限で未接続→Pro化 or Cron統合）、SPA(JS描画)ページのヘッドレス取得、重要変更の講師アラート連携、生徒公開・結果保存

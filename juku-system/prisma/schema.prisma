@@ -589,3 +589,62 @@ model MeetingSheet {
   @@index([studentId, createdAt])
   @@map("meeting_sheets")
 }
+
+// ===== 受験支援クラスタ（依頼⑤ 大学マスタ / ② 出願戦略の基盤）=====
+
+// 大学マスタ。クローリングで収集した入試情報の親。
+model University {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  prefecture String   @default("") // 所在地（都道府県）
+  category   String   @default("") // 国立 / 公立 / 私立
+  website    String   @default("") // 公式HP（クロール起点）
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  admissions UniversityAdmission[]
+
+  @@map("universities")
+}
+
+// 入試情報（学部・方式ごと）。各大学HPからAI抽出して保存する。
+model UniversityAdmission {
+  id                String    @id @default(uuid())
+  universityId      String    @map("university_id")
+  faculty           String    @default("") // 学部
+  department        String    @default("") // 学科・コース
+  method            String    @default("") // 一般 / 共通テスト利用 / 学校推薦 / 総合型 など
+  targetYear        Int?      @map("target_year") // 対象年度
+  examDate          String    @default("") @map("exam_date") // 試験日（複数は ; 区切り）
+  applicationPeriod String    @default("") @map("application_period") // 出願期間
+  subjects          String    @default("") // 受験科目（記述）
+  capacity          Int? // 定員
+  deviationTarget   String    @default("") @map("deviation_target") // 偏差値目安
+  examFee           Int?      @map("exam_fee") // 受験料（円）
+  sourceUrl         String    @default("") @map("source_url") // 収集元URL
+  contentHash       String    @default("") @map("content_hash") // 差分検知用
+  lastCrawledAt     DateTime? @map("last_crawled_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  university University          @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  revisions  AdmissionRevision[]
+
+  @@index([universityId])
+  @@map("university_admissions")
+}
+
+// 入試情報の変更履歴（"追跡"＝改定の差分記録）。重要変更は担当講師へ通知する土台。
+model AdmissionRevision {
+  id          String   @id @default(uuid())
+  admissionId String   @map("admission_id")
+  changedAt   DateTime @default(now()) @map("changed_at")
+  summary     String   @default("") // 変更概要
+  diff        String   @default("") // 変更前後のJSON差分
+  sourceUrl   String   @default("") @map("source_url")
+
+  admission UniversityAdmission @relation(fields: [admissionId], references: [id], onDelete: Cascade)
+
+  @@index([admissionId, changedAt])
+  @@map("admission_revisions")
+}
