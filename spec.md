@@ -411,7 +411,14 @@
 > **クロール**: `POST /api/admin/universities/crawl`（admin限定・`maxDuration=60`）。対象ページURLを `fetch` → HTMLをテキスト化（`lib/universityCrawl.ts`）→ Gateway（`generateObject`）で入試情報を構造化抽出 → 大学マスタと入試情報を upsert。再クロール時は `contentHash` を比較し、変化があれば更新＋`AdmissionRevision` に差分を記録。
 > - 収集方針は**管理者がページURLを指定して都度クロール**（オンデマンド）。抽出は「ページに明記された事実のみ、推測しない」方針。
 > - 検索: `GET /api/admin/universities?q=&subject=&method=`（大学名・受験科目・方式）。UI `/admin/universities`（サイドバー「大学データ」）でクロール実行＋検索＋変更履歴表示。
-> - **制約/未対応**: 自律的な定期監視（Cron）は Hobby プランの Cron 2本上限（`auto-checkout`/`morning`で消費済み）のため未接続。Proプラン化 or Cron統合で有効化予定。JavaScript描画主体のSPAページは本文が取れず抽出が薄くなる（将来ヘッドレス化で対応可）。重要変更の担当講師アラート連携も次段階。
+>
+> **【実装追記 2026-07-22 定期追跡（自動再クロール）】** Vercel Hobby の Cron 2本上限を回避するため、**GitHub Actions の無料スケジューラ**で定期再クロールを実装。
+> - 定期エンドポイント: `POST /api/cron/recrawl-universities`（`CRON_SECRET` で保護・`maxDuration=60`）。「最も長く再クロールされていないURLを1件」だけ処理して60s以内に収め、`done=true`（対象なし）まで GitHub Actions 側がループ。1巡で保存済み全URLを再クロールする。コスト抑制のため抽出は**gpt-4o-mini**（無料枠可）。
+> - 共通化: 手動クロールと定期再クロールは `lib/universityCrawl.ts` の `crawlAndStore()`（fetch→抽出→差分upsert→履歴）を共用。
+> - **変更検知時は管理者へアラート**（既存 `Alert`・type=general）。新規/更新の概要と出所URLを通知。
+> - スケジュール: `.github/workflows/recrawl-universities.yml`＝**週1回（毎週月曜 03:23 JST）**＋手動実行(workflow_dispatch)。GitHub Actions無料枠・Gateway無料枠（$5/月）に収まる設計。
+> - 設定: `CRON_SECRET` を Vercel(prod/preview/dev) と **GitHub Actions Secret** の両方に同値で登録（GitHub側はリポジトリ Settings→Secrets→Actions で手動追加）。
+> - **未対応**: JavaScript描画主体のSPAページはヘッドレス化が必要（本文が取れず抽出が薄い）。変更の担当講師（生徒の志望校一致）への個別通知は将来拡張。
 
 ### 5.15 出願戦略ジェネレータ（管理者テスト）＝新規依頼②
 

@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { generateObject, jsonSchema } from "ai";
+import { prisma } from "@/lib/prisma";
 
 // 各大学HPから入試情報をAI抽出するためのユーティリティ（依頼⑤）。
 // クロール＝対象URLを fetch → HTMLをテキスト化 → Gateway で構造化抽出。
@@ -120,7 +121,8 @@ const extractionSchema = jsonSchema<ExtractedResult>({
 export async function extractAdmissions(
   pageText: string,
   hints: { universityName?: string; sourceUrl: string },
-  userId: string
+  userId: string,
+  model: string = CRAWL_MODEL
 ): Promise<ExtractedResult> {
   const prompt = [
     "あなたは大学入試要項の情報抽出アシスタントです。",
@@ -136,7 +138,7 @@ export async function extractAdmissions(
     .join("\n");
 
   const { object } = await generateObject({
-    model: CRAWL_MODEL,
+    model,
     schema: extractionSchema,
     prompt,
     providerOptions: {
@@ -144,4 +146,200 @@ export async function extractAdmissions(
     },
   });
   return object;
+}
+
+export type CrawlChange = {
+  faculty: string;
+  method: string;
+  type: "新規" | "更新" | "変更なし";
+  summary?: string;
+};
+
+export type CrawlStoreResult =
+  | { ok: false; status: number; error: string }
+  | {
+      ok: true;
+      university: { id: string; name: string };
+      extractedCount: number;
+      created: number;
+      updated: number;
+      unchanged: number;
+      changes: CrawlChange[];
+    };
+
+// 1ページを取得→抽出→大学マスタ/入試情報を差分検知しつつ保存する共通処理。
+// 手動クロール(/api/admin/universities/crawl)と定期再クロール(/api/cron)で共用。
+export async function crawlAndStore(opts: {
+  sourceUrl: string;
+  universityName?: string;
+  prefecture?: string;
+  category?: string;
+  userId: string;
+  model?: string;
+}): Promise<CrawlStoreResult> {
+  const { sourceUrl, userId } = opts;
+  const universityName = (opts.universityName || "").trim();
+  const prefectureHint = (opts.prefecture || "").trim();
+  const categoryHint = (opts.category || "").trim();
+
+  let parsed: URL;
+  try {
+    parsed = new URL(sourceUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("protocol");
+  } catch {
+    return { ok: false, status: 400, error: "有効なURL（http/https）を指定してください" };
+  }
+
+  // 1) ページ取得
+  let html = "";
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(parsed.toString(), {
+      headers: {
+        "User-Agent": "juku-system-crawler/1.0 (admission info collector)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) return { ok: false, status: 502, error: `ページ取得に失敗しました (HTTP ${res.status})` };
+    html = await res.text();
+  } catch (e) {
+    return { ok: false, status: 502, error: `ページ取得に失敗しました: ${e instanceof Error ? e.message : String(e)}` };
+  }
+
+  const pageText = htmlToText(html);
+
+  // 2) AI抽出
+  let extracted: ExtractedResult;
+  try {
+    extracted = await extractAdmissions(pageText, { universityName, sourceUrl }, userId, opts.model);
+  } catch (e: unknown) {
+    const err = e as { statusCode?: number; message?: string };
+    const status = err.statusCode ?? 500;
+    return { ok: false, status: status === 402 || status === 429 ? status : 502, error: `AI抽出に失敗しました (status=${status}): ${err.message ?? "unknown"}` };
+  }
+
+  const uniName = (universityName || extracted.university.name || "").trim();
+  if (!uniName) {
+    return { ok: false, status: 422, error: "大学名を特定できませんでした。大学名を明示して再実行してください。" };
+  }
+
+  // 3) 大学マスタ upsert
+  const existingUni = await prisma.university.findUnique({ where: { name: uniName } });
+  const university = existingUni
+    ? await prisma.university.update({
+        where: { id: existingUni.id },
+        data: {
+          prefecture: prefectureHint || extracted.university.prefecture || existingUni.prefecture,
+          category: categoryHint || extracted.university.category || existingUni.category,
+          website: existingUni.website || `${parsed.protocol}//${parsed.host}`,
+        },
+      })
+    : await prisma.university.create({
+        data: {
+          name: uniName,
+          prefecture: prefectureHint || extracted.university.prefecture,
+          category: categoryHint || extracted.university.category,
+          website: `${parsed.protocol}//${parsed.host}`,
+        },
+      });
+
+  // 4) 入試情報を差分検知しながら upsert
+  const now = new Date();
+  let created = 0;
+  let updated = 0;
+  let unchanged = 0;
+  const changes: CrawlChange[] = [];
+
+  for (const a of extracted.admissions) {
+    const hash = admissionHash(a);
+    const existing = await prisma.universityAdmission.findFirst({
+      where: {
+        universityId: university.id,
+        faculty: a.faculty,
+        department: a.department,
+        method: a.method,
+        targetYear: a.targetYear,
+      },
+    });
+
+    if (!existing) {
+      await prisma.universityAdmission.create({
+        data: {
+          universityId: university.id,
+          faculty: a.faculty,
+          department: a.department,
+          method: a.method,
+          targetYear: a.targetYear,
+          examDate: a.examDate,
+          applicationPeriod: a.applicationPeriod,
+          subjects: a.subjects,
+          capacity: a.capacity,
+          deviationTarget: a.deviationTarget,
+          examFee: a.examFee,
+          sourceUrl,
+          contentHash: hash,
+          lastCrawledAt: now,
+        },
+      });
+      created++;
+      changes.push({ faculty: a.faculty, method: a.method, type: "新規" });
+    } else if (existing.contentHash !== hash) {
+      const before = {
+        examDate: existing.examDate,
+        applicationPeriod: existing.applicationPeriod,
+        subjects: existing.subjects,
+        capacity: existing.capacity,
+        deviationTarget: existing.deviationTarget,
+        examFee: existing.examFee,
+      };
+      const after = {
+        examDate: a.examDate,
+        applicationPeriod: a.applicationPeriod,
+        subjects: a.subjects,
+        capacity: a.capacity,
+        deviationTarget: a.deviationTarget,
+        examFee: a.examFee,
+      };
+      const changedFields = (Object.keys(after) as (keyof typeof after)[]).filter(
+        (k) => String(before[k] ?? "") !== String(after[k] ?? "")
+      );
+      const summary = `${a.faculty || "(学部不明)"} ${a.method || ""}: ${changedFields.join(", ")} が変更`;
+      await prisma.universityAdmission.update({
+        where: { id: existing.id },
+        data: {
+          examDate: a.examDate,
+          applicationPeriod: a.applicationPeriod,
+          subjects: a.subjects,
+          capacity: a.capacity,
+          deviationTarget: a.deviationTarget,
+          examFee: a.examFee,
+          sourceUrl,
+          contentHash: hash,
+          lastCrawledAt: now,
+        },
+      });
+      await prisma.admissionRevision.create({
+        data: { admissionId: existing.id, summary, diff: JSON.stringify({ before, after, changedFields }), sourceUrl },
+      });
+      updated++;
+      changes.push({ faculty: a.faculty, method: a.method, type: "更新", summary });
+    } else {
+      await prisma.universityAdmission.update({ where: { id: existing.id }, data: { lastCrawledAt: now } });
+      unchanged++;
+      changes.push({ faculty: a.faculty, method: a.method, type: "変更なし" });
+    }
+  }
+
+  return {
+    ok: true,
+    university: { id: university.id, name: university.name },
+    extractedCount: extracted.admissions.length,
+    created,
+    updated,
+    unchanged,
+    changes,
+  };
 }

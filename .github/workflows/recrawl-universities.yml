@@ -1,0 +1,40 @@
+name: Re-crawl university admissions (大学入試情報の定期追跡)
+
+# 依頼⑤: 大学HPの入試情報を定期的に再クロールして変更を追跡する。
+# Vercel Hobby の Cron 2本上限を回避するため、GitHub Actions の無料スケジューラで実行。
+# 週1回（月曜 早朝JST）、保存済みURLを1件ずつ巡回し done=true まで繰り返す。
+# 各呼び出しは1URLのみ処理するので Vercel Function の60s上限に収まる。
+
+on:
+  schedule:
+    # 毎週日曜 18:23 UTC = 毎週月曜 03:23 JST（週1回・オフピーク）
+    - cron: "23 18 * * 0"
+  workflow_dispatch: {} # 手動実行も可
+
+concurrency:
+  group: recrawl-universities
+  cancel-in-progress: false
+
+jobs:
+  recrawl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Loop re-crawl until all URLs are fresh
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ENDPOINT: https://juku-system.vercel.app/api/cron/recrawl-universities
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret is not set. Add it in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          for i in $(seq 1 80); do
+            resp=$(curl -sS -m 90 -X POST "$ENDPOINT" -H "Authorization: Bearer $CRON_SECRET" || echo '{"curl":"error"}')
+            echo "[$i] $resp"
+            case "$resp" in
+              *'"done":true'*) echo "全URLの巡回が完了しました"; exit 0 ;;
+              *'"error":"Unauthorized"'*) echo "::error::Unauthorized（CRON_SECRETがVercelと不一致）"; exit 1 ;;
+            esac
+            sleep 3
+          done
+          echo "上限回数に到達（未処理URLが残っている可能性）。次回実行で続きを処理します。"

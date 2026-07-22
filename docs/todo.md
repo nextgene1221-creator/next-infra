@@ -314,3 +314,14 @@ Newmonic
     - UI: ②タブの戦略カード下にチャット欄を追加（初回戦略要約を会話の種として付与、Enter送信）
     - 検証: 認証付きE2E PASS（初回6校→「予算20万・私立1校」で更新プランに調整）、`tsc --noEmit` PASS
     - 既知: AI応答のMarkdown表はチャットでpre-wrap表示（生表示）。将来marked導入で整形可
+
+29. ⑤大学データの定期追跡（自動再クロール・A案 GitHub Actions） (2026-07-22, commit `未`)
+    - オーナー方針: 「A（GitHub Actions）で無料範囲に収まるよう頻度調整」
+    - 共通化: `lib/universityCrawl.ts` に `crawlAndStore()`（fetch→抽出→差分upsert→履歴）。手動crawlルートも同関数を使うよう簡素化
+    - 定期API `POST /api/cron/recrawl-universities`（`CRON_SECRET`保護・maxDuration60）: 最も古いsourceUrlを1件だけ再クロール→`done`まで外部ループ。抽出は安価な `gpt-4o-mini`。全admissionの`lastCrawledAt`更新で巡回の進行を保証（無限ループ防止）
+    - 変更検知(新規/更新)時は**管理者へアラート**（`Alert` type=general、概要＋出所URL）
+    - スケジューラ `.github/workflows/recrawl-universities.yml`: **週1回（月曜03:23 JST）**＋手動実行。done まで curl ループ
+    - `CRON_SECRET` を Vercel(prod/preview/dev)へ登録済み。**GitHub Secretは要手動追加**（Settings→Secrets→Actions）
+    - 検証: 認証(401×2)・巡回(done:false→再クロール)・完了(done:true) 実DBでE2E PASS、`tsc --noEmit` PASS
+    - 頻度/コスト: 週1・gpt-4o-mini・1URL/呼び出しで、GitHub Actions無料枠・Gateway無料$5/月に収まる想定
+    - 未対応: SPA(JS描画)のヘッドレス取得、担当講師への個別通知
