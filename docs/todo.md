@@ -331,4 +331,5 @@ Newmonic
     - スキーマ: `ProgressRecord`/`Meeting`/`Task` の `teacherId` を任意(nullable)化。マイグレーション `20260803000000_teacher_optional_on_records`（NOT NULL解除のみ・既存非破壊）を本番Neon適用済み
     - コード: 3ルートの findFirst フォールバックを廃止し、講師でない作成者は担当なし(null)に。表示は全箇所 `teacher?.user.name ?? "—"` に null 安全化（progress/meetings/tasks/students詳細/report/goals/dashboard/MeetingRecords/TaskCompleteCheckbox）。アラート(check-all/check-meetings)も担当null時はスキップ/「担当なし」表記
     - 検証: admin作成の進捗が teacherId=null になること・/progress が描画されることをローカルE2E PASS、`tsc --noEmit` PASS
-    - **データ後始末は要デプロイ後実行**: `prisma/cleanup-sato-teacher.ts`（既存170件等の佐藤駿を null 化）。⚠️ 旧コードが本番稼働中に実行すると null 参照で落ちるため、**新コードのデプロイ完了後に実行**する（現状 push 認証(mijicana)の解消待ち）
+    - データ後始末: `prisma/cleanup-sato-teacher.ts` を**デプロイ後に実行済み(2026-08-04)** → 進捗170件＋Task1件を担当なし(null)化、佐藤駿ひもづき0件。本番 /progress・/students/[id]・/tasks・/meetings が200描画を確認
+    - デプロイ: push認証(gh を nextgene1221-creator へ再ログイン)解消 → `0d98c12..308fb19` push → 本番反映済み（26.AI再クロールも同時デプロイ）
