@@ -8,7 +8,7 @@ type Props = {
   initialCompleted: boolean;
   task?: {
     studentId?: string | null;
-    teacherId: string;
+    teacherId: string | null;
     title: string;
     description: string;
     dueDate: string;

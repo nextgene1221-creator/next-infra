@@ -199,7 +199,7 @@ model StudentAssignment {
 model ProgressRecord {
   id              String   @id @default(uuid())
   studentId       String   @map("student_id")
-  teacherId       String   @map("teacher_id")
+  teacherId       String?  @map("teacher_id") // 担当講師（任意。管理者記録などで未設定可）
   subject         String
   date            DateTime
   material        String   // 教材名
@@ -211,7 +211,7 @@ model ProgressRecord {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   student Student        @relation(fields: [studentId], references: [id])
-  teacher Teacher        @relation(fields: [teacherId], references: [id])
+  teacher Teacher?       @relation(fields: [teacherId], references: [id])
   goal    LearningGoal?  @relation(fields: [goalId], references: [id])
   bigGoal BigGoal?       @relation("BigGoalProgress", fields: [bigGoalId], references: [id])
 
@@ -237,7 +237,7 @@ model Material {
 model Task {
   id              String    @id @default(uuid())
   studentId       String?   @map("student_id")
-  teacherId       String    @map("teacher_id")
+  teacherId       String?   @map("teacher_id") // 担当講師（任意。管理者記録などで未設定可）
   subject         String
   title           String
   description     String    @default("")
@@ -251,7 +251,7 @@ model Task {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   student Student? @relation(fields: [studentId], references: [id])
-  teacher Teacher  @relation(fields: [teacherId], references: [id])
+  teacher Teacher? @relation(fields: [teacherId], references: [id])
 
   @@map("tasks")
 }
@@ -341,7 +341,7 @@ model Shift {
 model Meeting {
   id              String    @id @default(uuid())
   studentId       String    @map("student_id")
-  teacherId       String    @map("teacher_id")
+  teacherId       String?   @map("teacher_id") // 担当講師（任意。管理者記録などで未設定可）
   date            DateTime
   durationMinutes Int?      @map("duration_minutes") // 面談時間（分）
   type            String?   // 定期面談 / 進路相談 / 学習相談 / 保護者面談 / その他
@@ -355,7 +355,7 @@ model Meeting {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   student Student @relation(fields: [studentId], references: [id])
-  teacher Teacher @relation(fields: [teacherId], references: [id])
+  teacher Teacher? @relation(fields: [teacherId], references: [id])
 
   @@map("meetings")
 }

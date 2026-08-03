@@ -98,7 +98,7 @@ export default async function ReportPage({
   const comments = student.meetings.map((m) => ({
     id: m.id,
     date: m.date.toISOString(),
-    teacherName: m.teacher.user.name,
+    teacherName: m.teacher?.user.name ?? "—",
     parentComment: m.parentComment,
   }));
 

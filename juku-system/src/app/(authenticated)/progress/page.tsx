@@ -115,7 +115,7 @@ export default async function ProgressPage({
                   <p className="line-clamp-2">{record.topic || "-"}</p>
                 </td>
                 <td className="px-6 py-4 text-sm text-dark">{record.pagesCompleted}ページ</td>
-                <td className="px-6 py-4 text-sm text-dark">{record.teacher.user.name}</td>
+                <td className="px-6 py-4 text-sm text-dark">{record.teacher?.user.name ?? "—"}</td>
               </ClickableRow>
             ))}
             {records.length === 0 && (

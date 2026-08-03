@@ -12,18 +12,16 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { studentId, title, description, dueDate, type, meetingDateTime, teacherId: bodyTeacherId } = body;
 
-  // admin が担当者を明示指定した場合はそれを使用、それ以外は自分の Teacher レコードに割当
-  let teacherId: string | undefined;
+  // admin が担当者を明示指定した場合はそれを使用、それ以外は自分の Teacher レコードに割当。
+  // 講師でない場合は担当なし(null)。（以前は最初の講師=佐藤駿へ自動割当していたが廃止）
+  let teacherId: string | null = null;
   if (session.user.role === "admin" && bodyTeacherId) {
     const t = await prisma.teacher.findUnique({ where: { id: bodyTeacherId } });
     if (t) teacherId = t.id;
   }
   if (!teacherId) {
     const self = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
-    teacherId = self?.id || (await prisma.teacher.findFirst())?.id;
-  }
-  if (!teacherId) {
-    return NextResponse.json({ error: "No teacher available" }, { status: 400 });
+    teacherId = self?.id ?? null;
   }
 
   const task = await prisma.task.create({

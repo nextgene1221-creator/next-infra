@@ -43,7 +43,7 @@ export default async function ProgressDetailPage({
           </div>
           <div className="flex">
             <dt className="w-32 text-sm text-dark/60">講師</dt>
-            <dd className="text-sm text-dark">{record.teacher.user.name}</dd>
+            <dd className="text-sm text-dark">{record.teacher?.user.name ?? "—"}</dd>
           </div>
           <div className="flex">
             <dt className="w-32 text-sm text-dark/60">科目</dt>

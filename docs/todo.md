@@ -325,3 +325,10 @@ Newmonic
     - 検証: 認証(401×2)・巡回(done:false→再クロール)・完了(done:true) 実DBでE2E PASS、`tsc --noEmit` PASS
     - 頻度/コスト: 週1・gpt-4o-mini・1URL/呼び出しで、GitHub Actions無料枠・Gateway無料$5/月に収まる想定
     - 未対応: SPA(JS描画)のヘッドレス取得、担当講師への個別通知
+
+30. 「担当＝佐藤駿」自動割当バグ修正（担当講師を任意化） (2026-08-03, commit `未`)
+    - 症状: 生徒の進捗などの担当者が全部「佐藤駿」。原因は meetings/progress/tasks API の `teacher.findFirst()`（並び順なし＝最古の講師=佐藤駿）フォールバック。管理者が作成した記録が全て佐藤駿に割当られていた（進捗170件・Task1件。StudentAssignmentデータ自体は正常）
+    - スキーマ: `ProgressRecord`/`Meeting`/`Task` の `teacherId` を任意(nullable)化。マイグレーション `20260803000000_teacher_optional_on_records`（NOT NULL解除のみ・既存非破壊）を本番Neon適用済み
+    - コード: 3ルートの findFirst フォールバックを廃止し、講師でない作成者は担当なし(null)に。表示は全箇所 `teacher?.user.name ?? "—"` に null 安全化（progress/meetings/tasks/students詳細/report/goals/dashboard/MeetingRecords/TaskCompleteCheckbox）。アラート(check-all/check-meetings)も担当null時はスキップ/「担当なし」表記
+    - 検証: admin作成の進捗が teacherId=null になること・/progress が描画されることをローカルE2E PASS、`tsc --noEmit` PASS
+    - **データ後始末は要デプロイ後実行**: `prisma/cleanup-sato-teacher.ts`（既存170件等の佐藤駿を null 化）。⚠️ 旧コードが本番稼働中に実行すると null 参照で落ちるため、**新コードのデプロイ完了後に実行**する（現状 push 認証(mijicana)の解消待ち）

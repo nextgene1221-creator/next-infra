@@ -208,7 +208,7 @@ export default async function StudentDetailPage({
       material: p.material,
       topic: p.topic,
       pagesCompleted: p.pagesCompleted,
-      teacherName: p.teacher.user.name,
+      teacherName: p.teacher?.user.name ?? "—",
     })),
     seminarUnits: printUnits.map((u) => ({
       id: u.id,
@@ -434,7 +434,7 @@ export default async function StudentDetailPage({
                       </span>
                     </div>
                     <p className="text-xs text-dark/60 mt-1">
-                      {new Date(record.date).toLocaleDateString("ja-JP")} / {record.teacher.user.name}
+                      {new Date(record.date).toLocaleDateString("ja-JP")} / {record.teacher?.user.name ?? "—"}
                     </p>
                   </Link>
                 </li>

@@ -47,7 +47,7 @@ export default async function MeetingsPage({
     goalsSnapshot: m.goalsSnapshot,
     progressSnapshot: m.progressSnapshot,
     nextMeetingDate: m.nextMeetingDate ? m.nextMeetingDate.toISOString() : null,
-    teacherName: m.teacher.user.name,
+    teacherName: m.teacher?.user.name ?? "—",
   }));
 
   return (

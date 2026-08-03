@@ -38,7 +38,7 @@ export async function POST() {
         .map((a) => a.teacher.user.id);
 
       const studentName = task.student?.user.name || "（生徒未指定）";
-      const message = `質疑応答の担当者を確認し、担当者は声かけを行ってください。対象: ${studentName}（担当: ${task.teacher.user.name}）`;
+      const message = `質疑応答の担当者を確認し、担当者は声かけを行ってください。対象: ${studentName}（担当: ${task.teacher?.user.name ?? "担当なし"}）`;
 
       for (const userId of recipients) {
         await prisma.alert.create({
@@ -73,20 +73,23 @@ export async function POST() {
   });
 
   for (const task of overdueTasks) {
-    await prisma.alert.create({
-      data: {
-        userId: task.teacher.userId,
-        type: "task_overdue",
-        title: "タスク期限超過",
-        message: `「${task.title}」が期限を過ぎています。`,
-        isRead: false,
-      },
-    });
+    // 担当講師が設定されている場合のみ本人へ通知（未設定タスクは通知先が無いためスキップ）
+    if (task.teacher) {
+      await prisma.alert.create({
+        data: {
+          userId: task.teacher.userId,
+          type: "task_overdue",
+          title: "タスク期限超過",
+          message: `「${task.title}」が期限を過ぎています。`,
+          isRead: false,
+        },
+      });
+      generated++;
+    }
     await prisma.task.update({
       where: { id: task.id },
       data: { overdueAlerted: true, status: "overdue" },
     });
-    generated++;
   }
 
   // ====================================================

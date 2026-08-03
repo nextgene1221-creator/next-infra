@@ -167,7 +167,7 @@ export default async function DashboardPage() {
         id: t.id,
         title: t.title,
         studentId: t.studentId,
-        teacherId: t.teacherId,
+        teacherId: t.teacherId ?? teacher.id,
         description: t.description,
         dueDate: t.dueDate.toISOString(),
         type: t.type,

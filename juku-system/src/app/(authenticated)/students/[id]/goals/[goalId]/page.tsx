@@ -160,7 +160,7 @@ export default async function GoalDetailPage({
                       <p className="line-clamp-2">{record.topic || "-"}</p>
                     </td>
                     <td className="px-6 py-4 text-sm text-dark">
-                      {record.teacher.user.name}
+                      {record.teacher?.user.name ?? "—"}
                     </td>
                   </tr>
                 ))}

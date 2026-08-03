@@ -9,12 +9,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  // 講師ID取得（ログイン中の講師、または admin の場合は最初の講師）
+  // 担当講師 = ログイン中の講師。管理者など講師でない場合は担当なし(null)。
+  // （以前は最初の講師=佐藤駿へ自動割当していたが、誤った担当付けになるため廃止）
   const teacher = await prisma.teacher.findFirst({ where: { userId: session.user.id } });
-  const teacherId = teacher?.id || (await prisma.teacher.findFirst())?.id;
-  if (!teacherId) {
-    return NextResponse.json({ error: "No teacher available" }, { status: 400 });
-  }
+  const teacherId = teacher?.id ?? null;
 
   const body = await req.json();
   const { studentId, date, durationMinutes, type, content, nextMeetingDate, status, parentComment } = body;
@@ -60,7 +58,7 @@ export async function POST(req: NextRequest) {
     material: p.material,
     topic: p.topic,
     pagesCompleted: p.pagesCompleted,
-    teacherName: p.teacher.user.name,
+    teacherName: p.teacher?.user.name ?? "—",
   }));
 
   const meeting = await prisma.meeting.create({

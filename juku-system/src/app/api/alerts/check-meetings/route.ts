@@ -41,7 +41,7 @@ export async function POST() {
       .map((a) => a.teacher.user.id);
 
     const studentName = task.student?.user.name || "（生徒未指定）";
-    const message = `質疑応答の担当者を確認し、担当者は声かけを行ってください。対象: ${studentName}（担当: ${task.teacher.user.name}）`;
+    const message = `質疑応答の担当者を確認し、担当者は声かけを行ってください。対象: ${studentName}（担当: ${task.teacher?.user.name ?? "担当なし"}）`;
 
     for (const userId of recipients) {
       await prisma.alert.create({

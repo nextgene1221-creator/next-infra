@@ -42,7 +42,7 @@ type Meeting = {
   goalsSnapshot?: string;
   progressSnapshot?: string;
   nextMeetingDate: string | Date | null;
-  teacher: { user: { name: string } };
+  teacher: { user: { name: string } } | null;
 };
 
 export default function MeetingRecords({
@@ -322,7 +322,7 @@ export default function MeetingRecords({
                       </span>
                     )}
                     <span className="text-xs text-dark/60">
-                      / 担当: {meeting.teacher.user.name}
+                      / 担当: {meeting.teacher?.user.name ?? "—"}
                     </span>
                   </div>
                 </div>

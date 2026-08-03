@@ -173,7 +173,7 @@ export default async function TasksPage({
                 </td>
                 <td className="px-6 py-4 text-sm font-medium text-primary">{task.title}</td>
                 <td className="px-6 py-4 text-sm text-dark">{task.student?.user.name || "-"}</td>
-                <td className="px-6 py-4 text-sm text-dark">{task.teacher.user.name}</td>
+                <td className="px-6 py-4 text-sm text-dark">{task.teacher?.user.name ?? "—"}</td>
                 <td className="px-6 py-4 text-sm text-dark">
                   {new Date(task.dueDate).toLocaleDateString("ja-JP")}
                 </td>
