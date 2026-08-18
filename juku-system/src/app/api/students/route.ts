@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { normalizeApplicationPolicy, normalizeLocationPreference } from "@/lib/studentPreferences";
 import bcrypt from "bcryptjs";
 
 export async function GET() {
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
     furigana, gender, birthDate, mobilePhone, postalCode, address,
     referrer, track, firstChoiceSchool, desiredFaculty, examSubjects,
     considerRecommendation, eikenPlan, campus,
+    applicationPolicy, locationPreference,
   } = body;
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -65,6 +67,8 @@ export async function POST(req: NextRequest) {
       considerRecommendation: !!considerRecommendation,
       eikenPlan: eikenPlan || "",
       campus: campus || "",
+      applicationPolicy: normalizeApplicationPolicy(applicationPolicy),
+      locationPreference: normalizeLocationPreference(locationPreference),
       user: {
         create: {
           email,

@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/session";
+import { applicationPolicyLabel, locationPreferenceLabel } from "@/lib/studentPreferences";
 import { prisma } from "@/lib/prisma";
 import { TRACKS, GENDERS } from "@/lib/types";
 import LineLinkSection from "./LineLinkSection";
@@ -99,6 +100,8 @@ export default async function ProfilePage() {
               label="受験科目"
               value={renderJsonArray(user.student.examSubjects) || "-"}
             />
+            <Row label="出願思考" value={applicationPolicyLabel(user.student.applicationPolicy)} />
+            <Row label="志望校立地" value={locationPreferenceLabel(user.student.locationPreference)} />
             <Row
               label="総合・推薦の検討"
               value={user.student.considerRecommendation ? "あり" : "なし"}

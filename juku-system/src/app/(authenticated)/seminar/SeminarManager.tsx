@@ -198,7 +198,8 @@ export default function SeminarManager({
   const [editError, setEditError] = useState("");
 
   const openEdit = (p: StudentPrint) => {
-    if (p.completedDate) return;
+    // 完了済みは「取り消し」のために開ける。権限が無い場合のみ従来どおり弾く。
+    if (p.completedDate && !(role === "admin" || role === "teacher")) return;
     setEditing(p);
     setEditDate(p.scheduledDate.split("T")[0]);
     setEditError("");
@@ -237,6 +238,28 @@ export default function SeminarManager({
       setEditError(j.error || "更新に失敗しました");
     }
     setEditSaving(false);
+  };
+
+  // 完了の取り消しは講師・管理者のみ（オーナー確認 2026-08-18 / B-4 (a)）。
+  const canUncomplete = role === "admin" || role === "teacher";
+
+  // 完了を取り消す。予定日は元のまま保持し、完了フラグだけ外す（B-4 (b)）。
+  const uncompleteFromModal = async () => {
+    if (!editing || !canUncomplete) return;
+    if (!confirm("このプリントの完了を取り消しますか？\n予定日はそのまま残ります。")) return;
+    const res = await fetch("/api/student-prints", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editing.id, completedDate: null }),
+    });
+    if (res.ok) {
+      setPrints((prev) => prev.map((p) => (p.id === editing.id ? { ...p, completedDate: null } : p)));
+      closeEdit();
+      router.refresh();
+    } else {
+      const j = await res.json().catch(() => ({}));
+      setEditError(j.error || "完了の取り消しに失敗しました");
+    }
   };
 
   const completeFromModal = async () => {
@@ -429,6 +452,7 @@ export default function SeminarManager({
                                   const d = new Date(p.completedDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
                                   content = d;
                                   title += ` 完了: ${d}`;
+                                  if (role === "admin" || role === "teacher") title += "（クリックで取り消し可）";
                                 } else if (p) {
                                   bg = "bg-yellow-50";
                                   const d = new Date(p.scheduledDate).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
@@ -437,14 +461,14 @@ export default function SeminarManager({
                                 } else {
                                   title += "（クリックで予定登録）";
                                 }
-                                const isClickable = !p?.completedDate;
+                                const isClickable = !p?.completedDate || role === "admin" || role === "teacher";
                                 return (
                                   <td
                                     key={i}
                                     className={`text-center py-0.5 px-0.5 border border-gray-200 ${bg} ${isClickable ? "cursor-pointer hover:opacity-80" : ""}`}
                                     title={title}
                                     onClick={() => {
-                                      if (p?.completedDate) return;
+                                      if (p?.completedDate && !(role === "admin" || role === "teacher")) return;
                                       if (p) {
                                         openEdit(p);
                                         return;
@@ -532,8 +556,17 @@ export default function SeminarManager({
       {editing && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={closeEdit}>
           <div className="bg-white rounded-lg shadow-lg p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-dark mb-3">プリント予定の編集</h3>
+            <h3 className="text-base font-semibold text-dark mb-3">
+              {editing.completedDate ? "完了済みプリント" : "プリント予定の編集"}
+            </h3>
             <div className="space-y-3">
+              {editing.completedDate && (
+                <p className="text-xs bg-green-50 text-green-800 rounded px-2 py-1.5">
+                  完了日: {new Date(editing.completedDate).toLocaleDateString("ja-JP")}
+                  <br />
+                  誤って完了にした場合は「完了を取り消す」で戻せます（予定日は保持されます）。
+                </p>
+              )}
               <div>
                 <label className="block text-xs text-dark/60 mb-1">予定日</label>
                 <input
@@ -541,7 +574,7 @@ export default function SeminarManager({
                   value={editDate}
                   min={role === "student" ? todayStr : undefined}
                   onChange={(e) => setEditDate(e.target.value)}
-                  disabled={studentCantEdit}
+                  disabled={studentCantEdit || !!editing.completedDate}
                   className="border border-gray-300 rounded px-2 py-1.5 text-sm w-full disabled:bg-gray-100"
                 />
                 {studentCantEdit && (
@@ -550,19 +583,32 @@ export default function SeminarManager({
                 {editError && <p className="text-xs text-red-600 mt-1">{editError}</p>}
               </div>
               <div className="flex gap-2 flex-wrap pt-2">
-                <button
-                  onClick={saveSchedule}
-                  disabled={editSaving || studentCantEdit || editDate === editing.scheduledDate.split("T")[0]}
-                  className="bg-primary text-white px-3 py-1.5 rounded text-sm hover:bg-primary-dark disabled:opacity-50"
-                >
-                  {editSaving ? "保存中..." : "予定日を保存"}
-                </button>
-                <button
-                  onClick={completeFromModal}
-                  className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700"
-                >
-                  完了にする
-                </button>
+                {!editing.completedDate && (
+                  <button
+                    onClick={saveSchedule}
+                    disabled={editSaving || studentCantEdit || editDate === editing.scheduledDate.split("T")[0]}
+                    className="bg-primary text-white px-3 py-1.5 rounded text-sm hover:bg-primary-dark disabled:opacity-50"
+                  >
+                    {editSaving ? "保存中..." : "予定日を保存"}
+                  </button>
+                )}
+                {editing.completedDate ? (
+                  canUncomplete && (
+                    <button
+                      onClick={uncompleteFromModal}
+                      className="bg-amber-600 text-white px-3 py-1.5 rounded text-sm hover:bg-amber-700"
+                    >
+                      完了を取り消す
+                    </button>
+                  )
+                ) : (
+                  <button
+                    onClick={completeFromModal}
+                    className="bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700"
+                  >
+                    完了にする
+                  </button>
+                )}
                 <button
                   onClick={deleteFromModal}
                   className="bg-red-500 text-white px-3 py-1.5 rounded text-sm hover:bg-red-600"

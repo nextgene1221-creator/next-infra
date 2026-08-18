@@ -14,7 +14,7 @@ export async function PUT(
   const { id } = await params;
   const body = await req.json();
   const {
-    examName, examDate, gradeLevel,
+    examName, examDate, gradeLevel, mockExamId,
     overallDeviation, overallScore, schoolRank, judgment, subjects, notes,
   } = body;
 
@@ -22,6 +22,7 @@ export async function PUT(
     where: { id },
     data: {
       examName,
+      mockExamId: typeof mockExamId === "string" && mockExamId ? mockExamId : null,
       examDate: new Date(examDate),
       gradeLevel,
       overallDeviation: overallDeviation !== null && overallDeviation !== undefined ? Number(overallDeviation) : null,

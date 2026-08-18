@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { applicationPolicyLabel, locationPreferenceLabel } from "@/lib/studentPreferences";
 import { generateObject, jsonSchema } from "ai";
 
 export const maxDuration = 60; // AI生成に時間がかかるため延長（Hobby上限60s）
@@ -34,12 +35,11 @@ const diagnosisSchema = jsonSchema<{
     assessment: string;
     rationale: string;
   }[];
-  weakSubjects: { subject: string; comment: string; recommendedAction: string }[];
   overallAdvice: string;
 }>({
   type: "object",
   additionalProperties: false,
-  required: ["summary", "schools", "weakSubjects", "overallAdvice"],
+  required: ["summary", "schools", "overallAdvice"],
   properties: {
     summary: { type: "string", description: "生徒の現状の総評（3〜4文）" },
     schools: {
@@ -54,20 +54,6 @@ const diagnosisSchema = jsonSchema<{
           positioning: { type: "string", enum: ["挑戦", "実力相応", "安全"] },
           assessment: { type: "string", description: "合格可能性の所見（定性的でよい）" },
           rationale: { type: "string", description: "その判断の根拠" },
-        },
-      },
-    },
-    weakSubjects: {
-      type: "array",
-      description: "弱点科目と推奨アクション",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["subject", "comment", "recommendedAction"],
-        properties: {
-          subject: { type: "string" },
-          comment: { type: "string" },
-          recommendedAction: { type: "string" },
         },
       },
     },
@@ -114,6 +100,8 @@ export async function POST(req: NextRequest) {
     志望学部: student.desiredFaculty || "未設定",
     受験科目: examSubjects.length ? examSubjects : "未設定",
     推薦検討: student.considerRecommendation ? "あり" : "なし",
+    出願思考: applicationPolicyLabel(student.applicationPolicy),
+    志望校立地: locationPreferenceLabel(student.locationPreference),
     英検予定: student.eikenPlan || "未設定",
   };
   const mockExams = student.mockExamResults.map((m) => ({

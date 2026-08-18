@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { applicationPolicyLabel, locationPreferenceLabel, URBAN_DEFINITION_NOTE } from "@/lib/studentPreferences";
 import { generateObject, jsonSchema } from "ai";
+import type { JSONSchema7 } from "json-schema";
 
 export const maxDuration = 60;
 
 // ② 出願戦略ジェネレータ（管理者テスト）。①と同じAI基盤を共用。
-// 入力=生徒プロフィール＋模試＋予算＋⑤の大学入試データ。出力=出願プラン（本命/併願/滑り止め）、
+// 入力=生徒プロフィール（出願思考/志望校立地を含む）＋模試＋予算＋⑤の大学入試データ。
+// 出力=出願プラン（国公立は前期/中期/後期、私立は別枠。各校に挑戦/実力相応/安全）、
 // 日程衝突、受験料＋沖縄からの移動/宿泊費概算、リスク。結果は保存しない。
 
 const ALLOWED_MODELS = [
@@ -27,17 +30,46 @@ const TRACK_LABEL: Record<string, string> = {
 const DEFAULT_AIRFARE = 40000; // 沖縄⇔本土 往復航空券の目安（1回の遠征あたり）
 const DEFAULT_LODGING = 8000; // 1泊の宿泊費目安
 
+// 出願プラン1件。国公立・私立で共通の形。
+type PlanItem = {
+  name: string;
+  faculty: string;
+  method: string;
+  tier: "挑戦" | "実力相応" | "安全";
+  examDate: string;
+  examFeeYen: number | null;
+  rationale: string;
+};
+
+const planItemSchema: JSONSchema7 = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "faculty", "method", "tier", "examDate", "examFeeYen", "rationale"],
+  properties: {
+    name: { type: "string", description: "大学名" },
+    faculty: { type: "string", description: "学部・学科" },
+    method: { type: "string", description: "入試方式（一般/共通テスト利用/学校推薦/総合型など）" },
+    tier: {
+      type: "string",
+      enum: ["挑戦", "実力相応", "安全"],
+      description: "難易度の位置づけ。国公立・私立それぞれの中で独立に判定すること",
+    },
+    examDate: { type: "string", description: "試験日（分かれば）" },
+    examFeeYen: { type: ["integer", "null"], description: "受験料（円、分かれば）" },
+    rationale: { type: "string", description: "この校・方式を薦める理由" },
+  },
+};
+
+const planArray = (desc: string): JSONSchema7 => ({
+  type: "array",
+  description: desc,
+  items: planItemSchema,
+});
+
 const strategySchema = jsonSchema<{
   summary: string;
-  plan: {
-    name: string;
-    faculty: string;
-    method: string;
-    tier: "本命" | "併願" | "滑り止め";
-    examDate: string;
-    examFeeYen: number | null;
-    rationale: string;
-  }[];
+  publicPlan: { 前期: PlanItem[]; 中期: PlanItem[]; 後期: PlanItem[] };
+  privatePlan: PlanItem[];
   scheduleConflicts: { dates: string; description: string }[];
   costEstimate: {
     examFeesTotalYen: number | null;
@@ -53,27 +85,24 @@ const strategySchema = jsonSchema<{
 }>({
   type: "object",
   additionalProperties: false,
-  required: ["summary", "plan", "scheduleConflicts", "costEstimate", "risks", "advice"],
+  required: ["summary", "publicPlan", "privatePlan", "scheduleConflicts", "costEstimate", "risks", "advice"],
   properties: {
-    summary: { type: "string", description: "出願戦略の総評（3〜4文）" },
-    plan: {
-      type: "array",
-      description: "出願校の組み合わせ案。本命・併願・滑り止めをバランス良く2〜6件。",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["name", "faculty", "method", "tier", "examDate", "examFeeYen", "rationale"],
-        properties: {
-          name: { type: "string", description: "大学名" },
-          faculty: { type: "string", description: "学部・学科" },
-          method: { type: "string", description: "入試方式（一般/共通テスト利用/推薦など）" },
-          tier: { type: "string", enum: ["本命", "併願", "滑り止め"] },
-          examDate: { type: "string", description: "試験日（分かれば）" },
-          examFeeYen: { type: ["integer", "null"], description: "受験料（円、分かれば）" },
-          rationale: { type: "string", description: "この校・方式を薦める理由" },
-        },
+    summary: { type: "string", description: "出願戦略の総評（3〜4文）。国公立を基本線としたうえでの方針を述べる" },
+    publicPlan: {
+      type: "object",
+      additionalProperties: false,
+      description:
+        "国公立の出願プラン。前期・中期・後期の3日程それぞれについて、挑戦・実力相応・安全のバランスで提示する。該当校が無い日程は空配列にする（無理に埋めない）。",
+      required: ["前期", "中期", "後期"],
+      properties: {
+        前期: planArray("国公立 前期日程。各 tier から1校程度を目安に。"),
+        中期: planArray("国公立 中期日程。実施校は公立大の一部のみと少ないため、該当が無ければ空配列にする。"),
+        後期: planArray("国公立 後期日程。各 tier から1校程度を目安に。"),
       },
     },
+    privatePlan: planArray(
+      "私立の出願候補。国公立とは別枠で、挑戦・実力相応・安全それぞれ1〜2校を目安に提示する。"
+    ),
     scheduleConflicts: {
       type: "array",
       description: "試験日の衝突や近接（沖縄からの遠征を考慮）。無ければ空配列。",
@@ -163,6 +192,8 @@ export async function POST(req: NextRequest) {
     志望学部: student.desiredFaculty || "未設定",
     受験科目: examSubjects.length ? examSubjects : "未設定",
     推薦検討: student.considerRecommendation ? "あり" : "なし",
+    出願思考: applicationPolicyLabel(student.applicationPolicy),
+    志望校立地: locationPreferenceLabel(student.locationPreference),
   };
   const mockExams = student.mockExamResults.map((m) => ({
     模試名: m.examName,
@@ -211,7 +242,17 @@ export async function POST(req: NextRequest) {
     universityData.length ? JSON.stringify(universityData, null, 2) : "（収集済みデータなし。一般的な受験知識で提案する）",
     "",
     "受験料・試験日は上記データにあればそれを使い、無ければ一般的な相場・時期で概算してください（参考値と明記）。",
-    "本命・併願・滑り止めのバランス、試験日の衝突/近接、費用総額（受験料＋移動＋宿泊）を含めてください。",
+    "",
+    "## 出願プランの組み立て方（必ず守る）",
+    "1. **国公立を基本線**とする。`publicPlan` に **前期・中期・後期の3日程それぞれ**のプランを出す。",
+    "   - 中期日程は実施校が公立大の一部のみと少ない。該当が無ければ**無理に埋めず空配列**にする。",
+    "2. 私立は `privatePlan` として**国公立とは別枠**で出す。国公立の穴埋めではなく、独立した候補群として提示する。",
+    "3. `tier`（挑戦 / 実力相応 / 安全）は **国公立と私立でそれぞれ独立に判定**する。国公立の中での安全校と、私立の中での安全校は別物として扱う。",
+    "   - 国公立は各日程で挑戦・実力相応・安全から1校程度ずつ、私立は挑戦・実力相応・安全で各1〜2校を目安にする。",
+    "4. 生徒の**出願思考**（国公立/私立の志向）と**志望校立地**の希望を必ず反映する。",
+    `   - ${URBAN_DEFINITION_NOTE}`,
+    "   - 「国公立のみ」なら私立は最小限（または空）に、「私立のみ」なら国公立は最小限に寄せる。ただし理由は summary で説明する。",
+    "5. 試験日の衝突/近接と、費用総額（受験料＋移動＋宿泊）を必ず含める。日程が近い受験はまとめて1回の遠征にする。",
   ].join("\n");
 
   try {

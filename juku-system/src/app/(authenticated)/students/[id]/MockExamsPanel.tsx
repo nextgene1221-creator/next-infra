@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { OTHER_EXAM_VALUE } from "@/lib/mockExamMaster";
 import { useRouter } from "next/navigation";
 import FieldLabel from "@/components/FieldLabel";
 
@@ -20,6 +21,7 @@ export type ExamResult = {
   id: string;
   studentId?: string;
   examName: string;
+  mockExamId?: string | null;
   examDate: string;
   gradeLevel: string;
   overallDeviation: number | null;
@@ -70,11 +72,14 @@ export default function MockExamsPanel({
   initialResults,
   alumniResults,
   examSubjects,
+  mockExamOptions,
 }: {
   studentId: string;
   initialResults: ExamResult[];
   alumniResults: AnonymousResult[];
   examSubjects: string[];
+  /** 模試マスタ（新規依頼 B-7）。表記ゆれ防止のため原則ここから選ぶ。 */
+  mockExamOptions: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [results, setResults] = useState<ExamResult[]>(initialResults);
@@ -84,6 +89,8 @@ export default function MockExamsPanel({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [examName, setExamName] = useState("");
+  // 選択中の模試マスタ id。OTHER_EXAM_VALUE のときだけ examName を手入力させる。
+  const [mockExamId, setMockExamId] = useState<string>("");
   const [examDate, setExamDate] = useState("");
   const [gradeLevel, setGradeLevel] = useState("high3");
   const [overallDeviation, setOverallDeviation] = useState<string>("");
@@ -110,6 +117,7 @@ export default function MockExamsPanel({
   };
   const openEdit = (r: ExamResult) => {
     setExamName(r.examName);
+    setMockExamId(r.mockExamId || (mockExamOptions.some((o) => o.name === r.examName) ? mockExamOptions.find((o) => o.name === r.examName)!.id : OTHER_EXAM_VALUE));
     setExamDate(r.examDate.split("T")[0]);
     setGradeLevel(r.gradeLevel);
     setOverallDeviation(r.overallDeviation != null ? String(r.overallDeviation) : "");
@@ -127,7 +135,12 @@ export default function MockExamsPanel({
     e.preventDefault();
     setSaving(true);
     const body = {
-      studentId, examName, examDate, gradeLevel,
+      studentId,
+      examName: mockExamId && mockExamId !== OTHER_EXAM_VALUE
+        ? (mockExamOptions.find((o) => o.id === mockExamId)?.name ?? examName)
+        : examName,
+      mockExamId: mockExamId && mockExamId !== OTHER_EXAM_VALUE ? mockExamId : null,
+      examDate, gradeLevel,
       overallDeviation: overallDeviation === "" ? null : Number(overallDeviation),
       overallScore: overallScore === "" ? null : Number(overallScore),
       schoolRank: schoolRank === "" ? null : Number(schoolRank),
@@ -146,6 +159,7 @@ export default function MockExamsPanel({
       const norm: ExamResult = {
         id: data.id,
         examName: data.examName,
+        mockExamId: data.mockExamId ?? null,
         examDate: new Date(data.examDate).toISOString(),
         gradeLevel: data.gradeLevel,
         overallDeviation: data.overallDeviation,
@@ -328,7 +342,40 @@ export default function MockExamsPanel({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <FieldLabel required className="block text-sm font-medium text-charcoal">模試名</FieldLabel>
-              <input required value={examName} onChange={(e) => setExamName(e.target.value)} className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm" placeholder="例: 河合全統記述模試" />
+              <select
+                required
+                value={mockExamId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMockExamId(v);
+                  if (v && v !== OTHER_EXAM_VALUE) {
+                    setExamName(mockExamOptions.find((o) => o.id === v)?.name ?? "");
+                  } else {
+                    setExamName("");
+                  }
+                }}
+                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">選択してください</option>
+                {mockExamOptions.map((o) => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+                <option value={OTHER_EXAM_VALUE}>その他（手入力）</option>
+              </select>
+              {mockExamId === OTHER_EXAM_VALUE && (
+                <>
+                  <input
+                    required
+                    value={examName}
+                    onChange={(e) => setExamName(e.target.value)}
+                    className="mt-2 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    placeholder="例: 河合全統記述模試"
+                  />
+                  <p className="text-xs text-amber-600 mt-1">
+                    マスタ外の手入力です。表記ゆれで集計がずれる原因になるため、継続して使う模試は「模試マスタ」に登録してください。
+                  </p>
+                </>
+              )}
             </div>
             <div>
               <FieldLabel required className="block text-sm font-medium text-charcoal">実施日</FieldLabel>

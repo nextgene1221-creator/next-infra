@@ -4,6 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { SUBJECTS, TRACKS, GENDERS } from "@/lib/types";
 import FieldLabel from "@/components/FieldLabel";
+import { APPLICATION_POLICY_OPTIONS, LOCATION_PREFERENCE_OPTIONS } from "@/lib/studentPreferences";
 
 type CampusOption = { code: string; label: string };
 
@@ -28,6 +29,8 @@ type StudentForm = {
   track: string;
   firstChoiceSchool: string;
   desiredFaculty: string;
+  applicationPolicy: string;
+  locationPreference: string;
   examSubjects: string[];
   considerRecommendation: boolean;
   eikenPlan: string;
@@ -55,6 +58,8 @@ const initial: StudentForm = {
   track: "",
   firstChoiceSchool: "",
   desiredFaculty: "",
+  applicationPolicy: "",
+  locationPreference: "",
   examSubjects: [],
   considerRecommendation: false,
   eikenPlan: "",
@@ -105,6 +110,8 @@ export default function StudentEditPage() {
             track: data.track || "",
             firstChoiceSchool: data.firstChoiceSchool || "",
             desiredFaculty: data.desiredFaculty || "",
+            applicationPolicy: data.applicationPolicy || "",
+            locationPreference: data.locationPreference || "",
             examSubjects: data.examSubjects ? JSON.parse(data.examSubjects) : [],
             considerRecommendation: !!data.considerRecommendation,
             eikenPlan: data.eikenPlan || "",
@@ -275,6 +282,24 @@ export default function StudentEditPage() {
           <div>
             <label className="block text-sm font-medium text-charcoal">志望する学部系統</label>
             <input value={form.desiredFaculty} onChange={(e) => set("desiredFaculty", e.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">出願思考</label>
+            <select value={form.applicationPolicy} onChange={(e) => set("applicationPolicy", e.target.value)} className={inputCls}>
+              <option value="">未設定</option>
+              {APPLICATION_POLICY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">志望校立地</label>
+            <select value={form.locationPreference} onChange={(e) => set("locationPreference", e.target.value)} className={inputCls}>
+              <option value="">未設定</option>
+              {LOCATION_PREFERENCE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-charcoal">英検受験予定</label>

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { normalizeApplicationPolicy, normalizeLocationPreference } from "@/lib/studentPreferences";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -11,6 +12,7 @@ export async function POST(req: NextRequest) {
     furigana, gender, birthDate, mobilePhone, postalCode, address,
     referrer, track, firstChoiceSchool, desiredFaculty, examSubjects,
     considerRecommendation, eikenPlan, campus,
+    applicationPolicy, locationPreference,
   } = body;
 
   if (!name || !email || !graduationYear || !schoolName || !parentName || !parentPhone || !parentEmail || !enrollmentDate) {
@@ -48,6 +50,8 @@ export async function POST(req: NextRequest) {
       considerRecommendation: !!considerRecommendation,
       eikenPlan: eikenPlan || "",
       campus: campus || "",
+      applicationPolicy: normalizeApplicationPolicy(applicationPolicy),
+      locationPreference: normalizeLocationPreference(locationPreference),
       user: {
         create: {
           email,

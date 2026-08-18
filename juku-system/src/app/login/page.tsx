@@ -2,10 +2,15 @@
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { safeCallbackUrl } from "@/lib/externalBrowser";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // ログイン後の戻り先。オープンリダイレクト防止のため相対パスのみ許可する。
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +31,7 @@ export default function LoginPage() {
       setError("メールアドレスまたはパスワードが正しくありません");
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      router.push(callbackUrl ?? "/dashboard");
     }
   };
 
@@ -88,5 +93,14 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// useSearchParams はクライアント側で Suspense 境界を要求するためラップする。
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

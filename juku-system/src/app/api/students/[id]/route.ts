@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { normalizeApplicationPolicy, normalizeLocationPreference } from "@/lib/studentPreferences";
 
 export async function GET(
   _req: NextRequest,
@@ -37,6 +38,7 @@ export async function PUT(
     furigana, gender, birthDate, mobilePhone, postalCode, address,
     referrer, track, firstChoiceSchool, desiredFaculty, examSubjects,
     considerRecommendation, eikenPlan, campus,
+    applicationPolicy, locationPreference,
   } = body;
 
   const student = await prisma.student.findUnique({ where: { id } });
@@ -72,6 +74,8 @@ export async function PUT(
       considerRecommendation: !!considerRecommendation,
       eikenPlan: eikenPlan || "",
       campus: campus || "",
+      applicationPolicy: normalizeApplicationPolicy(applicationPolicy),
+      locationPreference: normalizeLocationPreference(locationPreference),
     },
   });
 

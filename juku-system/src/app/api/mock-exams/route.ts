@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const {
-    studentId, examName, examDate, gradeLevel,
+    studentId, examName, examDate, gradeLevel, mockExamId,
     overallDeviation, overallScore, schoolRank, judgment, subjects, notes,
   } = body;
   if (!studentId || !examName || !examDate || !gradeLevel) {
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     data: {
       studentId,
       examName,
+      mockExamId: typeof mockExamId === "string" && mockExamId ? mockExamId : null,
       examDate: new Date(examDate),
       gradeLevel,
       overallDeviation: overallDeviation !== null && overallDeviation !== undefined ? Number(overallDeviation) : null,

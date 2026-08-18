@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import SeminarManager from "./SeminarManager";
+import { getTodayPrintRows } from "@/lib/todayPrints";
+import TodayPrintsPanel from "@/components/TodayPrintsPanel";
 
 // 別ロール/別タブから見たときに最新の予定が反映されるよう、毎リクエスト DB を読む
 export const dynamic = "force-dynamic";
@@ -71,9 +73,15 @@ export default async function SeminarPage({
     }));
   }
 
+  // 本日のプリントは講師・管理者のみ。既存マトリクスの上に置く（B-5 (c)）。
+  const todayPrints = role === "student" ? [] : await getTodayPrintRows();
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-dark mb-6">ゼミ管理</h1>
+      {role !== "student" && (
+        <TodayPrintsPanel rows={todayPrints} canUncomplete title="本日のプリント" />
+      )}
       <SeminarManager
         role={role}
         units={units.map((u) => ({ id: u.id, subject: u.subject, name: u.name, printCount: u.printCount, level: u.level }))}

@@ -22,7 +22,6 @@ type DiagnosisResult = {
   result: {
     summary: string;
     schools: SchoolAssessment[];
-    weakSubjects: { subject: string; comment: string; recommendedAction: string }[];
     overallAdvice: string;
   };
   usage: { inputTokens: number | null; outputTokens: number | null };
@@ -31,13 +30,27 @@ type DiagnosisResult = {
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+// 出願プラン1件（国公立・私立で共通の形）。tier は国公立・私立それぞれの中で独立に判定される。
+type PlanItem = {
+  name: string;
+  faculty: string;
+  method: string;
+  tier: "挑戦" | "実力相応" | "安全";
+  examDate: string;
+  examFeeYen: number | null;
+  rationale: string;
+};
+
+const PUBLIC_SCHEDULES = ["前期", "中期", "後期"] as const;
+
 type StrategyResult = {
   student: { id: string; name: string };
   model: string;
   assumptions: { budgetYen: number | null; airfareYen: number; lodgingYen: number; universityDataCount: number };
   result: {
     summary: string;
-    plan: { name: string; faculty: string; method: string; tier: "本命" | "併願" | "滑り止め"; examDate: string; examFeeYen: number | null; rationale: string }[];
+    publicPlan: { 前期: PlanItem[]; 中期: PlanItem[]; 後期: PlanItem[] };
+    privatePlan: PlanItem[];
     scheduleConflicts: { dates: string; description: string }[];
     costEstimate: {
       examFeesTotalYen: number | null;
@@ -66,29 +79,44 @@ const POS_STYLE: Record<string, string> = {
   実力相応: "bg-yellow-100 text-yellow-700",
   安全: "bg-green-100 text-green-700",
 };
+// 出願プランの tier。①の positioning と同じ 3 値なので配色も揃える。
 const TIER_STYLE: Record<string, string> = {
-  本命: "bg-primary/10 text-primary",
-  併願: "bg-blue-100 text-blue-700",
-  滑り止め: "bg-green-100 text-green-700",
+  挑戦: "bg-red-100 text-red-700",
+  実力相応: "bg-yellow-100 text-yellow-700",
+  安全: "bg-green-100 text-green-700",
 };
 
 const yen = (n: number | null | undefined) => (n == null ? "—" : `¥${n.toLocaleString()}`);
+
+function PlanCard({ p }: { p: PlanItem }) {
+  return (
+    <div className="border border-gray-200 rounded-md p-3">
+      <div className="flex flex-wrap items-center gap-2 mb-1">
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TIER_STYLE[p.tier] ?? "bg-gray-100 text-gray-600"}`}>{p.tier}</span>
+        <span className="font-medium text-dark text-sm">{p.name}</span>
+        <span className="text-xs text-dark/50">{p.faculty}</span>
+      </div>
+      <div className="text-xs text-dark/60 flex flex-wrap gap-x-3">
+        <span>方式: {p.method || "—"}</span>
+        <span>試験日: {p.examDate || "—"}</span>
+        <span>受験料: {yen(p.examFeeYen)}</span>
+      </div>
+      <p className="text-sm text-dark/80 mt-1">{p.rationale}</p>
+    </div>
+  );
+}
 
 // 構造化レコメンドを、会話コンテキスト用のテキストに変換（AIが「自分が既に言ったこと」として認識するため）
 function diagnosisToText(d: DiagnosisResult): string {
   const schools = d.result.schools
     .map((s) => `- ${s.name}（${s.positioning}）: ${s.assessment}`)
     .join("\n");
-  const weak = d.result.weakSubjects.map((w) => `- ${w.subject}: ${w.comment} → ${w.recommendedAction}`).join("\n");
   return [
     `【現状レコメンド】`,
     d.result.summary,
     ``,
     `▼ 現時点でおすすめの志望校候補`,
     schools,
-    ``,
-    `▼ 伸ばしたい科目`,
-    weak,
     ``,
     d.result.overallAdvice,
     ``,
@@ -97,14 +125,22 @@ function diagnosisToText(d: DiagnosisResult): string {
 }
 
 // 出願戦略を会話コンテキスト用テキストに変換
+const planLine = (p: PlanItem) =>
+  `- [${p.tier}] ${p.name} ${p.faculty}（${p.method}${p.examDate ? `・${p.examDate}` : ""}）`;
+
+const planBlock = (items: PlanItem[]) => (items.length ? items.map(planLine).join("\n") : "- 該当なし");
+
 function strategyToText(s: StrategyResult): string {
-  const plan = s.result.plan.map((p) => `- [${p.tier}] ${p.name} ${p.faculty}（${p.method}${p.examDate ? `・${p.examDate}` : ""}）`).join("\n");
+  const plan = [
+    ...PUBLIC_SCHEDULES.map((k) => `【国公立 ${k}日程】\n${planBlock(s.result.publicPlan[k])}`),
+    `【私立（別枠）】\n${planBlock(s.result.privatePlan)}`,
+  ].join("\n\n");
   const c = s.result.costEstimate;
   return [
     `【出願戦略（初回提案）】`,
     s.result.summary,
     ``,
-    `▼ 出願プラン`,
+    `▼ 出願プラン（国公立=前期/中期/後期、私立は別枠。tier は国公立・私立で独立）`,
     plan,
     ``,
     `▼ 費用試算（沖縄からの受験・参考）`,
@@ -314,17 +350,6 @@ export default function AiTestClient({ students }: { students: StudentOption[] }
                     ))}
                   </div>
                 </section>
-                <section>
-                  <h2 className="text-sm font-bold text-dark mb-2">伸ばしたい科目</h2>
-                  <div className="space-y-2">
-                    {diag.result.weakSubjects.map((w, i) => (
-                      <div key={i} className="text-sm">
-                        <span className="font-medium text-dark">{w.subject}</span><span className="text-dark/70">：{w.comment}</span>
-                        <p className="text-xs text-primary mt-0.5">→ {w.recommendedAction}</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
               </div>
 
               {/* 会話 */}
@@ -401,24 +426,35 @@ export default function AiTestClient({ students }: { students: StudentOption[] }
               </div>
               <section><h2 className="text-sm font-bold text-dark mb-1">総評</h2><p className="text-sm text-dark/80 whitespace-pre-wrap">{strategy.result.summary}</p></section>
               <section>
-                <h2 className="text-sm font-bold text-dark mb-2">出願プラン</h2>
-                <div className="space-y-2">
-                  {strategy.result.plan.map((p, i) => (
-                    <div key={i} className="border border-gray-200 rounded-md p-3">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TIER_STYLE[p.tier] ?? "bg-gray-100 text-gray-600"}`}>{p.tier}</span>
-                        <span className="font-medium text-dark text-sm">{p.name}</span>
-                        <span className="text-xs text-dark/50">{p.faculty}</span>
-                      </div>
-                      <div className="text-xs text-dark/60 flex flex-wrap gap-x-3">
-                        <span>方式: {p.method || "—"}</span>
-                        <span>試験日: {p.examDate || "—"}</span>
-                        <span>受験料: {yen(p.examFeeYen)}</span>
-                      </div>
-                      <p className="text-sm text-dark/80 mt-1">{p.rationale}</p>
+                <h2 className="text-sm font-bold text-dark mb-2">国公立（前期・中期・後期）</h2>
+                <div className="space-y-3">
+                  {PUBLIC_SCHEDULES.map((sched) => (
+                    <div key={sched}>
+                      <h3 className="text-xs font-bold text-dark/70 mb-1">{sched}日程</h3>
+                      {strategy.result.publicPlan[sched].length === 0 ? (
+                        <p className="text-xs text-dark/50 pl-1">該当なし</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {strategy.result.publicPlan[sched].map((p, i) => (
+                            <PlanCard key={i} p={p} />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
+              </section>
+              <section>
+                <h2 className="text-sm font-bold text-dark mb-2">私立（別枠）</h2>
+                {strategy.result.privatePlan.length === 0 ? (
+                  <p className="text-xs text-dark/50 pl-1">該当なし</p>
+                ) : (
+                  <div className="space-y-2">
+                    {strategy.result.privatePlan.map((p, i) => (
+                      <PlanCard key={i} p={p} />
+                    ))}
+                  </div>
+                )}
               </section>
               {strategy.result.scheduleConflicts.length > 0 && (
                 <section>

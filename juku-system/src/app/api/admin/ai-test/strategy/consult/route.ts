@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { applicationPolicyLabel, locationPreferenceLabel } from "@/lib/studentPreferences";
 import { generateText } from "ai";
 
 export const maxDuration = 60;
@@ -89,6 +90,8 @@ export async function POST(req: NextRequest) {
     志望学部: student.desiredFaculty || "未設定",
     受験科目: examSubjects.length ? examSubjects : "未設定",
     推薦検討: student.considerRecommendation ? "あり" : "なし",
+    出願思考: applicationPolicyLabel(student.applicationPolicy),
+    志望校立地: locationPreferenceLabel(student.locationPreference),
   };
   const mockExams = student.mockExamResults.map((m) => ({
     模試名: m.examName,
@@ -115,13 +118,13 @@ export async function POST(req: NextRequest) {
 
   const system = [
     "あなたは大学受験の出願戦略アドバイザーです。生徒本人と対話しています。",
-    "会話の最初に、あなたは出願プラン（本命/併願/滑り止め、入試方式、試験日、費用試算）を提示済みです。",
+    "会話の最初に、あなたは出願プラン（国公立の前期/中期/後期＋私立の別枠、各校の挑戦/実力相応/安全、入試方式、試験日、費用試算）を提示済みです。",
     "以降は生徒のフィードバック（予算を抑えたい、この大学は外したい/加えたい、推薦は使いたくない、日程が厳しい、地元がいい 等）を受けて、**戦略をより良く調整**してください。",
     "",
     "## 方針",
     "- 生徒は**沖縄在住**。本土受験は航空機＋宿泊が必要。日程が近い受験は**まとめて1回の遠征**にして遠征回数・宿泊数・費用を最小化する。",
     `- 費用前提（参考）: 往復航空券 約${airfareYen.toLocaleString()}円/遠征、宿泊 約${lodgingYen.toLocaleString()}円/泊。${budgetYen ? `家庭の予算感 約${budgetYen.toLocaleString()}円。` : ""}`,
-    "- フィードバックを反映した**更新後のプラン**（本命/併願/滑り止め）と、変わった費用感を簡潔に示す。",
+    "- フィードバックを反映した**更新後のプラン**を示す。**国公立（前期/中期/後期）と私立は別枠**のまま扱い、挑戦/実力相応/安全は国公立・私立それぞれの中で独立に判定する。変わった費用感も簡潔に示す。",
     "- 収集済みの大学データがあれば優先参照。無い情報は一般知識で参考として述べ、受験料・合否は断定しない。",
     "- 返答は会話文（Markdown可・箇条書き歓迎）。長くなりすぎない。",
     "",

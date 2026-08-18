@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/session";
+import { applicationPolicyLabel, locationPreferenceLabel } from "@/lib/studentPreferences";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -100,6 +101,7 @@ export default async function StudentDetailPage({
     myExamResults = student.mockExamResults.map((r) => ({
       id: r.id,
       examName: r.examName,
+      mockExamId: r.mockExamId,
       examDate: r.examDate.toISOString(),
       gradeLevel: r.gradeLevel,
       overallDeviation: r.overallDeviation,
@@ -246,6 +248,15 @@ export default async function StudentDetailPage({
       : null,
   };
 
+  // 模試マスタ（B-7）。有効なものだけを入力プルダウンの選択肢にする。
+  const mockExamOptions = (
+    await prisma.mockExam.findMany({
+      where: { active: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    })
+  ).map((e) => ({ id: e.id, name: e.name }));
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -385,6 +396,14 @@ export default async function StudentDetailPage({
               </div>
             )}
             <div className="flex">
+              <dt className="w-32 text-sm text-dark/60">出願思考</dt>
+              <dd className="text-sm text-dark">{applicationPolicyLabel(student.applicationPolicy)}</dd>
+            </div>
+            <div className="flex">
+              <dt className="w-32 text-sm text-dark/60">志望校立地</dt>
+              <dd className="text-sm text-dark">{locationPreferenceLabel(student.locationPreference)}</dd>
+            </div>
+            <div className="flex">
               <dt className="w-32 text-sm text-dark/60">総合・推薦</dt>
               <dd className="text-sm text-dark">{student.considerRecommendation ? "検討あり" : "検討なし"}</dd>
             </div>
@@ -466,6 +485,7 @@ export default async function StudentDetailPage({
         {canSeeMockExams && (
           <div className="bg-white rounded-lg shadow p-6 lg:col-span-2">
             <MockExamsPanel
+              mockExamOptions={mockExamOptions}
               studentId={id}
               initialResults={myExamResults}
               alumniResults={alumniResults}

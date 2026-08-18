@@ -8,116 +8,154 @@
 
 ## 進行中
 
-A. 面談まわり改修・LINE連携・週次面談シート（commit: 未コミット／push はユーザー指示待ち）
+A. 面談まわり改修・LINE連携・週次面談シート — **実装・push 完了。残るは実機確認のみ**
 
-- **フェーズ1: 面談記録時の予定設定モーダル（実装完了・push待ち）**
-  - 新規 `ClassDay`（授業日）モデル＋マイグレーション `20260615000000_add_class_days`
-    - 自習(`study_schedule_days`)とは別概念。特定日付ベース（科目/担当講師/時間は任意）
-  - API: `GET/POST /api/class-days`、`PUT/DELETE /api/class-days/[id]`
-  - `MeetingPlanModal`（タブ: 学習進捗[読取] / 次週学習予定 / 授業日 / ゼミ予定）を面談記録フォームから起動
-    - 次週学習予定 = 既存 `StudyScheduleEditor`（学習時間）を再利用
-    - 授業日 = 新規 `ClassDayEditor`（「前回分を翌週にコピー」で初期値引き継ぎ）
-    - ゼミ予定 = `SeminarManager` に `embedded` を追加して再利用
-    - 次回面談予定は面談フォーム内に残置
-- **フェーズ2: 週次面談シート（実装完了・push待ち / ブラウザ動作は要確認）**
-  - `MeetingSheet` モデル＋マイグレーション `20260617000000_add_meeting_sheets`（Neon 適用済み）
-  - API: `GET/POST /api/meeting-sheets`、`GET/PUT/DELETE /api/meeting-sheets/[id]`
-  - 生徒: サイドバー「面談シート」→ 一覧 `/meeting-sheets`（今週分を生成・未提出リマインド）＋記入 `/meeting-sheets/[id]`
-  - 面談予定日の参照: `lib/nextMeeting.ts`（面談タスク優先→面談記録の次回予定）。3日前から未提出タグ
-  - 面談記録保存(POST /api/meetings)時、次回予定があれば面談タスク(type=面談)を自動生成
-  - 講師/管理者: `MeetingPlanModal` に「週次シート」タブ（最新シートを読み取り表示）
-  - 検証: 型(tsc)・Lint・本番ビルド(next build) クリア。実DBスモークテスト（CRUD/JSON往復/提出/次回面談タスク優先/削除）全PASS（`prisma/smoke-meeting-sheet.ts`）
-  - 残: ブラウザでの実機UI確認 / push はユーザー指示待ち
-  - 面談記録に任意で紐づく提出物。ゼミ・学習進捗等と重複する項目は含めない
-  - 確定事項（2026-06-17）:
-    - 記入者=生徒。週区切りなし。生成は生徒の「今週分を生成」ボタン
-    - 締切=面談実施まで。未提出タグは面談予定日の3日前から表示（参照元=直近面談の次回面談予定）
-    - 提出後も生徒が修正可（ロックなし）
-    - 講師/管理者は面談モーダルの「週次シート」タブで閲覧（読取）
-    - 項目は spec.md 5.9 を正とする（教材/予定/実績の表は削除＝学習進捗と同義）
+- 実装本体は「**完了 31**」へ移動（commit `e6e3ccc` / `5f05be2`）。2026-08-18 に git 履歴と突合し、両コミットとも `origin/main` に含まれる＝**push 済み**であることを確認した（旧表記「未コミット／push待ち」は誤り）。
+- 項目定義は `spec.md` §5.9 が正（実装と差分なしを確認済み）。
+- **残作業（実利用での確認のみ）**:
+  - [ ] フェーズ1・2: ブラウザ実機での UI 確認（面談予定モーダルの4タブ / 週次面談シートの生成・記入・提出・講師側「週次シート」タブ）
+  - [ ] フェーズ3: 実アカウントで LINE 友だち追加＋6桁コード連携 → 朝(9:00 JST)・夜(22:00 JST) 通知の実送信確認
 
-  ### ▼ オーナー記入欄（週次面談シートの項目定義）
-  ※ ここに項目を記入してください。記入後、内容を `spec.md` に正式セクションとして転記します（方針: 回答後 A=spec.md へ書き足す）。
+---
 
-  週次面談シート     
-"このシートは、来週の勉強で迷わないための材料を集めるものです。
-正しい答えを書く必要はありません。事実と、そのときどう感じたかだけ書いてください。"     
-【1】基本情報     
-氏名   面談日  
-     
-【2】今週の学習ログ(行動)     
-Studyplusの記録をもとに、今週やったことを書き出してください。     
-◆ 今週取り組んだ主な科目・単元     
-教材名・範囲が具体的に伝わるように。※教材・予定は面談で書きます     
-教材  予定  実績 
-     
-     
-     
-     
-     
-     
-     
-     
-Newmonic     
-◆ 今週の総学習時間  目標：　　　　　　　　時間  実績：　　　　　　　　時間 
-◆ 今週の勉強の手応え     
-□ かなりあった　□ 少しあった　 □ あまりなかった　□ ほぼなかった     
-◆ 今週の計画外のタスク     
-     
-     
-     
-     
-     
-【3】予定と実績のズレ(判断)     
-先週の面談で立てた予定と、実際にやったことを比べてください。     
-◆ 予定と比べてどうでしたか？     
-□ ほぼ予定通り □ 少しズレた □ 大きくズレた     
-◆ 予定と違った理由     
-（当てはまるものを全て選んで下さい。）     
-□ 学習時間 ※実際に使えた時間　　（予定より多い / 予定より少ない）     
-□ 学習量 ※問題数やページ　　（予定より多い / 予定より少ない）     
-□ 内容の難易度　　（想定より重い / 想定より軽い）     
-□ 他のタスクを優先した　　（課題./ 自分で追加したタスク / その他）     
-□ 体調 □ 予定 □ 特になし   
-     
-◆ ズレの方向として近いものは？     
-☐ 予定より進みすぎた　☐ 予定より進まなかった　     
-☐ 進度は同じだが中身が違った ☐ まだ整理できていない     
-◆ 来週も同じ条件なら、同じズレが起きそうですか？     
-☐ 起きそう　☐ 起きなさそう　☐ 分からない     
-◆ 補足があれば1行で     
-（　　　　　　　　　　　　　　　　　　　　　　　　　　　　）     
-     
-【4】来週に向けて     
-◆ 来週も続けたいこと     
-□ ある（　　　　　　　　　　　　　　　　　　　　　　　　　） □ ない     
-◆ 来週、変えたいこと     
-□ ある（　　　　　　　　　　　　　　　　　　　　　　　　　） □ ない     
-     
-【5】メモ（相談したいこと・分からなかったことetc...）     
-     
-     
-     
-     
-     
-     
-     
-上記の内容をもとに面談し、迷わず進められる来週の計画を一緒に考えます。
-- **フェーズ3: LINE連携（本番稼働開始 2026-07-02, commit `5f05be2`）**
-  - **スコープ変更（2026-07-02）**: クライアントが用意可能なのが Messaging API の **Channel ID / Channel secret のみ**（LINE Loginチャネル不可）と確定 → **LINEログインは廃止**、通知＋友だち連携のみに縮小。ログインは従来のメール＋パスワードのまま。
-  - 認証情報: Channel ID / secret から **ステートレス チャネルアクセストークンを都度発行**（`oauth2/v3/token`, client_credentials）。事前発行トークン不要。env: `LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET` / `LINE_FRIEND_URL`
-  - スキーマ: `User.lineUserId / lineLinkCode / lineLinkExpires` 追加。マイグレーション `20260702000000_add_line_fields` を **Neon本番に適用済み**
-  - 実装: `lib/line.ts`（トークン発行・push・reply・署名検証）/ `lib/lineNotify.ts`（朝夜ロジック）/ `api/line/webhook`（6桁コード連携）/ `api/line/link`（POST発行・DELETE解除）/ `api/line/notify/{morning,evening}` / `/account/profile` に連携UI
-  - 朝通知(9:00 JST): 面談予定・授業（ある場合） = `api/line/notify/morning`（Cron）
-  - 夜通知(22:00 JST): 学習予定あり＆進捗未記録ならリマインド／宛先は生徒のみ。**auto-checkout(22:00) に相乗り実行**（Hobbyプラン Cron 2本制限内）
-  - 検証: `tsc --noEmit` / eslint / `next build` すべてクリア
-  - **本番反映（2026-07-02 完了）**:
-    1. ✅ 本番Vercelに `LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET` / `LINE_FRIEND_URL`(`https://lin.ee/ZhUDxwC`) を Production に設定
-    2. ✅ `main` push → 本番デプロイ Ready（本番 `https://juku-system.vercel.app`）
-    3. ✅ Webhook URL = `https://juku-system.vercel.app/api/line/webhook` をクライアントが登録済み。署名検証スモークテスト通過（正:200 / 誤:401）
-  - **残（実利用での確認）**: 実アカウントで友だち追加＋6桁コード連携 → 朝夜通知の実送信確認
+B. 2026-08-18 受領の修正指示 10 件（B-1〜B-10）／**このセッションは push しない**
 
-> 注: 「講師・生徒登録時のパスワード記入欄削除」は既に完了 4 (2026-05-09, commit `a684c52`) で対応済みです。
+- **状態: 全 10 項目 実装完了・未 push**（2026-08-18）。確定事項は `docs/understanding-2026-08-18.md` 末尾の「✅ 確定事項」表が正。
+- **残**: ブラウザ実機確認 / 本番 Neon へのマイグレーション適用（4本）/ 模試マスタ移行スクリプトの実行 / push（すべてオーナー指示待ち）
+- 🖥 **ローカルテスト環境（URL・ログイン情報）は `docs/understanding-2026-08-18.md` の冒頭**を参照。⚠️ 現状はローカルの接続先が本番 DB のままで、かつ 4 マイグレーションが未適用のため**そのままでは動きません**（同ファイル冒頭に対処案）。
+- 理解と対応方針は **`docs/understanding-2026-08-18.md`** に記載。オーナー確認が取れてから実装に入る（playbook §1「修正指示の受領フロー」）。
+- 実施順（推奨）: B-1・B-2 → B-3 → B-4 → B-8 → B-10 → B-5 → B-7 → B-6 → B-9
+
+| # | 指示 | スキーマ変更 | 状態 |
+|---|---|---|---|
+| B-1 | 出願思考を生徒項目に追加（国公立のみ〜私立のみ の5択） | 有 | ✅ **実装完了・未 push**（検証: tsc/build 緑） |
+| B-2 | 志望校立地を生徒項目に追加（都会のみ〜沖縄のみ の6択） | 有 | ✅ **実装完了・未 push**（検証: tsc/build 緑） |
+| B-3 | 出願戦略AIのプロンプト変更（国公立=前期/中期/後期、私立は別枠、挑戦/実力相応/安全を国公立・私立で別、①の「伸ばしたい科目」削除） | 無 | ✅ **実装完了・未 push**（検証: tsc/lint/build 緑） |
+| B-4 | ゼミ管理: 誤完了したプリントを取り消せるように | 無 | ✅ **実装完了・未 push**（検証: tsc/lint/build 緑） |
+| B-5 | 講師・管理者ダッシュボード／ゼミ管理に当日プリント（No・必要枚数）＋完了登録 | 無 | ✅ **実装完了・未 push**（検証: tsc/lint/build 緑） |
+| B-6 | 教材マスタに参考書ルートフォーマット機能（＝テンプレート方式で確定） | 有（新テーブル） | ✅ **実装完了・未 push**（検証: tsc/lint/build 緑） |
+| B-7 | 模試マスタ追加（表記ゆれによる集計ミス防止） | 有（新テーブル） | ✅ **実装完了・未 push**（検証: tsc/lint/build 緑） |
+| B-8 | 生徒一覧に面談日順ソートを追加 | 無 | ✅ **実装完了・未 push**（検証: tsc/lint/build 緑） |
+| B-9 | 給与計算機能（講師・管理者に時給、出退勤から月次給与明細） | 有 | ✅ **実装完了・未 push**（検証: tsc/lint/build 緑） |
+| B-10 | 発行するQR等に外部ブラウザ用URLパラメータを追加＋ログイン後復帰 | 無 | ✅ **実装完了・未 push**（検証: tsc/lint/build 緑） |
+
+### B-1・B-2 実装記録（2026-08-18・**未 push**）
+
+- スキーマ: `students` に `application_policy` / `location_preference` を追加。マイグレーション `20260818000000_add_student_application_preferences`（ADD COLUMN のみ・既存非破壊）。**開発 DB まで。本番 Neon 未適用**（playbook §3 によりオーナー判断送り）
+- 新規 `src/lib/studentPreferences.ts`: 選択肢・ラベル・正規化関数（許可リスト外は空文字に倒す）・AI 用の「都会」定義注記
+- 入力: `students/[id]/edit`・`signup/student` にプルダウン追加（未設定可・必須にしない）
+- 表示: `students/[id]`・`account/profile` に表示（未設定/未知の値は「未設定」）
+- API: `api/students`（POST）/ `api/students/[id]`（PUT）/ `api/signup/student` の 3 本で受け取り・正規化
+- AI: `api/admin/ai-test` 系 4 ルートのプロフィールに「出願思考」「志望校立地」を日本語ラベルで追加
+- 仕様反映: `spec.md` §4.2 / §5.3 に【実装追記 2026-08-18】として記載
+- 検証: `tsc --noEmit` ✅ / `next build` ✅ / lint は**変更分エラー 0**（後述の既存エラー 14 件は別件）
+- 未実施: ブラウザ実機での UI 確認
+
+### B-3 実装記録（2026-08-18・**未 push**）
+
+- **出力スキーマを組み替え** (`api/admin/ai-test/strategy/route.ts`): 旧 `plan[]`（tier=本命/併願/滑り止め）を廃止 →
+  - `publicPlan`: `前期` / `中期` / `後期` を**必須キー**で持つ（該当なしは空配列＝無理に埋めない）
+  - `privatePlan`: 私立を**別枠**の独立した配列で
+  - 各校の `tier` は `挑戦` / `実力相応` / `安全`。**国公立・私立でそれぞれ独立に判定**
+  - 共通の `planItemSchema` / `planArray()` を `JSONSchema7` 型注釈付きで切り出し（`as const` だと readonly になり `jsonSchema` に渡せないため型注釈方式）
+- **プロンプトに組み立てルールを明記**: 国公立を基本線 / 中期は該当なし可 / 私立は別枠 / tier は枠ごと独立 / B-1・B-2 の出願思考・志望校立地を反映 / 「都会」＝三大都市圏と定義（`URBAN_DEFINITION_NOTE`）
+- **会話継続** (`strategy/consult/route.ts`): システムプロンプトを同じ枠組みに更新（旧「本命/併願/滑り止め」表記を排除）
+- **①の「伸ばしたい科目」を削除** (`api/admin/ai-test/route.ts`): 型・`required`・properties の3箇所から `weakSubjects` を除去
+- **UI** (`AiTestClient.tsx`): 出願プランを「国公立（前期・中期・後期）」「私立（別枠）」の2セクションに分割。日程ごとに見出し＋空なら「該当なし」。`PlanCard` コンポーネントに共通化。`TIER_STYLE` を新3値に（①の positioning と配色統一）。`strategyToText()` も新構造に。①の「伸ばしたい科目」表示セクションと会話テキストも削除
+- 仕様反映: `spec.md` §5.13 / §5.15 に【実装追記 2026-08-18】
+- 検証: `tsc --noEmit` ✅ / 変更ファイルの `eslint` ✅ エラー0 / `next build` ✅（88ページ生成）
+- 未実施: **実 AI 呼び出しでの動作確認**（管理者ログイン＋AI Gateway トークンが必要）、ブラウザ実機 UI 確認
+
+### B-4 実装記録（2026-08-18・**未 push**）
+
+- UI (`SeminarManager.tsx`): 完了済みセルを**講師・管理者のみ**クリック可に。モーダルに「完了を取り消す」ボタン（確認ダイアログ付き）を追加し、完了状態でボタン群を出し分け（完了中は「完了にする」「予定日を保存」を隠し、予定日入力も無効化）。完了日を明示表示
+- **予定日は保持**したまま完了フラグのみ外す（B-4 (b)）
+- API (`api/student-prints/route.ts` PUT): サーバー側の権限チェックを追加
+  - `completedDate: null`（取り消し）を生徒が送ったら 403
+  - **併せて既存の穴を塞いだ**: 生徒が他生徒のプリントの完了状態を操作できてしまっていた（所有者チェックが予定日変更にしか無かった）
+- 仕様反映: `spec.md` に **§5.16 ゼミ管理（プリント運用）を新設**（従来ゼミ管理の独立した節が無かったため）
+- 検証: `tsc --noEmit` ✅ / 変更ファイルの `eslint` ✅ エラー0 / `next build` ✅
+- 未実施: ブラウザ実機 UI 確認
+
+### B-8・B-10 実装記録（2026-08-18・**未 push**）
+
+**B-8 生徒一覧の面談日順ソート**
+
+- `lib/nextMeeting.ts` に `getNextMeetingMap(studentIds)` を新設。**1 件ずつ引くと N+1 になるため 2 クエリ（面談タスク／面談記録）にまとめた**
+- `/students` にソート「面談日順」を追加。近い順（昇順）・予定なしは末尾・同日は名前順
+- 一覧に「次回面談」列を追加（予定なしは `-`）
+
+**B-10 QR の外部ブラウザ誘導＋ログイン後復帰**
+
+- 新規 `src/lib/externalBrowser.ts`: `buildQrUrl()` で URL 生成を集約（`openExternalBrowser=1` を必ず付与）＋ `safeCallbackUrl()`
+- `CheckInQR.tsx` をヘルパー経由に変更
+- `study-room/check-in/page.tsx`: `requireAuth()`（/login へ固定）をやめ `getSession()` 判定 → `/login?callbackUrl=<元URL>` へ誘導
+- `login/page.tsx`: `callbackUrl` を読んで遷移先に使う（従来は常に `/dashboard`）。`useSearchParams` のため `Suspense` でラップ
+- **オープンリダイレクト対策**: `safeCallbackUrl()` で `/` 始まりの相対パスのみ許可
+- ⚠️ **限界を明記**: `openExternalBrowser=1` は LINE 内蔵ブラウザ専用。汎用 QR リーダーには効かないため、2 の復帰導線が実質的な解決策
+- 仕様反映: `spec.md` §5.3（B-8）/ §5.11（B-10）
+- 検証: `tsc --noEmit` ✅ / `next build` ✅ / lint は変更分の新規エラー 0（`CheckInQR.tsx` の `set-state-in-effect` は既存エラーで行番号がずれただけ）
+- 未実施: ブラウザ実機確認（特に QR 読み取り → ログイン → 復帰の実機動線）
+
+### B-5 実装記録（2026-08-18・**未 push**）
+
+- 新規 `src/lib/todayPrints.ts` `getTodayPrintRows()`: 単元 × No. で集計し、**対象生徒を `printId` 付きで個別に保持**（完了登録に id が要るため。従来は生徒名しか持っていなかった）
+- 新規 `src/components/TodayPrintsPanel.tsx`（クライアント）: 行クリックで生徒を展開 → **生徒ごとに「完了」/「取り消し」**。楽観更新＋`router.refresh()`
+- ダッシュボード: 従来の読み取り専用テーブル（未完了のみ）をこのパネルに置き換え
+- ゼミ管理 `/seminar`: 既存マトリクスの**上**に「本日のプリント」として設置（B-5 (c)）
+- **完了済みも表示**（打ち消し線・薄字）。必要枚数は完了済みを含む総数、別途「未実施」列を追加（B-5 (b)）
+- **一括完了は付けない**: 「完了」＝生徒がプリントを実施し終えたことで、実施状況は生徒ごとに異なるため（オーナー指摘 2026-08-18）
+- 仕様反映: `spec.md` §5.16
+- 検証: `tsc --noEmit` ✅ / 変更ファイルの `eslint` ✅ エラー0 / `next build` ✅
+- 未実施: ブラウザ実機 UI 確認
+
+### B-7 実装記録（2026-08-18・**未 push**）
+
+- スキーマ: `MockExam`（模試マスタ）を新設＋`MockExamResult.mockExamId`（NULL 許容 FK）。マイグレーション `20260818010000_add_mock_exam_master`。**`examName` は残す**（自由入力の受け皿＋既存データ保持）
+- ⚠️ **API パスの衝突を回避**: 模試「結果」が既に `/api/mock-exams` を占有していたため、マスタ側は **`/api/mock-exam-masters`**。ページ `/mock-exams` は空いていたのでそのまま使用
+- 画面 `/mock-exams`（新設）: 一覧・追加・有効/無効・削除。**更新は admin のみ**、teacher は閲覧のみ。**使用件数**も表示
+- 削除ガード: 模試結果から参照されているマスタは削除不可（409）→ 無効化を促す（教材マスタと同じ方針）
+- 入力 UI (`MockExamsPanel.tsx`): 模試名をテキスト入力 → **プルダウン**に変更。「その他（手入力）」で自由入力も可（**表記ゆれ警告文つき**）
+- サイドバーに「模試マスタ」を追加
+- 移行スクリプト `prisma/seed-mock-exams.ts`: 既存 `examName` を distinct 抽出 → マスタ投入 → **完全一致のみ自動紐付け**。表記ゆれ候補は正規化キーでグルーピングして**提示するだけ**（自動で寄せない）
+- 仕様反映: `spec.md` §4.3 前（データ構造）/ **§5.17 を新設**
+- 検証: `tsc --noEmit` ✅ / 新規ファイルの `eslint` ✅ エラー0 / `next build` ✅（89ページ＝`/mock-exams` 追加）
+- 未実施: 移行スクリプトの実行（開発 DB 含む）、ブラウザ実機 UI 確認
+
+### B-6 実装記録（2026-08-18・**未 push**）
+
+- スキーマ: `MaterialRoute` / `MaterialRouteItem` を新設。マイグレーション `20260818020000_add_material_routes`（追加のみ）
+  - `route_id` は CASCADE、`material_id` は **RESTRICT**（ルートで使用中の教材を消せないように）
+  - `(route_id, sort_order)` の unique は**あえて付けない**。並べ替え中の一時重複を許すため。更新は「全削除→配列順に 1..n で再作成」をトランザクションで実施
+- API: `/api/material-routes`（GET は admin/teacher、POST は admin）/ `[id]`（PUT・DELETE、admin）/ `[id]/duplicate`（POST、admin）
+- 画面: `/materials` を**タブ構成**に変更（「教材一覧」/「参考書ルート」）。`MaterialsTabs.tsx` + `MaterialRoutesManager.tsx` を新設
+- ステップ編集: 科目に一致する**有効な教材**から選択 → ↑↓ で並べ替え → 段階ごとのメモ。**並び順＝学習段階**
+- **複製**機能（＝「フォーマット」の本体）: 「〜 のコピー」を作って派生ルートを作れる
+- スコープ外（確定事項どおり）: 生徒への割り当て / 学習目標・進捗との連携
+- 仕様反映: `spec.md` §5.12 の直後（教材マスタの追記として）
+- 検証: `tsc --noEmit` ✅ / 新規ファイルの `eslint` ✅ エラー0 / `next build` ✅（90ページ）
+- 未実施: ブラウザ実機 UI 確認
+
+### B-9 実装記録（2026-08-18・**未 push**）
+
+- スキーマ: `HourlyWage` / `Payslip` / `PayslipItem` を新設。マイグレーション `20260818030000_add_payroll`
+  - **時給は `User` に紐づける**（管理者は `Teacher` を持たない場合があるため / B-9(a)）
+  - `PayslipItem` に**適用時給を行ごとに保存**し、後から時給を変えても確定済み明細が動かないようにした
+- 計算 `src/lib/payroll.ts`:
+  - **時給ごとに「合計分 × 時給 ÷ 60」→ 円未満切り捨て**。月内で時給が変わっても正しく出る（B-9(b)）
+  - **JST 基準**で日付切り出し・月境界判定（`clockIn`/`clockOut` は UTC 保存のため要変換）
+  - 打刻漏れ・逆転打刻は **0 分＋警告**（補完しない / B-9(d)）
+  - 適用できる時給が無い日があれば**明細を生成せずエラー**
+- API: `/api/payroll/wages`（GET/POST/DELETE、admin）/ `/api/payroll/payslips`（GET は本人＋admin、POST=生成は admin）/ `[id]`（PUT=調整・確定・確定解除、DELETE、admin）
+- 画面: `/payroll`（admin）/ `/payroll/me`（本人・**確定済みのみ**）。共通の `components/PayslipView.tsx` は `window.print()` 対応（B-9(e)）
+- 権限（B-9(f)）: 生成・調整・確定は admin のみ。`GET` は admin 以外に**自分の明細だけ**返す。確定済みは金額変更・再生成・削除不可
+- 遡及計算（B-9(g)）: 適用開始日に過去日付を指定でき、過去月の明細も生成可能
+- `formatMinutes` 等の表示用関数は `src/lib/payrollFormat.ts` に分離（`payroll.ts` は prisma を import するためクライアントから読めない）
+- 仕様反映: `spec.md` §4.4 前（データ構造）/ **§5.18 を新設**
+- 検証: `tsc --noEmit` ✅ / `next build` ✅（92ページ）/ **`npm run lint` 全体で 14 errors・8 warnings ＝ 作業開始時と同数**（新規エラー 0。作業中に出た `react-hooks/purity` 1件はその場で解消）
+- 未実施: ブラウザ実機 UI 確認、実データでの計算検証
+
+
 ---
 
 ## 完了
@@ -276,7 +314,7 @@ Newmonic
       - 面談記録＝対応不要に決定 (2026-07-16, オーナー確認 b)。面談中に表示される目標/進捗の教材で十分＝既にマスタ化済み。`Meeting` への教材フィールド追加はしない
       - **⑦の主要スコープ完了**。任意の将来拡張: `totalPages` を使った残量/ペース算出、既存自由記述の名寄せ（必須でない）
 
-24. AI基盤新設＋AI診断テスト（管理者）＝新規依頼①（第1段階） (2026-07-22, commit `未`)
+24. AI基盤新設＋AI診断テスト（管理者）＝新規依頼①（第1段階） (2026-07-22, commit `795db17`)
     - オーナー方針: AI提供元＝**Vercel AI Gateway**、①②⑤を一括視野に入れつつ、まず**管理者テスト機能**として追加（生徒公開は後段）
     - 基盤: `ai` パッケージ（v7）導入。**OIDC認証**（`VERCEL_OIDC_TOKEN`）でプロバイダ個別キー不要。カード登録で月$5無料枠が解放（実測で疎通確認済み）
     - `/admin/ai-test`（**admin限定**・サイドバー「AI診断テスト」）: 生徒＋モデル選択→構造化診断を表示。**結果保存なし・生徒非公開**（使い捨て）
@@ -286,13 +324,13 @@ Newmonic
     - `spec.md` 5.13 ＋ 6章（技術スタック）に実装追記
     - 未対応（本番①へ）: 生徒向けAI相談チャット公開、結果保存/履歴（`AspirationDiagnosis`）、⑤大学マスタ併用の半定量化、②出願戦略（予算・沖縄移動/宿泊費）統合
 
-25. 管理者向けイントロダクションにサインアップURLを追加 (2026-07-22, commit `未`)
+25. 管理者向けイントロダクションにサインアップURLを追加 (2026-07-22, commit `795db17`)
     - オーナー依頼: 新規ユーザーのサインアップURLを管理者向けイントロダクションに掲載
     - articles に **audience="admin"** を追加＝管理者のみ閲覧（非管理者は `{role,"both"}` フィルタに非該当で自動非表示）。`AUDIENCE_LABELS` に「管理者向け」、`ArticleEditor` の対象選択に「管理者向け」を追加
     - 記事「【管理者用】新規ユーザーのサインアップURL」を投入（`prisma/seed-admin-intro.ts`・冪等）。生徒 `/signup/student`・講師 `/signup/teacher`、初期PW `password123`、招待制復帰の手順を記載
     - 検証: 可視性（admin=表示/生徒・講師=非表示）実DBで確認、`tsc --noEmit` PASS
 
-26. 大学データ⑤（クロール収集・追跡）＋出願戦略②（管理者テスト）＝受験支援クラスタ全実装 (2026-07-22, commit `未`)
+26. 大学データ⑤（クロール収集・追跡）＋出願戦略②（管理者テスト）＝受験支援クラスタ全実装 (2026-07-22, commit `5f557b6`)
     - オーナー方針: 「A（②実装）」＋「大学データもクローリングで集める形ですべて実装」
     - スキーマ: `University`/`UniversityAdmission`/`AdmissionRevision` 追加。マイグレーション `20260722000000_add_universities`（追加のみ）を**本番Neonへ適用済み**（`migrate deploy`）
     - ⑤クロール: `POST /api/admin/universities/crawl`（admin・maxDuration60）。URL fetch→HTMLテキスト化(`lib/universityCrawl.ts`)→Gateway `generateObject` で入試情報抽出→upsert。`contentHash` 差分検知で `AdmissionRevision` に変更履歴。検索 `GET /api/admin/universities`。UI `/admin/universities`（サイドバー「大学データ」）
@@ -301,21 +339,21 @@ Newmonic
     - 検証: 抽出品質フィクスチャPASS（琉球大学を正確抽出）、実サイトfetch OK、**認証付きE2E**（ログイン→クロール→検索→②戦略200/プラン5件・遠征2回・総額¥229k→①診断200）、`tsc --noEmit` PASS
     - 未対応（productionize）: ⑤の**自律定期監視Cron**（Hobby Cron2本上限で未接続→Pro化 or Cron統合）、SPA(JS描画)ページのヘッドレス取得、重要変更の講師アラート連携、生徒公開・結果保存
 
-27. ①を会話式「志望校コンサル」へ進化 (2026-07-22, commit `未`)
+27. ①を会話式「志望校コンサル」へ進化 (2026-07-22, commit `fac4260`)
     - オーナー要望: 一発診断ではなく、スタート=レコメンド／以降=会話で希望・条件を聞きながら志望校を絞り込むコンサル形式に
     - 会話API `POST /api/admin/ai-test/consult`（admin・maxDuration60・結果非保存）: 生徒プロフィール＋模試＋⑤大学データをシステムプロンプトに与え `generateText` で会話応答。「1〜2問ずつ聞き出しながら提案」「断定回避」
     - UI: `/admin/ai-test` ①タブを「志望校コンサル」に変更。レコメンド構造化カードをオープナー表示＋その下にチャット欄（Enter送信）。レコメンド本文を会話履歴の種として付与
     - 検証: 認証付きE2E多ターン会話PASS（心理学×九州国公立→条件反映＋聞き出し、私立/学費追加→継続）、`tsc --noEmit` PASS
     - 未対応: 生徒公開、会話ログ保存、ストリーミング表示
 
-28. ②出願戦略も会話式ブラッシュアップへ (2026-07-22, commit `未`)
+28. ②出願戦略も会話式ブラッシュアップへ (2026-07-22, commit `0d98c12`)
     - オーナー要望: ②も「最初におすすめ提示→生徒がフィードバック→会話でより良い戦略に」
     - 会話API `POST /api/admin/ai-test/strategy/consult`（admin・maxDuration60・結果非保存）: 生徒＋模試＋⑤大学データ＋費用前提を system に与え `generateText` で応答。更新プラン＋変化した費用感を返す
     - UI: ②タブの戦略カード下にチャット欄を追加（初回戦略要約を会話の種として付与、Enter送信）
     - 検証: 認証付きE2E PASS（初回6校→「予算20万・私立1校」で更新プランに調整）、`tsc --noEmit` PASS
     - 既知: AI応答のMarkdown表はチャットでpre-wrap表示（生表示）。将来marked導入で整形可
 
-29. ⑤大学データの定期追跡（自動再クロール・A案 GitHub Actions） (2026-07-22, commit `未`)
+29. ⑤大学データの定期追跡（自動再クロール・A案 GitHub Actions） (2026-07-22, commit `ba2a603`)
     - オーナー方針: 「A（GitHub Actions）で無料範囲に収まるよう頻度調整」
     - 共通化: `lib/universityCrawl.ts` に `crawlAndStore()`（fetch→抽出→差分upsert→履歴）。手動crawlルートも同関数を使うよう簡素化
     - 定期API `POST /api/cron/recrawl-universities`（`CRON_SECRET`保護・maxDuration60）: 最も古いsourceUrlを1件だけ再クロール→`done`まで外部ループ。抽出は安価な `gpt-4o-mini`。全admissionの`lastCrawledAt`更新で巡回の進行を保証（無限ループ防止）
@@ -326,10 +364,59 @@ Newmonic
     - 頻度/コスト: 週1・gpt-4o-mini・1URL/呼び出しで、GitHub Actions無料枠・Gateway無料$5/月に収まる想定
     - 未対応: SPA(JS描画)のヘッドレス取得、担当講師への個別通知
 
-30. 「担当＝佐藤駿」自動割当バグ修正（担当講師を任意化） (2026-08-03, commit `未`)
+30. 「担当＝佐藤駿」自動割当バグ修正（担当講師を任意化） (2026-08-03, commit `308fb19` + docs `cbb1e75`)
     - 症状: 生徒の進捗などの担当者が全部「佐藤駿」。原因は meetings/progress/tasks API の `teacher.findFirst()`（並び順なし＝最古の講師=佐藤駿）フォールバック。管理者が作成した記録が全て佐藤駿に割当られていた（進捗170件・Task1件。StudentAssignmentデータ自体は正常）
     - スキーマ: `ProgressRecord`/`Meeting`/`Task` の `teacherId` を任意(nullable)化。マイグレーション `20260803000000_teacher_optional_on_records`（NOT NULL解除のみ・既存非破壊）を本番Neon適用済み
     - コード: 3ルートの findFirst フォールバックを廃止し、講師でない作成者は担当なし(null)に。表示は全箇所 `teacher?.user.name ?? "—"` に null 安全化（progress/meetings/tasks/students詳細/report/goals/dashboard/MeetingRecords/TaskCompleteCheckbox）。アラート(check-all/check-meetings)も担当null時はスキップ/「担当なし」表記
     - 検証: admin作成の進捗が teacherId=null になること・/progress が描画されることをローカルE2E PASS、`tsc --noEmit` PASS
     - データ後始末: `prisma/cleanup-sato-teacher.ts` を**デプロイ後に実行済み(2026-08-04)** → 進捗170件＋Task1件を担当なし(null)化、佐藤駿ひもづき0件。本番 /progress・/students/[id]・/tasks・/meetings が200描画を確認
     - デプロイ: push認証(gh を nextgene1221-creator へ再ログイン)解消 → `0d98c12..308fb19` push → 本番反映済み（26.AI再クロールも同時デプロイ）
+
+31. 面談まわり改修・LINE連携・週次面談シート (2026-06-24 / 2026-07-02, commit `e6e3ccc` + `5f05be2`)
+    - ※ 2026-08-18 に git 履歴と突合。両コミットとも `origin/main` に含まれ **push 済み**。旧「未コミット／push待ち」表記は誤りだったため訂正。残る実機確認は進行中 A に残置。
+
+- **フェーズ1: 面談記録時の予定設定モーダル（commit `e6e3ccc`・push 済み）**
+  - 新規 `ClassDay`（授業日）モデル＋マイグレーション `20260615000000_add_class_days`
+    - 自習(`study_schedule_days`)とは別概念。特定日付ベース（科目/担当講師/時間は任意）
+  - API: `GET/POST /api/class-days`、`PUT/DELETE /api/class-days/[id]`
+  - `MeetingPlanModal`（タブ: 学習進捗[読取] / 次週学習予定 / 授業日 / ゼミ予定）を面談記録フォームから起動
+    - 次週学習予定 = 既存 `StudyScheduleEditor`（学習時間）を再利用
+    - 授業日 = 新規 `ClassDayEditor`（「前回分を翌週にコピー」で初期値引き継ぎ）
+    - ゼミ予定 = `SeminarManager` に `embedded` を追加して再利用
+    - 次回面談予定は面談フォーム内に残置
+- **フェーズ2: 週次面談シート（commit `e6e3ccc`・push 済み / ブラウザ実機確認は未）**
+  - `MeetingSheet` モデル＋マイグレーション `20260617000000_add_meeting_sheets`（Neon 適用済み）
+  - API: `GET/POST /api/meeting-sheets`、`GET/PUT/DELETE /api/meeting-sheets/[id]`
+  - 生徒: サイドバー「面談シート」→ 一覧 `/meeting-sheets`（今週分を生成・未提出リマインド）＋記入 `/meeting-sheets/[id]`
+  - 面談予定日の参照: `lib/nextMeeting.ts`（面談タスク優先→面談記録の次回予定）。3日前から未提出タグ
+  - 面談記録保存(POST /api/meetings)時、次回予定があれば面談タスク(type=面談)を自動生成
+  - 講師/管理者: `MeetingPlanModal` に「週次シート」タブ（最新シートを読み取り表示）
+  - 検証: 型(tsc)・Lint・本番ビルド(next build) クリア。実DBスモークテスト（CRUD/JSON往復/提出/次回面談タスク優先/削除）全PASS（`prisma/smoke-meeting-sheet.ts`）
+  - 残: ブラウザでの実機UI確認（→ 進行中 A に残置）
+  - 面談記録に任意で紐づく提出物。ゼミ・学習進捗等と重複する項目は含めない
+  - 確定事項（2026-06-17）:
+    - 記入者=生徒。週区切りなし。生成は生徒の「今週分を生成」ボタン
+    - 締切=面談実施まで。未提出タグは面談予定日の3日前から表示（参照元=直近面談の次回面談予定）
+    - 提出後も生徒が修正可（ロックなし）
+    - 講師/管理者は面談モーダルの「週次シート」タブで閲覧（読取）
+    - 項目は spec.md 5.9 を正とする（教材/予定/実績の表は削除＝学習進捗と同義）
+
+  ### ▼ 週次面談シートの項目定義 → **`spec.md` §5.9 へ転記済み**
+  - オーナー記入欄に記入された項目定義は `spec.md` の「5.9 週次面談シート」に正式セクションとして転記済み（転記日 2026-06-17）。**項目の正は spec.md §5.9**。
+  - 2026-08-18 に実装 (`src/lib/meetingSheet.ts`) と spec.md §5.9 を突き合わせ、**選択肢・項目とも差分なし**を確認。
+  - 二重持ちを避けるため、ここにあった生テキストは削除した（playbook §0）。
+- **フェーズ3: LINE連携（本番稼働開始 2026-07-02, commit `5f05be2`）**
+  - **スコープ変更（2026-07-02）**: クライアントが用意可能なのが Messaging API の **Channel ID / Channel secret のみ**（LINE Loginチャネル不可）と確定 → **LINEログインは廃止**、通知＋友だち連携のみに縮小。ログインは従来のメール＋パスワードのまま。
+  - 認証情報: Channel ID / secret から **ステートレス チャネルアクセストークンを都度発行**（`oauth2/v3/token`, client_credentials）。事前発行トークン不要。env: `LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET` / `LINE_FRIEND_URL`
+  - スキーマ: `User.lineUserId / lineLinkCode / lineLinkExpires` 追加。マイグレーション `20260702000000_add_line_fields` を **Neon本番に適用済み**
+  - 実装: `lib/line.ts`（トークン発行・push・reply・署名検証）/ `lib/lineNotify.ts`（朝夜ロジック）/ `api/line/webhook`（6桁コード連携）/ `api/line/link`（POST発行・DELETE解除）/ `api/line/notify/{morning,evening}` / `/account/profile` に連携UI
+  - 朝通知(9:00 JST): 面談予定・授業（ある場合） = `api/line/notify/morning`（Cron）
+  - 夜通知(22:00 JST): 学習予定あり＆進捗未記録ならリマインド／宛先は生徒のみ。**auto-checkout(22:00) に相乗り実行**（Hobbyプラン Cron 2本制限内）
+  - 検証: `tsc --noEmit` / eslint / `next build` すべてクリア
+  - **本番反映（2026-07-02 完了）**:
+    1. ✅ 本番Vercelに `LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET` / `LINE_FRIEND_URL`(`https://lin.ee/ZhUDxwC`) を Production に設定
+    2. ✅ `main` push → 本番デプロイ Ready（本番 `https://juku-system.vercel.app`）
+    3. ✅ Webhook URL = `https://juku-system.vercel.app/api/line/webhook` をクライアントが登録済み。署名検証スモークテスト通過（正:200 / 誤:401）
+  - **残（実利用での確認）**: 実アカウントで友だち追加＋6桁コード連携 → 朝夜通知の実送信確認
+
+> 注: 「講師・生徒登録時のパスワード記入欄削除」は既に完了 4 (2026-05-09, commit `a684c52`) で対応済みです。

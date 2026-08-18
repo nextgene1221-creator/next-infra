@@ -30,3 +30,7 @@ juku-system/src/generated/prisma/
 
 # Misc
 .vercel
+
+# 自動生成物（Stop hook のログ・実行時スナップショット）
+CHANGELOG_AI.md
+juku-system/sample-deletion-snapshot-*.json

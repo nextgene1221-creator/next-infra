@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { applicationPolicyLabel, locationPreferenceLabel } from "@/lib/studentPreferences";
 import { generateText } from "ai";
 
 export const maxDuration = 60;
@@ -87,6 +88,8 @@ export async function POST(req: NextRequest) {
     志望学部: student.desiredFaculty || "未設定",
     受験科目: examSubjects.length ? examSubjects : "未設定",
     推薦検討: student.considerRecommendation ? "あり" : "なし",
+    出願思考: applicationPolicyLabel(student.applicationPolicy),
+    志望校立地: locationPreferenceLabel(student.locationPreference),
     英検予定: student.eikenPlan || "未設定",
   };
   const mockExams = student.mockExamResults.map((m) => ({

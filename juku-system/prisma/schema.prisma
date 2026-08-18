@@ -28,6 +28,8 @@ model User {
   blogReads    BlogRead[]
 
   @@map("users")
+  hourlyWages HourlyWage[]
+  payslips    Payslip[]
 }
 
 model Student {
@@ -56,6 +58,10 @@ model Student {
   considerRecommendation Boolean   @default(false) @map("consider_recommendation")
   eikenPlan              String    @default("") @map("eiken_plan")
   campus                 String    @default("") // shuri / naha
+  // 出願思考（国公立/私立の志向）: public_only / prefer_public / either / prefer_private / private_only。空=未設定
+  applicationPolicy      String    @default("") @map("application_policy")
+  // 志望校立地の希望: urban_only / prefer_urban / any / prefer_rural / rural_only / okinawa_only。空=未設定
+  locationPreference     String    @default("") @map("location_preference")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
@@ -147,8 +153,14 @@ model MockExamResult {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  // 模試マスタへの参照（新規依頼 B-7）。表記ゆれによる集計ミスを防ぐ。
+  // examName は残す（マスタ未登録の模試を自由入力できるようにするため／既存データ保持）。
+  mockExamId        String?  @map("mock_exam_id")
 
+  student  Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mockExam MockExam? @relation(fields: [mockExamId], references: [id])
+
+  @@index([mockExamId])
   @@map("mock_exam_results")
 }
 
@@ -229,9 +241,66 @@ model Material {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
+  routeItems MaterialRouteItem[]
+
   @@index([subject])
   @@index([active])
   @@map("materials")
+}
+
+// 参考書ルート（新規依頼 B-6）。参考書を学習順に並べた「ルート」を塾共通のテンプレートとして持ち、
+// 必要に応じて複製して使い回す。生徒への割り当て・学習目標/進捗との連携は今回のスコープ外。
+model MaterialRoute {
+  id          String   @id @default(uuid())
+  name        String   // ルート名（例: 数学 基礎→標準）
+  subject     String   // 科目
+  targetLevel String   @default("") @map("target_level") // 想定到達レベル（自由記述）
+  description String   @default("")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items MaterialRouteItem[]
+
+  @@index([subject])
+  @@index([active])
+  @@map("material_routes")
+}
+
+// ルート内の1ステップ。学習の「段階」は sortOrder の並び順で表現する（別途 level は持たない）。
+// 並べ替えを容易にするため (routeId, sortOrder) の unique 制約はあえて付けていない。
+model MaterialRouteItem {
+  id         String   @id @default(uuid())
+  routeId    String   @map("route_id")
+  materialId String   @map("material_id")
+  sortOrder  Int      @map("sort_order")
+  note       String   @default("") // この段階でのねらい・使い方メモ
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  route    MaterialRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  material Material      @relation(fields: [materialId], references: [id])
+
+  @@index([routeId])
+  @@index([materialId])
+  @@map("material_route_items")
+}
+
+// 模試マスタ（新規依頼 B-7）。生徒ごとに模試名を自由入力していると表記ゆれで集計がずれるため、
+// 選択式の元データとして持つ。無効化しても既存の MockExamResult 参照は残す（Material と同じ方針）。
+model MockExam {
+  id          String   @id @default(uuid())
+  name        String   @unique // 模試名（例: 全統記述模試）
+  provider    String   @default("") // 主催（河合塾 / 駿台 / ベネッセ 等）
+  gradeLevels String   @default("[]") @map("grade_levels") // 対象学年 JSON配列（high1 / high2 / high3 / ronin）
+  sortOrder   Int      @default(0) @map("sort_order") // 表示順
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  results MockExamResult[]
+
+  @@index([active])
+  @@map("mock_exams")
 }
 
 model Task {
@@ -647,4 +716,64 @@ model AdmissionRevision {
 
   @@index([admissionId, changedAt])
   @@map("admission_revisions")
+}
+
+// ── 給与計算（新規依頼 B-9）─────────────────────────────
+// 講師・管理者の出退勤(Attendance)から月次の給与明細を作る。
+// 時給は Teacher ではなく **User** に紐づける（管理者は Teacher レコードを持たない場合があるため）。
+
+// 時給。履歴として持ち、effectiveFrom 以降に適用される。
+// 過去日付も設定できる（遡及計算を行うため / オーナー確認 2026-08-18 B-9(g)）。
+model HourlyWage {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  hourlyYen     Int      @map("hourly_yen")
+  effectiveFrom DateTime @map("effective_from") // この日(JST)から有効
+  note          String   @default("")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, effectiveFrom])
+  @@map("hourly_wages")
+}
+
+// 月次の給与明細。draft で下書き生成し、管理者が確認して confirmed に確定する。
+model Payslip {
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id")
+  yearMonth      String    @map("year_month") // "2026-08"（JST基準）
+  totalMinutes   Int       @map("total_minutes")
+  baseYen        Int       @map("base_yen")     // 勤務分の支給額
+  adjustmentYen  Int       @default(0) @map("adjustment_yen")  // 手当・控除の手動調整
+  adjustmentNote String    @default("") @map("adjustment_note")
+  totalYen       Int       @map("total_yen")
+  status         String    @default("draft") // draft / confirmed
+  confirmedAt    DateTime? @map("confirmed_at")
+  warnings       String    @default("[]") // 打刻漏れ等の警告 JSON配列
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items PayslipItem[]
+
+  @@unique([userId, yearMonth])
+  @@index([yearMonth])
+  @@map("payslips")
+}
+
+// 明細の内訳（1日1行）。適用時給を行ごとに保存し、後から時給を変えても確定済み明細が動かないようにする。
+model PayslipItem {
+  id        String   @id @default(uuid())
+  payslipId String   @map("payslip_id")
+  date      DateTime // JST の日付（00:00 固定）
+  minutes   Int
+  hourlyYen Int      @map("hourly_yen")
+  amountYen Int      @map("amount_yen")
+  note      String   @default("")
+
+  payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@index([payslipId])
+  @@map("payslip_items")
 }

@@ -45,3 +45,50 @@ export async function hasSubmittedSheetSinceLastMeeting(studentId: string): Prom
   });
   return !!submitted;
 }
+
+// 生徒一覧など複数生徒分をまとめて取得する版（N+1 回避）。
+// 優先順は getNextMeetingInfo と同一: 面談タスク(type=面談) > 直近面談記録の nextMeetingDate。
+export async function getNextMeetingMap(
+  studentIds: string[],
+): Promise<Map<string, NextMeetingInfo>> {
+  const map = new Map<string, NextMeetingInfo>();
+  if (studentIds.length === 0) return map;
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const [tasks, meetings] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        studentId: { in: studentIds },
+        type: "面談",
+        status: { notIn: ["completed", "cancelled"] },
+        meetingDateTime: { not: null, gte: startOfToday },
+      },
+      orderBy: { meetingDateTime: "asc" },
+      select: { studentId: true, meetingDateTime: true },
+    }),
+    prisma.meeting.findMany({
+      where: {
+        studentId: { in: studentIds },
+        nextMeetingDate: { not: null, gte: startOfToday },
+      },
+      orderBy: { date: "desc" },
+      select: { studentId: true, nextMeetingDate: true },
+    }),
+  ]);
+
+  // タスク優先。昇順で最初に現れたものが各生徒の直近予定。
+  for (const t of tasks) {
+    if (!t.studentId || !t.meetingDateTime) continue;
+    if (!map.has(t.studentId)) map.set(t.studentId, { date: t.meetingDateTime, source: "task" });
+  }
+  // タスクが無い生徒だけ面談記録で補う。date 降順の先頭＝直近の面談記録。
+  for (const m of meetings) {
+    if (!m.studentId || !m.nextMeetingDate) continue;
+    if (!map.has(m.studentId)) map.set(m.studentId, { date: m.nextMeetingDate, source: "meeting" });
+  }
+
+  for (const id of studentIds) if (!map.has(id)) map.set(id, null);
+  return map;
+}

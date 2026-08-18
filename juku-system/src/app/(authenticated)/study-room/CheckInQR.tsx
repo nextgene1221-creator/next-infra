@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { buildQrUrl } from "@/lib/externalBrowser";
 
 export default function CheckInQR({ campus, label }: { campus: string; label: string }) {
   const [origin, setOrigin] = useState<string>("");
@@ -21,7 +22,8 @@ export default function CheckInQR({ campus, label }: { campus: string; label: st
     );
   }
 
-  const url = `${origin}/study-room/check-in?campus=${encodeURIComponent(campus)}`;
+  // 外部ブラウザ指定パラメータを必ず含める（B-10）。新しい QR も必ずこのヘルパーを使うこと。
+  const url = buildQrUrl(origin, "/study-room/check-in", { campus });
 
   return (
     <>
@@ -56,6 +58,7 @@ export default function CheckInQR({ campus, label }: { campus: string; label: st
             <p className="text-xs text-dark/60 break-all text-center">{url}</p>
             <p className="text-xs text-dark/50 text-center">
               生徒がスマホで読み取り、ログイン済みなら即着席登録できます。<br />
+              未ログインの場合はログイン後にこの画面へ自動で戻ります。<br />
               印刷して校舎の入口や席に掲示してください。
             </p>
             <div className="flex gap-2 mt-2">

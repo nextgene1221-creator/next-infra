@@ -5,6 +5,7 @@ import ClickableRow from "@/components/ClickableRow";
 import { computeStudentAlerts } from "@/lib/studentAlerts";
 import { SUBJECTS } from "@/lib/types";
 import StudentQuickSearch from "@/components/StudentQuickSearch";
+import { getNextMeetingMap } from "@/lib/nextMeeting";
 
 export default async function StudentsPage({
   searchParams,
@@ -59,6 +60,8 @@ export default async function StudentsPage({
   });
 
   const alerts = await computeStudentAlerts(students.map((s) => s.id));
+  // 面談日順ソート用。1件ずつ引くと N+1 になるのでまとめて取得する。
+  const nextMeetings = await getNextMeetingMap(students.map((s) => s.id));
 
   // 優先度: both(3) > paceOnly(2) > meetingOnly(2) > none(0)、active 生徒のみアラート対象
   const ranked = students.map((s) => {
@@ -71,7 +74,8 @@ export default async function StudentsPage({
     const teacherNames = s.assignments
       .map((x) => x.teacher.user.name)
       .sort((x, y) => x.localeCompare(y, "ja"));
-    return { student: s, meetingGap, paceAlert, both, priority, teacherNames };
+    const nextMeetingDate = nextMeetings.get(s.id)?.date ?? null;
+    return { student: s, meetingGap, paceAlert, both, priority, teacherNames, nextMeetingDate };
   });
 
   const sortByName = (a: { student: { user: { name: string } } }, b: { student: { user: { name: string } } }) =>
@@ -91,6 +95,14 @@ export default async function StudentsPage({
     ranked.sort((a, b) => {
       const tcmp = sortByTeacher(a, b);
       if (tcmp !== 0) return tcmp;
+      return sortByName(a, b);
+    });
+  } else if (sortKey === "meeting") {
+    // 面談日順: 近い順（昇順）。予定が無い生徒は末尾へ（B-8 (a)(b)）。
+    ranked.sort((a, b) => {
+      const ax = a.nextMeetingDate ? a.nextMeetingDate.getTime() : Infinity;
+      const bx = b.nextMeetingDate ? b.nextMeetingDate.getTime() : Infinity;
+      if (ax !== bx) return ax - bx;
       return sortByName(a, b);
     });
   } else if (sortKey === "enrollment") {
@@ -203,6 +215,7 @@ export default async function StudentsPage({
           <option value="">アラート優先順</option>
           <option value="teacher">担当講師順</option>
           <option value="name">名前順</option>
+          <option value="meeting">面談日順</option>
           <option value="enrollment">入塾日順</option>
         </select>
         <button
@@ -223,11 +236,12 @@ export default async function StudentsPage({
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">卒業年度</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">高校名</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">ステータス</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">次回面談</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-dark/60 uppercase">入塾日</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {ranked.map(({ student, meetingGap, paceAlert, both, teacherNames }) => (
+            {ranked.map(({ student, meetingGap, paceAlert, both, teacherNames, nextMeetingDate }) => (
               <ClickableRow
                 key={student.id}
                 href={`/students/${student.id}`}
@@ -261,6 +275,13 @@ export default async function StudentsPage({
                   >
                     {student.status === "active" ? "在籍" : student.status === "inactive" ? "休塾" : "退塾"}
                   </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-dark">
+                  {nextMeetingDate ? (
+                    new Date(nextMeetingDate).toLocaleDateString("ja-JP")
+                  ) : (
+                    <span className="text-dark/40">-</span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-sm text-dark">
                   {new Date(student.enrollmentDate).toLocaleDateString("ja-JP")}

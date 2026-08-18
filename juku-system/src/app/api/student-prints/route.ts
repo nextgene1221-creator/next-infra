@@ -93,6 +93,17 @@ export async function PUT(req: NextRequest) {
   const data: { completedDate?: Date | null; scheduledDate?: Date } = {};
 
   if (completedDate !== undefined) {
+    // 完了の取り消し（null 化）は講師・管理者のみ（B-4 (a)、オーナー確認 2026-08-18）。
+    if (!completedDate && session.user.role === "student") {
+      return NextResponse.json({ error: "完了の取り消しは講師・運営のみ可能です" }, { status: 403 });
+    }
+    // 生徒は自分のプリントのみ完了操作できる（他生徒の記録を触らせない）。
+    if (session.user.role === "student") {
+      const student = await prisma.student.findFirst({ where: { userId: session.user.id } });
+      if (!student || student.id !== existing.studentId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
     data.completedDate = completedDate ? new Date(completedDate) : null;
   }
 

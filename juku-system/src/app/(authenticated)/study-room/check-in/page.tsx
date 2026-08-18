@@ -1,4 +1,5 @@
-import { requireAuth } from "@/lib/session";
+import { getSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { campusByCode, getOrInitStudyRoomConfig } from "@/lib/studyRoom";
 import { notFound } from "next/navigation";
@@ -12,9 +13,16 @@ export default async function CheckInPage({
 }: {
   searchParams: Promise<{ campus?: string }>;
 }) {
-  const session = await requireAuth();
   const { campus } = await searchParams;
   if (!campus) notFound();
+
+  // QR リーダーの内蔵ブラウザではログインセッションが引き継がれないことがある（B-10）。
+  // 未ログインならログイン後にこの URL へ戻す。
+  const session = await getSession();
+  if (!session) {
+    const back = `/study-room/check-in?campus=${encodeURIComponent(campus)}`;
+    redirect(`/login?callbackUrl=${encodeURIComponent(back)}`);
+  }
 
   const campusRec = await campusByCode(campus);
   if (!campusRec) notFound();
