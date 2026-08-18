@@ -98,7 +98,7 @@
 
 ---
 
-## Q7. ローカル開発用 DB をどう用意するか — status: `open` / **テスト着手のブロッカー**
+## Q7. ローカル開発用 DB をどう用意するか — status: `answered` (2026-08-18)
 
 `juku-system/.env` の `DATABASE_URL` のホストが、Vercel 本番の `DATABASE_URL` と**完全に一致**している（`ep-shiny-sky-an2aocea...neon.tech`、2026-08-18 照合）。
 つまり `npm run dev` は**本番 DB を直接読み書き**する（管理者 5 / 講師 11 / 生徒 60 の実データ）。
@@ -111,4 +111,10 @@
   - C: ローカル Postgres を立てる。完全隔離だがデータは空。
 - 詳細と手順は `docs/understanding-2026-08-18.md` 冒頭「ローカルテスト環境」を参照。
 
-**回答**:
+**回答**: **案 B を採用**（オーナー指示「マイグレーション適応させて push」）。
+
+- 2026-08-18 `npx prisma migrate deploy` で**本番 Neon に 4 本を適用済み**。`Database schema is up to date!` を確認。
+  - 適用内容は ADD COLUMN（DEFAULT 付き）と CREATE TABLE のみで**既存データ非破壊**。
+- 実装を commit `7eae25a` として push 済み。
+- ⚠️ **ローカル開発が本番 DB を直接触る構成は未解決のまま**。実機確認の操作は本番データに反映される。
+  将来的には案 A（Neon ブランチを開発用に分ける）を推奨。→ playbook §5 に P1 課題として登録。

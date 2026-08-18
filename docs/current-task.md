@@ -9,9 +9,7 @@
 
 ## ⚠️ セッション特例ルール（解除されるまで有効）
 
-- **今回の修正指示群（下記 B-1〜B-10）は、各項完了後に push しない。**（オーナー確定 2026-08-18 / Q3 `answered`）
-  - §8 のローカル検証（tsc / lint / build）を通し、**中間報告までで止める**。push はオーナーの明示指示を待つ。
-  - オーナー側でローカルテストを行ってから push する運用。
+- ~~今回の修正指示群は push しない~~ → **2026-08-18 にオーナー指示で解除。commit `7eae25a` を push 済み**。以降は playbook §1 の標準ルール（各項完了後にコミット→push）に戻る。
 - **修正指示を受けたら、実装前に「理解と対応方針」をまとめたファイルを作成し、オーナーの確認を取ってから実装に入る。**（オーナー指示 2026-08-18 / playbook §1 に恒久ルールとして記載）
   - 本セッションの該当ファイル: `docs/understanding-2026-08-18.md`
 - 標準ルール（各項完了後に push）は `docs/todo.md` 冒頭および playbook §1 に記載。特例が解除されたらそちらに戻る。
@@ -50,7 +48,7 @@
 
 ---
 
-## 修正指示 B-1〜B-10（2026-08-18 受領）— **全 10 項目 実装完了・未 push**
+## 修正指示 B-1〜B-10（2026-08-18 受領）— **全 10 項目 完了・push 済み** (commit `7eae25a`)
 
 | # | 内容 | 状態 |
 |---|---|---|
@@ -67,19 +65,13 @@
 
 検証（playbook §8）: `tsc --noEmit` ✅ / `next build` ✅（92ページ）/ `npm run lint` は **14 errors・8 warnings ＝ 作業開始時と同数**（新規エラー 0）。
 
-### ⏸️ オーナー指示待ちの残作業
+### 残作業
 
-1. **push**（本セッションは push しない方針）
-2. **本番 Neon へのマイグレーション適用 4 本**（playbook §3 のオーナー判断送り）
-   - `20260818000000_add_student_application_preferences`
-   - `20260818010000_add_mock_exam_master`
-   - `20260818020000_add_material_routes`
-   - `20260818030000_add_payroll`
-   - いずれも **ADD COLUMN / CREATE TABLE のみ・既存データ非破壊**
-3. **模試マスタ移行スクリプトの実行** `npx tsx prisma/seed-mock-exams.ts`（開発 DB も未実行）
-4. **ブラウザ実機確認**（全項目。特に QR 読み取り→ログイン→復帰、給与計算の実データ検証、出願戦略の実 AI 呼び出し）
-5. `docs/feature-specs-2026-07.md` / `docs/teacher-evaluation-proposal.md` のコミット（Q6）
-
+1. **ブラウザ実機確認**（全項目未実施）。ローカルは `cd juku-system && npm run dev` → http://localhost:3000 、`test-admin@dev.local` / `test1234`
+   - ⚠️ ローカルの `DATABASE_URL` は**本番 Neon と同じ**（Q7）。操作は本番データに反映されるので注意
+2. **模試マスタの移行スクリプト**（未実行）: `npx tsx prisma/seed-mock-exams.ts`
+   - 既存 `examName` をマスタへ投入し、完全一致のみ自動紐付け。表記ゆれ候補は提示のみ
+3. **本番デプロイの確認**: push により Vercel が自動デプロイ。`https://juku-system.vercel.app` で疎通を見る
 ---
 ## Q1〜Q6 の処理結果（2026-08-18）
 

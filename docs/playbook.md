@@ -153,6 +153,8 @@
 - [x] **P0** `docs/todo.md` 進行中 A の実態整理（2026-08-18 完了。完了 24〜30 の `commit 未` も実ハッシュに訂正）
 - [ ] **P1** AI Gateway の OIDC トークン運用（24h 失効）の恒久策を決める。`vercel env pull` の再実行手順を明文化
 - [ ] **P1** 未追跡ファイル 4 件の扱いを決めて確定（`CHANGELOG_AI.md` / `docs/feature-specs-2026-07.md` / `docs/teacher-evaluation-proposal.md` / `juku-system/sample-deletion-snapshot-*.json`）→ Q6
+- [ ] **P1** **開発用 DB が本番と同一**（`juku-system/.env` の `DATABASE_URL` が Vercel 本番と同じホスト、2026-08-18 判明）。
+  `npm run dev` での操作がそのまま本番データ（生徒 60 名ほか）に反映される。**Neon のブランチを開発用に分ける**のが望ましい → Q7
 - [ ] **P2** ローカル検証を 1 コマンドで回せるようにする（`package.json` に `verify` スクリプト追加: tsc → lint → build）
 
 ### バックアップ（詳細は `docs/backlog.md`）
