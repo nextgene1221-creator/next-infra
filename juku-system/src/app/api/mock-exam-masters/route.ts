@@ -39,5 +39,13 @@ export async function POST(req: NextRequest) {
       sortOrder: Number.isFinite(Number(body.sortOrder)) ? Math.floor(Number(body.sortOrder)) : 0,
     },
   });
-  return NextResponse.json(exam);
+
+  // 既存の模試結果のうち、模試名が**完全一致**するものだけを自動で紐付ける。
+  // 表記ゆれ（似ているが一致しない名前）は勝手に寄せない。管理者が画面で判断する。
+  const linked = await prisma.mockExamResult.updateMany({
+    where: { examName: name, mockExamId: null },
+    data: { mockExamId: exam.id },
+  });
+
+  return NextResponse.json({ ...exam, linkedCount: linked.count });
 }

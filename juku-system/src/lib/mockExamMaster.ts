@@ -19,3 +19,13 @@ export function parseGradeLevels(json: string | null | undefined): string[] {
     return [];
   }
 }
+
+// 表記ゆれ検出用の正規化キー。空白・記号・末尾の「模試」を落として比較する。
+// 例: 「全統記述」「全統記述模試」「全統 記述模試」→ すべて同じキー
+export function normalizeExamName(name: string): string {
+  return name
+    .replace(/[\s　]/g, "")
+    .replace(/[・,，.．\-−―ー]/g, "")
+    .replace(/模試$/, "")
+    .toLowerCase();
+}

@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MOCK_EXAM_GRADE_LEVELS } from "@/lib/mockExamMaster";
 
+// 既存の模試結果で使われているが、まだマスタに登録されていない模試名。
+// 開発側でスクリプト流し込みはせず、管理者がこの一覧から判断して登録する（オーナー指示 2026-08-18）。
+export type UnregisteredName = { name: string; count: number };
+
 export type MockExamView = {
   id: string;
   name: string;
@@ -17,9 +21,15 @@ export type MockExamView = {
 export default function MockExamsMasterManager({
   isAdmin,
   initialExams,
+  unregistered,
+  variantGroups,
 }: {
   isAdmin: boolean;
   initialExams: MockExamView[];
+  /** 既存の模試結果で使われているがマスタ未登録の名前 */
+  unregistered: UnregisteredName[];
+  /** 表記ゆれの可能性があるグループ（正規化キーが同じ名前の集合） */
+  variantGroups: string[][];
 }) {
   const router = useRouter();
   const [exams, setExams] = useState<MockExamView[]>(initialExams);
@@ -72,6 +82,25 @@ export default function MockExamsMasterManager({
     } else {
       const j = await res.json().catch(() => ({}));
       setError(j.error || "追加に失敗しました");
+    }
+    setSaving(false);
+  };
+
+  // 未登録名をそのままマスタに登録する。作成時、**完全一致**する既存結果は API 側で自動紐付けされる。
+  const registerExisting = async (u: UnregisteredName) => {
+    if (!confirm(`「${u.name}」をマスタに登録しますか？\nこの名前で記録されている既存の模試結果 ${u.count} 件が、このマスタに紐付きます。`)) return;
+    setSaving(true);
+    setError("");
+    const res = await fetch("/api/mock-exam-masters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: u.name, gradeLevels: [], sortOrder: exams.length }),
+    });
+    if (res.ok) {
+      router.refresh();
+    } else {
+      const j = await res.json().catch(() => ({}));
+      setError(j.error || "登録に失敗しました");
     }
     setSaving(false);
   };
@@ -166,6 +195,61 @@ export default function MockExamsMasterManager({
               {saving ? "追加中..." : "追加"}
             </button>
           </div>
+        </div>
+      )}
+
+      {variantGroups.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h2 className="text-sm font-bold text-amber-800 mb-2">⚠ 表記ゆれの可能性</h2>
+          <p className="text-xs text-amber-800 mb-2">
+            似た名前が複数あります。同じ模試であれば<strong>ひとつだけ</strong>をマスタに登録し、
+            別表記のものは登録しないでください（自動では統合しません）。
+          </p>
+          <ul className="text-xs text-amber-900 space-y-0.5">
+            {variantGroups.map((g, i) => (
+              <li key={i}>・{g.join("　/　")}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {unregistered.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-4">
+          <h2 className="text-lg font-semibold mb-1">未登録の模試名</h2>
+          <p className="text-xs text-dark/60 mb-3">
+            既存の模試結果で使われているが、まだマスタに無い名前です。
+            {isAdmin
+              ? "登録すると、その名前で記録されている既存の結果が自動でこのマスタに紐付きます（完全一致のみ）。"
+              : "登録は管理者のみ行えます。"}
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-dark/60 border-b">
+                <th className="text-left py-2">模試名</th>
+                <th className="text-right py-2 w-24">使用件数</th>
+                {isAdmin && <th className="text-right py-2 w-24">操作</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {unregistered.map((u) => (
+                <tr key={u.name} className="border-b border-gray-50">
+                  <td className="py-2 text-dark">{u.name}</td>
+                  <td className="py-2 text-right text-dark/70">{u.count}</td>
+                  {isAdmin && (
+                    <td className="py-2 text-right">
+                      <button
+                        onClick={() => registerExisting(u)}
+                        disabled={saving}
+                        className="text-xs bg-primary text-white rounded px-3 py-1 hover:bg-primary-dark disabled:opacity-50"
+                      >
+                        登録
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
