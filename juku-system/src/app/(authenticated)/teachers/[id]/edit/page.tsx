@@ -18,6 +18,8 @@ type TeacherForm = {
   examSubjectsTaken: string[];
   emergencyContact: string;
   universityClub: string;
+  /** 出勤1日あたりの交通費（円）。空文字は「未入力」＝既存値を変えない */
+  transportAllowanceYen: string;
 };
 
 const initial: TeacherForm = {
@@ -33,6 +35,7 @@ const initial: TeacherForm = {
   examSubjectsTaken: [],
   emergencyContact: "",
   universityClub: "",
+  transportAllowanceYen: "200",
 };
 
 export default function TeacherEditPage() {
@@ -64,6 +67,10 @@ export default function TeacherEditPage() {
             examSubjectsTaken: data.examSubjectsTaken ? JSON.parse(data.examSubjectsTaken) : [],
             emergencyContact: data.emergencyContact || "",
             universityClub: data.universityClub || "",
+            transportAllowanceYen:
+              data.user.transportAllowanceYen == null
+                ? "200"
+                : String(data.user.transportAllowanceYen),
           });
           setLoading(false);
         });
@@ -179,6 +186,20 @@ export default function TeacherEditPage() {
           <div>
             <label className="block text-sm font-medium text-charcoal">大学での部活</label>
             <input value={form.universityClub} onChange={(e) => setForm({ ...form, universityClub: e.target.value })} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-charcoal">交通費（出勤1日あたり・円）</label>
+            <input
+              type="number"
+              min={0}
+              step={10}
+              value={form.transportAllowanceYen}
+              onChange={(e) => setForm({ ...form, transportAllowanceYen: e.target.value })}
+              className={inputCls}
+            />
+            <p className="text-xs text-dark/50 mt-1">
+              出勤 1 日につきこの金額が給与に加算されます（既定 200 円）。変更後は給与計算画面で明細を再生成してください。
+            </p>
           </div>
         </div>
 

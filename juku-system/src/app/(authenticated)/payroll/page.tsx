@@ -31,7 +31,7 @@ export default async function PayrollPage({
     prisma.user.findMany({
       where: { role: { in: ["admin", "teacher"] } },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, transportAllowanceYen: true },
     }),
     prisma.hourlyWage.findMany({ orderBy: { effectiveFrom: "desc" } }),
     prisma.payslip.findMany({
@@ -54,6 +54,8 @@ export default async function PayrollPage({
           yearMonth: p.yearMonth,
           totalMinutes: p.totalMinutes,
           baseYen: p.baseYen,
+          workDays: p.workDays,
+          transportYen: p.transportYen,
           adjustmentYen: p.adjustmentYen,
           adjustmentNote: p.adjustmentNote,
           totalYen: p.totalYen,
@@ -66,6 +68,7 @@ export default async function PayrollPage({
             minutes: it.minutes,
             hourlyYen: it.hourlyYen,
             amountYen: it.amountYen,
+            transportYen: it.transportYen,
             note: it.note,
           })),
         }
@@ -76,6 +79,7 @@ export default async function PayrollPage({
       name: u.name,
       role: u.role,
       currentHourlyYen: current ? current.hourlyYen : null,
+      transportAllowanceYen: u.transportAllowanceYen,
       wageHistory: history.map((w) => ({
         id: w.id,
         hourlyYen: w.hourlyYen,
@@ -91,7 +95,7 @@ export default async function PayrollPage({
       <h1 className="text-2xl font-bold text-dark mb-2 print:hidden">給与計算</h1>
       <p className="text-sm text-dark/60 mb-6 print:hidden">
         出退勤の記録から月次の給与明細を作成します。時給を設定 → 明細を生成 → 内容を確認して確定、の順で進めます。
-        深夜手当・残業・交通費は自動計算しないため、必要な場合は明細ごとの「調整」で入力してください。
+        交通費は出勤 1 日あたりの定額（既定 200 円・人ごとに変更可）を自動加算します。深夜手当・残業は自動計算しないため、必要な場合は明細ごとの「調整」で入力してください。
       </p>
       <PayrollManager yearMonth={yearMonth} staff={staff} />
     </div>

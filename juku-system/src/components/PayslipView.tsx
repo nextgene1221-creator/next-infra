@@ -11,6 +11,7 @@ export type PayslipItemView = {
   minutes: number;
   hourlyYen: number;
   amountYen: number;
+  transportYen: number;
   note: string;
 };
 
@@ -20,6 +21,8 @@ export type PayslipDetail = {
   yearMonth: string;
   totalMinutes: number;
   baseYen: number;
+  workDays: number;
+  transportYen: number;
   adjustmentYen: number;
   adjustmentNote: string;
   totalYen: number;
@@ -78,7 +81,7 @@ export default function PayslipView({ p }: { p: PayslipDetail }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
         <div className="bg-surface rounded p-3">
           <p className="text-xs text-dark/60">勤務時間</p>
           <p className="text-lg font-bold text-dark">{formatMinutes(p.totalMinutes)}</p>
@@ -86,6 +89,10 @@ export default function PayslipView({ p }: { p: PayslipDetail }) {
         <div className="bg-surface rounded p-3">
           <p className="text-xs text-dark/60">勤務分支給</p>
           <p className="text-lg font-bold text-dark">{yen(p.baseYen)}</p>
+        </div>
+        <div className="bg-surface rounded p-3">
+          <p className="text-xs text-dark/60">交通費（{p.workDays}日）</p>
+          <p className="text-lg font-bold text-dark">{yen(p.transportYen)}</p>
         </div>
         <div className="bg-surface rounded p-3">
           <p className="text-xs text-dark/60">調整</p>
@@ -111,7 +118,8 @@ export default function PayslipView({ p }: { p: PayslipDetail }) {
               <th className="text-left py-1 w-20">日付</th>
               <th className="text-right py-1 w-28">勤務時間</th>
               <th className="text-right py-1 w-24">時給</th>
-              <th className="text-right py-1 w-28">金額</th>
+              <th className="text-right py-1 w-28">勤務分</th>
+              <th className="text-right py-1 w-24">交通費</th>
               <th className="text-left py-1 pl-4">備考</th>
             </tr>
           </thead>
@@ -122,6 +130,7 @@ export default function PayslipView({ p }: { p: PayslipDetail }) {
                 <td className="py-1 text-right">{formatMinutes(it.minutes)}</td>
                 <td className="py-1 text-right">{it.hourlyYen > 0 ? yen(it.hourlyYen) : "—"}</td>
                 <td className="py-1 text-right">{yen(it.amountYen)}</td>
+                <td className="py-1 text-right">{yen(it.transportYen)}</td>
                 <td className="py-1 pl-4 text-xs text-dark/60">{it.note}</td>
               </tr>
             ))}
@@ -131,7 +140,7 @@ export default function PayslipView({ p }: { p: PayslipDetail }) {
 
       <p className="text-[11px] text-dark/50 mt-3">
         時給ごとに「合計勤務分 × 時給 ÷ 60」を計算し、円未満を切り捨てています（日別金額の単純合計とは端数が異なる場合があります）。
-        深夜・残業・交通費は含みません。締めは月末（JST）です。
+        交通費は出勤 1 日につき定額で加算しています（打刻漏れの日も出勤日として計上）。深夜手当・残業は含みません。締めは月末（JST）です。
       </p>
       {p.confirmedAt && (
         <p className="text-[11px] text-dark/50 mt-1">

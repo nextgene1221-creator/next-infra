@@ -21,6 +21,8 @@ export default async function MyPayslipsPage() {
     yearMonth: p.yearMonth,
     totalMinutes: p.totalMinutes,
     baseYen: p.baseYen,
+    workDays: p.workDays,
+    transportYen: p.transportYen,
     adjustmentYen: p.adjustmentYen,
     adjustmentNote: p.adjustmentNote,
     totalYen: p.totalYen,
@@ -33,6 +35,7 @@ export default async function MyPayslipsPage() {
       minutes: it.minutes,
       hourlyYen: it.hourlyYen,
       amountYen: it.amountYen,
+      transportYen: it.transportYen,
       note: it.note,
     })),
   }));

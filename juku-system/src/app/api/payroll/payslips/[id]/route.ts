@@ -38,7 +38,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     adjustmentYen = v;
     data.adjustmentYen = v;
-    data.totalYen = current.baseYen + v;
+    data.totalYen = current.baseYen + current.transportYen + v;
   }
   if (typeof body.adjustmentNote === "string") data.adjustmentNote = body.adjustmentNote.trim();
 
@@ -46,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.status === "confirmed") {
       data.status = "confirmed";
       data.confirmedAt = new Date();
-      data.totalYen = current.baseYen + adjustmentYen;
+      data.totalYen = current.baseYen + current.transportYen + adjustmentYen;
     } else if (body.status === "draft") {
       data.status = "draft";
       data.confirmedAt = null;

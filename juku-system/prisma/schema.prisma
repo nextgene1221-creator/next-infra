@@ -19,6 +19,8 @@ model User {
   lineUserId      String?   @unique @map("line_user_id")   // 連携済みLINE userId
   lineLinkCode    String?   @map("line_link_code")         // 連携用ワンタイムコード
   lineLinkExpires DateTime? @map("line_link_expires")      // コード有効期限
+  // 給与: 出勤1日あたりの交通費（円）。既定 200 円、講師・管理者ごとに変更可（2026-08-24 依頼）
+  transportAllowanceYen Int @default(200) @map("transport_allowance_yen")
 
   student      Student?
   teacher      Teacher?
@@ -745,6 +747,8 @@ model Payslip {
   yearMonth      String    @map("year_month") // "2026-08"（JST基準）
   totalMinutes   Int       @map("total_minutes")
   baseYen        Int       @map("base_yen")     // 勤務分の支給額
+  workDays       Int       @default(0) @map("work_days")       // 出勤日数（交通費の算定基礎）
+  transportYen   Int       @default(0) @map("transport_yen")   // 交通費の合計（出勤日数 × 1日単価）
   adjustmentYen  Int       @default(0) @map("adjustment_yen")  // 手当・控除の手動調整
   adjustmentNote String    @default("") @map("adjustment_note")
   totalYen       Int       @map("total_yen")
@@ -767,10 +771,11 @@ model PayslipItem {
   id        String   @id @default(uuid())
   payslipId String   @map("payslip_id")
   date      DateTime // JST の日付（00:00 固定）
-  minutes   Int
-  hourlyYen Int      @map("hourly_yen")
-  amountYen Int      @map("amount_yen")
-  note      String   @default("")
+  minutes      Int
+  hourlyYen    Int      @map("hourly_yen")
+  amountYen    Int      @map("amount_yen")
+  transportYen Int      @default(0) @map("transport_yen") // その日の交通費
+  note         String   @default("")
 
   payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
 

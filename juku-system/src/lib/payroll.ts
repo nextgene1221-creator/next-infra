@@ -7,7 +7,10 @@ export { formatMinutes, formatYearMonth } from "@/lib/payrollFormat";
 // 確定した仕様（オーナー確認 2026-08-18）:
 //  (a) 時給は User に紐づける（管理者は Teacher レコードを持たない場合があるため）
 //  (b) 分単位で集計し、時給ごとに「合計分 × 時給 ÷ 60」を計算して円未満切り捨て。締めは月末
-//  (c) 深夜・残業・交通費は扱わない。必要なら adjustmentYen（手動調整）で吸収する
+//  (c) 深夜・残業は扱わない。必要なら adjustmentYen（手動調整）で吸収する
+//  (c2) 交通費は 2026-08-24 の依頼で自動計算に追加。出勤 1 日につき User.transportAllowanceYen（既定 200 円）を加算する。
+//       単価は講師・管理者ごとに変更でき、1 日に複数の出退勤があっても 1 日 1 回だけ付く。
+//       退勤打刻漏れ（0 分集計）の日も「出勤した事実」はあるため交通費は付ける。
 //  (d) 打刻漏れ（clockOut が null）は警告として一覧に出し、その日は 0 分として集計する（勝手に補完しない）
 //  (g) 遡及計算あり。時給の effectiveFrom に過去日付を設定でき、過去月の明細も生成できる
 //
@@ -50,6 +53,8 @@ export type PayrollDay = {
   minutes: number;
   hourlyYen: number;
   amountYen: number;
+  /** その日の交通費（出勤していれば 1 日単価、していなければ 0） */
+  transportYen: number;
   note: string;
 };
 
@@ -57,6 +62,12 @@ export type PayrollCalculation = {
   yearMonth: string;
   totalMinutes: number;
   baseYen: number;
+  /** 出勤日数（交通費の算定基礎） */
+  workDays: number;
+  /** 交通費の合計 = workDays × transportPerDayYen */
+  transportYen: number;
+  /** 適用した 1 日あたりの交通費単価 */
+  transportPerDayYen: number;
   days: PayrollDay[];
   warnings: string[];
   /** 対象月に適用できる時給が 1 件も無い場合 true（明細は作らせない） */
@@ -88,6 +99,12 @@ export async function calculatePayroll(
   const { start, end } = monthRangeUtc(yearMonth);
 
   const teacher = await prisma.teacher.findUnique({ where: { userId }, select: { id: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { transportAllowanceYen: true },
+  });
+  // 単価が未設定/負値でも落とさない（0 円として扱う）
+  const transportPerDayYen = Math.max(0, Math.floor(user?.transportAllowanceYen ?? 0));
 
   const [wages, attendances] = await Promise.all([
     prisma.hourlyWage.findMany({
@@ -123,6 +140,15 @@ export async function calculatePayroll(
     byDay.set(key, (byDay.get(key) ?? 0) + minutes);
   }
 
+  // 退勤打刻を忘れて翌日以降に押した場合、1 日が異常に長くなる。金額が跳ねるので警告する。
+  for (const [key, minutes] of byDay) {
+    if (minutes > 16 * 60) {
+      warnings.push(
+        `${key}: 勤務が ${Math.floor(minutes / 60)} 時間と長すぎます。退勤打刻の押し忘れの可能性があります（出退勤の修正をご確認ください）`,
+      );
+    }
+  }
+
   const days: PayrollDay[] = [];
   // (b) 時給ごとに合計分をまとめてから金額にする。月内で時給が変わっても正しく計算できる。
   const minutesByRate = new Map<number, number>();
@@ -134,7 +160,14 @@ export async function calculatePayroll(
     if (rate === null) {
       missingWage = true;
       warnings.push(`${key}: この日に適用できる時給が設定されていません`);
-      days.push({ dateKey: key, minutes, hourlyYen: 0, amountYen: 0, note: "時給未設定" });
+      days.push({
+        dateKey: key,
+        minutes,
+        hourlyYen: 0,
+        amountYen: 0,
+        transportYen: transportPerDayYen,
+        note: "時給未設定",
+      });
       continue;
     }
     minutesByRate.set(rate, (minutesByRate.get(rate) ?? 0) + minutes);
@@ -144,6 +177,7 @@ export async function calculatePayroll(
       hourlyYen: rate,
       // 行ごとの金額は表示用の内訳（合計は下の rate 単位の計算が正）
       amountYen: Math.floor((minutes * rate) / 60),
+      transportYen: transportPerDayYen,
       note: "",
     });
   }
@@ -154,6 +188,9 @@ export async function calculatePayroll(
   }
 
   const totalMinutes = days.reduce((s, d) => s + d.minutes, 0);
+  // 出勤日数＝出退勤レコードが 1 件でもある JST の日数
+  const workDays = days.length;
+  const transportYen = workDays * transportPerDayYen;
 
   if (wages.length === 0) {
     missingWage = true;
@@ -163,7 +200,17 @@ export async function calculatePayroll(
     warnings.push("出退勤レコードの紐付け先（講師登録）がないため、勤務時間は 0 分です");
   }
 
-  return { yearMonth, totalMinutes, baseYen, days, warnings, missingWage };
+  return {
+    yearMonth,
+    totalMinutes,
+    baseYen,
+    workDays,
+    transportYen,
+    transportPerDayYen,
+    days,
+    warnings,
+    missingWage,
+  };
 }
 
 /** PayslipItem 保存用に日付キーを Date へ変換する */
@@ -173,6 +220,7 @@ export function payslipItemData(days: PayrollDay[]) {
     minutes: d.minutes,
     hourlyYen: d.hourlyYen,
     amountYen: d.amountYen,
+    transportYen: d.transportYen,
     note: d.note,
   }));
 }

@@ -14,8 +14,18 @@ export async function POST(req: NextRequest) {
   const {
     name, email, subjects, employmentType, phone, status,
     universityFaculty, department, graduationYear, examSubjectsTaken,
-    emergencyContact, universityClub,
+    emergencyContact, universityClub, transportAllowanceYen,
   } = body;
+
+  // 交通費（出勤1日あたり）。未指定なら DB 既定の 200 円。
+  let transportYen: number | undefined;
+  if (transportAllowanceYen !== undefined && transportAllowanceYen !== "") {
+    const v = Math.floor(Number(transportAllowanceYen));
+    if (!Number.isFinite(v) || v < 0) {
+      return NextResponse.json({ error: "交通費は 0 円以上で入力してください" }, { status: 400 });
+    }
+    transportYen = v;
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -43,6 +53,7 @@ export async function POST(req: NextRequest) {
           passwordHash,
           role: "teacher",
           name,
+          ...(transportYen === undefined ? {} : { transportAllowanceYen: transportYen }),
         },
       },
     },

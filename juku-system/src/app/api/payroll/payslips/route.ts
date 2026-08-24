@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
   }
 
   const adjustmentYen = existing?.adjustmentYen ?? 0;
-  const totalYen = calc.baseYen + adjustmentYen;
+  // 支給合計 = 勤務分 + 交通費 + 手動調整
+  const totalYen = calc.baseYen + calc.transportYen + adjustmentYen;
 
   const payslip = await prisma.$transaction(async (tx) => {
     if (existing) {
@@ -73,6 +74,8 @@ export async function POST(req: NextRequest) {
         data: {
           totalMinutes: calc.totalMinutes,
           baseYen: calc.baseYen,
+          workDays: calc.workDays,
+          transportYen: calc.transportYen,
           totalYen,
           warnings: JSON.stringify(calc.warnings),
           items: { create: payslipItemData(calc.days) },
@@ -89,8 +92,10 @@ export async function POST(req: NextRequest) {
         yearMonth,
         totalMinutes: calc.totalMinutes,
         baseYen: calc.baseYen,
+        workDays: calc.workDays,
+        transportYen: calc.transportYen,
         adjustmentYen: 0,
-        totalYen: calc.baseYen,
+        totalYen: calc.baseYen + calc.transportYen,
         warnings: JSON.stringify(calc.warnings),
         items: { create: payslipItemData(calc.days) },
       },
