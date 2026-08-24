@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>next infra</title>
+    <style>
+      body {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", sans-serif;
+        color: #333;
+        text-align: center;
+        padding: 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      通常は capacitor.config.json の server.url（本番サイト）が表示されるため、
+      このページは出ない。オフラインや本番が落ちているときのフォールバック。
+    -->
+    <div>
+      <h1 style="font-size: 18px">接続できませんでした</h1>
+      <p style="font-size: 14px; color: #666">
+        ネットワークの状態を確認して、アプリを開き直してください。
+      </p>
+    </div>
+  </body>
+</html>

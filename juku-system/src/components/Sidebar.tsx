@@ -205,6 +205,12 @@ export default function Sidebar({ userName, userRole }: { userName: string; user
             プロフィール
           </Link>
           <Link
+            href="/account/notifications"
+            className="block w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white rounded-md transition-colors"
+          >
+            通知設定
+          </Link>
+          <Link
             href="/account/password"
             className="block w-full text-left px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white rounded-md transition-colors"
           >

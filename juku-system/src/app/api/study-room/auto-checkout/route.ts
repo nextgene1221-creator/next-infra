@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAllCampuses } from "@/lib/studyRoom";
 import { sendEveningNotifications } from "@/lib/lineNotify";
+import { sendClockOutReminders, sendPendingPrintsReminder } from "@/lib/staffNotify";
 import type { Prisma } from "@/generated/prisma/client";
 
 // JST (UTC+9) の現在 HH:mm を返す
@@ -25,6 +26,12 @@ export async function GET(req: NextRequest) {
     error: (e as Error).message,
   }));
 
+  // 講師・管理者向けのプッシュも相乗り（退勤打刻の押し忘れ / 今日のプリント未完了）
+  const staff = {
+    clockOut: await sendClockOutReminders().catch((e) => ({ error: (e as Error).message })),
+    prints: await sendPendingPrintsReminder().catch((e) => ({ error: (e as Error).message })),
+  };
+
   const campuses = await getAllCampuses();
   const nowHm = nowJstHm();
   const now = new Date();
@@ -34,7 +41,7 @@ export async function GET(req: NextRequest) {
     .map((c) => c.code);
 
   if (dueCampusCodes.length === 0) {
-    return NextResponse.json({ ok: true, closed: 0, nowHm, line });
+    return NextResponse.json({ ok: true, closed: 0, nowHm, line, staff });
   }
 
   const open = await prisma.studyRoomSession.findMany({
@@ -42,7 +49,7 @@ export async function GET(req: NextRequest) {
     include: { student: true },
   });
   if (open.length === 0) {
-    return NextResponse.json({ ok: true, closed: 0, nowHm, line });
+    return NextResponse.json({ ok: true, closed: 0, nowHm, line, staff });
   }
 
   const ops: Prisma.PrismaPromise<unknown>[] = [];
@@ -60,5 +67,12 @@ export async function GET(req: NextRequest) {
     );
   }
   await prisma.$transaction(ops);
-  return NextResponse.json({ ok: true, closed: open.length, nowHm, campuses: dueCampusCodes, line });
+  return NextResponse.json({
+    ok: true,
+    closed: open.length,
+    nowHm,
+    campuses: dueCampusCodes,
+    line,
+    staff,
+  });
 }

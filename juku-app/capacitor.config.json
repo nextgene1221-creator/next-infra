@@ -1,0 +1,25 @@
+{
+  "appId": "jp.nextinfra.juku",
+  "appName": "next infra",
+  "webDir": "www",
+  "server": {
+    "url": "https://juku-system.vercel.app",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "contentInset": "always"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#ffffff"
+    }
+  }
+}

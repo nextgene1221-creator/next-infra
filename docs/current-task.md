@@ -25,7 +25,12 @@
 - C-1（交通費 200 円 / 人ごとに変更可）… ✅ 実装・本番マイグレーション適用済み
 - C-2（時給操作のポップアップ化＋一覧の即時反映）… ✅ 実装
 - C-3（明細生成が機能しない）… ✅ C-2 と同一原因（一覧が古いままだった）。明細自体は生成されていた
-- C-4（アプリ化）… 🔶 方針を `docs/app-migration-plan.md` に作成
+- C-4（アプリ化）… 🔶 **Phase 0-1 完了・本番反映済み / Phase 2 着手**
+  - オーナー回答: すぐ Capacitor / 配布対象は講師・管理者＋生徒・保護者 / VAPID の本番 env 追加は可
+  - PWA 化（manifest・アイコン・Service Worker）、通知ハブ `lib/notify.ts`、Web Push、`/account/notifications`、
+    講師・管理者向け通知 3 種（今日の予定 / 退勤打刻の押し忘れ / プリント未完了）を実装
+  - `juku-app/` に Capacitor プロジェクト作成・Android プロジェクト生成済み
+  - ⛔ **止まっている点**: Firebase / Google Play ($25) / Apple Developer ($99/年) が未取得。iOS ビルドは macOS が必須（本 PC は Windows）
 
 **本番反映**: commit を `origin/main` に push → Vercel 自動デプロイ。DB マイグレーション `20260824000000_add_transport_allowance` は push 前に `prisma migrate deploy` で適用済み（ADD COLUMN のみ・非破壊）。
 

@@ -634,6 +634,56 @@
 > **セキュリティ修正（同時対応）**
 > - `GET /api/teachers/[id]` が **ログインしていれば誰でも**（生徒を含む）講師の `user` を丸ごと返しており、`password_hash` が含まれていた。**admin 限定**にし、返す `user` を `id/name/email/role/transport_allowance_yen` に絞った。
 
+### 5.19 プッシュ通知 / アプリ化（2026-08-24〜）
+
+> **【実装追記 2026-08-24】Phase 1（通知基盤 + PWA）**
+>
+> **背景**: 講師・管理者に届く通知手段が事実上なかった（面談アラートは画面を開いている間だけのポーリング）。
+> 生徒向けは LINE のみ。ブラウザを閉じている間に届く仕組みが無かった。
+>
+> **データ構造**（マイグレーション `20260824010000_add_push_devices`・追加のみ・本番 Neon 適用済み）
+>
+> | テーブル | 主なカラム | 説明 |
+> |---|---|---|
+> | `push_devices` | user_id / platform / endpoint / p256dh / auth / fcm_token / user_agent / last_seen_at | 通知の送信先。1 ユーザーが複数端末を持つ。`web` は Web Push の購読情報、`android`/`ios` は FCM の登録トークン |
+> | `notification_logs` | user_id / kind / **dedupe_key (unique)** / title / body / url / channels | 送信履歴。`dedupe_key` の unique 制約で「同じ通知を二度送らない」を担保する（cron が多重起動しても安全） |
+>
+> **通知ハブ `src/lib/notify.ts`**
+> - 呼び出し側はチャネルを意識せず `notifyUser(userId, { kind, dedupeKey, title, body, url })` を呼ぶだけ。
+> - チャネル: `web`（Web Push / VAPID）・`fcm`（Capacitor のネイティブアプリ）・`line`（既存）。既定は web + fcm。
+> - 失効した購読（HTTP 404/410）は自動で `push_devices` から削除する。
+> - FCM は `FIREBASE_SERVICE_ACCOUNT`（サービスアカウント JSON）が入るまで **no-op**。
+>   トークン交換は Web Crypto で JWT を署名して行い、`google-auth-library` を足していない。
+>
+> **通知の第一弾 `src/lib/staffNotify.ts`**（Vercel Hobby の Cron 2 本制限に収めるため既存 cron に相乗り）
+>
+> | 通知 | タイミング | 宛先 |
+> |---|---|---|
+> | 今日の予定（シフト・面談） | 9:00 JST（`/api/line/notify/morning` に相乗り） | 今日予定のある講師・管理者 |
+> | 退勤打刻の押し忘れ | 22:00 JST（`/api/study-room/auto-checkout` に相乗り） | 出勤打刻はあるが退勤打刻が無い本人 |
+> | 今日のプリント未完了 | 22:00 JST（同上） | 管理者全員（**件数だけ**送る。ロック画面に生徒名を出さないため） |
+>
+> **画面 / API**
+> - `/account/notifications`（全ロール）… 端末ごとの通知 ON/OFF、テスト送信、登録済み端末、最近の通知
+> - `POST/GET/DELETE /api/push/subscribe` … 端末登録・VAPID 公開鍵の取得・購読解除
+> - `POST /api/push/test` … 自分宛のテスト通知
+> - `public/manifest.webmanifest` / `public/sw.js` / `public/icon-{192,512}.png` / `public/apple-touch-icon.png`
+> - Service Worker は **ページのキャッシュをしない**。古い出退勤・面談の予定を返すと事故になるため、push と notificationclick だけを扱う。
+>
+> **iOS の制約**: Safari のタブのままでは通知を許可できない。「共有 → ホーム画面に追加」してから開き直す必要がある（iOS 16.4+）。設定画面がこれを検知して手順を表示する。
+>
+> **環境変数**: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`（Vercel の Production / Preview / Development に登録済み）。将来 `FIREBASE_SERVICE_ACCOUNT` を追加すると FCM が有効になる。
+
+> **【実装追記 2026-08-24】Phase 2（Capacitor アプリシェル）— 進行中**
+>
+> - `juku-app/` に Capacitor プロジェクトを作成。appId `jp.nextinfra.juku`、
+>   `server.url` に本番 URL を指定し、**画面は本番サイトをそのまま表示する**（Web を直せばアプリにも反映）。
+> - Android プロジェクト (`juku-app/android/`) は生成済み。**iOS プロジェクトは macOS が必要**で未生成。
+> - Web 側の受け皿 `src/components/NativePushBridge.tsx`: アプリ内で開いたときだけ
+>   `window.Capacitor` を見て FCM トークンを `/api/push/subscribe` に登録する（Web に `@capacitor/core` は入れていない）。
+> - **未完**: Firebase プロジェクト作成 / Google Play Console ($25) / Apple Developer Program ($99/年) /
+>   App Store 審査対策のネイティブ機能（QR スキャン・生体認証）。詳細は `docs/app-migration-plan.md` と `juku-app/README.md`。
+
 ---
 
 ## 6. 技術スタック（追記用）

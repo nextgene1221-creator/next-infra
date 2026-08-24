@@ -1,0 +1,15 @@
+node_modules/
+.DS_Store
+
+# Android のビルド生成物（プロジェクト本体はコミットする）
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/app/google-services.json
+
+# iOS（macOS で `npx cap add ios` した後に生成される）
+ios/App/Pods/
+ios/App/build/
+ios/App/App/GoogleService-Info.plist

@@ -175,7 +175,7 @@ C. 2026-08-24 受領の修正指示 4 件（C-1〜C-4）
 | C-1 | 出勤ごとに講師・管理者へ交通費 200 円（人ごとに変更可・編集画面から設定） | 有 | ✅ 実装完了・本番反映済み |
 | C-2 | 給与計算の時給操作をポップアップ化＋一覧の即時反映 | 無 | ✅ 実装完了・本番反映済み |
 | C-3 | 明細生成が機能しない問題の確認 | 無 | ✅ 原因特定・修正完了（C-2 と同一原因） |
-| C-4 | アプリ化（Web の通知限界のため段階移行） | — | 🔶 着手（方針検討中） |
+| C-4 | アプリ化（Web の通知限界のため段階移行） | 有 | 🔶 Phase 0-1 完了・本番反映済み / Phase 2 は外部アカウント待ち |
 
 ### C-1 交通費（2026-08-24）
 
@@ -203,7 +203,22 @@ C. 2026-08-24 受領の修正指示 4 件（C-1〜C-4）
 ### C-4 アプリ化（2026-08-24〜）
 
 - 目的: Web アプリでは通知（プッシュ）に限界があるため、順次ネイティブアプリへ移行する
-- 方針は `docs/app-migration-plan.md` に記載
+- オーナー回答 (2026-08-24): **すぐ Capacitor でストアアプリ化** / 配布対象は**講師・管理者＋生徒・保護者** / **VAPID の本番 env 追加は実行可**
+- 方針と進捗は `docs/app-migration-plan.md`、アプリ側の手順は `juku-app/README.md`
+
+**Phase 0-1 完了（本番反映済み）**
+- `push_devices` / `notification_logs` を追加（migration `20260824010000_add_push_devices`・本番 Neon 適用済み）
+- 通知ハブ `src/lib/notify.ts`（web / fcm / line を 1 関数で出し分け・dedupeKey で二重送信防止）
+- PWA 化（manifest / アイコン / Service Worker）。iOS はホーム画面追加の手順を画面で案内
+- `/account/notifications` を新設（端末ごとの ON/OFF・テスト送信・登録端末・履歴）
+- 講師・管理者向け通知 3 種を既存 cron に相乗り（今日の予定 / 退勤打刻の押し忘れ / プリント未完了）
+- Vercel に VAPID 3 変数を登録（Production / Preview / Development）
+
+**Phase 2 進行中**
+- `juku-app/` に Capacitor プロジェクト作成（appId `jp.nextinfra.juku`・本番 URL を表示するシェル）。Android プロジェクト生成済み
+- `src/components/NativePushBridge.tsx` でアプリ内から FCM トークンを登録する導線を実装済み
+- ⛔ **止まっている理由**: Firebase プロジェクト / Google Play Console ($25) / Apple Developer ($99/年) が未取得。
+  iOS ビルドには macOS が必要（本 PC は Windows）。Android ビルドには Android SDK の導入が必要
 
 ---
 

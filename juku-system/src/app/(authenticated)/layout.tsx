@@ -2,6 +2,8 @@ import { requireAuth } from "@/lib/session";
 import Sidebar from "@/components/Sidebar";
 import SessionProvider from "@/components/SessionProvider";
 import MeetingAlertPoller from "@/components/MeetingAlertPoller";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import NativePushBridge from "@/components/NativePushBridge";
 
 export default async function AuthenticatedLayout({
   children,
@@ -12,6 +14,8 @@ export default async function AuthenticatedLayout({
 
   return (
     <SessionProvider>
+      <ServiceWorkerRegister />
+      <NativePushBridge />
       <MeetingAlertPoller />
       <div className="flex flex-col md:flex-row min-h-screen">
         <Sidebar userName={session.user.name} userRole={session.user.role} />

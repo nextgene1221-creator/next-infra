@@ -40,6 +40,8 @@
 | 段階移行のしやすさ | — | ◎ 画面単位でネイティブ化できる | ✕ 一括 | — |
 
 **推奨: A を先に入れてから B。C は採らない。**
+**→ オーナー回答 (2026-08-24): 「すぐ Capacitor でストアアプリ化」「配布対象は講師・管理者＋生徒・保護者」「VAPID の本番 env 追加は実行可」。
+これを受け、A（Phase 0-1）は Capacitor でも必要な土台なので先に完成させ、続けて Phase 2 に入る。**
 
 - A（PWA + Web Push）は **費用 0 で、B に進んでも一切無駄にならない**。
   通知の「何を・誰に・いつ送るか」を作る部分は A も B も共通で、そこが本体だから。
@@ -103,7 +105,35 @@
 
 | Phase | 状態 | メモ |
 |---|---|---|
-| Phase 0 PWA 土台 | 未着手 | 方針確定後に着手 |
-| Phase 1 通知ハブ + Web Push | 未着手 | VAPID 鍵の環境変数追加はオーナー判断待ち |
-| Phase 2 Capacitor | 未着手 | 費用判断待ち |
+| Phase 0 PWA 土台 | ✅ 完了 | manifest / アイコン / Service Worker / ホーム画面追加の案内 |
+| Phase 1 通知ハブ + Web Push | ✅ 完了・本番反映済み | `lib/notify.ts` / `push_devices` / `/account/notifications` / 講師・管理者向け通知 3 種 |
+| Phase 2 Capacitor | 🔶 進行中 | プロジェクトと Android 側は作成済み。**Firebase / ストアアカウント / macOS が未** |
 | Phase 3 画面のネイティブ化 | 未着手 | — |
+
+### Phase 0 / 1 でできたこと（2026-08-24）
+
+- `public/manifest.webmanifest`・`icon-192/512.png`・`apple-touch-icon.png`・`sw.js`
+  → ホーム画面に追加してアプリのように起動できる。iPhone で Web Push を受けるための前提も満たした
+- `push_devices` / `notification_logs` テーブル（本番 Neon 適用済み）
+- **通知ハブ `src/lib/notify.ts`** … web / fcm / line を 1 つの関数から出し分ける。
+  `dedupeKey` の unique 制約で二重送信を防ぐ
+- `/account/notifications` … 端末ごとの ON/OFF、テスト送信、登録端末一覧、最近の通知
+- **講師・管理者向け通知 3 種**（既存 cron に相乗り。Hobby の Cron 2 本制限のため）
+  - 9:00 今日の予定（シフト・面談）
+  - 22:00 退勤打刻の押し忘れ
+  - 22:00 今日のプリント未完了（管理者へ件数のみ。ロック画面に生徒名を出さない）
+- Vercel に `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` を登録（Production / Preview / Development）
+
+### Phase 2 の残りと、オーナー側でしかできない作業
+
+| # | 作業 | 誰が | 費用 |
+|---|---|---|---|
+| 1 | **Firebase プロジェクト作成** → `google-services.json` 配置 ＋ サービスアカウント JSON を `FIREBASE_SERVICE_ACCOUNT` に登録 | オーナー（Google アカウントが要る） | 無料 |
+| 2 | **Google Play Console 登録** | オーナー（本人確認・支払い） | **$25 買い切り** |
+| 3 | **Apple Developer Program 登録** ＋ APNs 認証キー (.p8) 発行 | オーナー（Apple ID・支払い） | **$99/年** |
+| 4 | **iOS プロジェクトの生成とビルド** | **macOS が必要**（この PC は Windows のため不可）。Mac が無ければ GitHub Actions の macOS ランナー / Codemagic 等のクラウドビルド | ビルド環境による |
+| 5 | Android のビルド | Android Studio + SDK のインストールが必要（この PC には未インストール） | 無料 |
+| 6 | 審査対策のネイティブ機能（QR スキャン・生体認証） | 開発側 | 無料 |
+| 7 | **プライバシーポリシーの用意**（生徒・保護者を配布対象に含めるため必須。未成年の情報を扱う旨・Apple の「子ども向け App」区分の判断） | オーナー＋開発 | 無料 |
+
+**1〜3 が揃うまでアプリはストアに出せない**。それまでは Web + PWA + Web Push で運用できる状態になっている。

@@ -32,6 +32,8 @@ model User {
   @@map("users")
   hourlyWages HourlyWage[]
   payslips    Payslip[]
+  pushDevices PushDevice[]
+  notificationLogs NotificationLog[]
 }
 
 model Student {
@@ -781,4 +783,45 @@ model PayslipItem {
 
   @@index([payslipId])
   @@map("payslip_items")
+}
+
+// アプリ化 Phase 1（2026-08-24）: プッシュ通知の送信先。
+// ブラウザ / インストール済み PWA は Web Push（endpoint + 鍵）、
+// Capacitor のネイティブアプリは FCM の登録トークンを持つ。1 ユーザーが複数端末を持ちうる。
+model PushDevice {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  platform   String   // web / android / ios
+  // Web Push（platform = web）
+  endpoint   String?  @unique
+  p256dh     String?
+  auth       String?
+  // ネイティブ（platform = android / ios）。FCM の登録トークン
+  fcmToken   String?  @unique @map("fcm_token")
+  userAgent  String   @default("") @map("user_agent")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_devices")
+}
+
+// 送信済み通知。dedupe_key で「同じ通知を二度送らない」を担保する（cron が多重起動しても安全）。
+model NotificationLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  kind      String   // meeting_reminder / clockout_missing / today_prints / morning / evening ...
+  dedupeKey String   @unique @map("dedupe_key")
+  title     String
+  body      String
+  url       String   @default("")
+  channels  String   @default("[]") // 実際に送れたチャネル JSON配列: ["web","fcm","line"]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("notification_logs")
 }
